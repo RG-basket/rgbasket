@@ -38,8 +38,9 @@ app.use(cors({
   origin: [
     "http://localhost:3000",
     "http://localhost:5173", 
-    "https://rgbasket.vercel.app",  // Your Vercel domain
-    "https://rgbasket.onrender.com" // Your Render domain
+    "https://rgbasket.vercel.app",
+    "https://rgbasket-phecnm1vj-rgbaskets-projects.vercel.app", // Your current frontend
+    "https://rgbasket.onrender.com" // Your backend
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
