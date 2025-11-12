@@ -1,19 +1,32 @@
 const redis = require('redis');
 
-// Redis configuration for production (Redis Cloud) and development
 const getRedisConfig = () => {
-  // Production - Use Redis Cloud
+  // If REDIS_URL is provided (from cloud service)
   if (process.env.REDIS_URL) {
-    return {
-      url: process.env.REDIS_URL,
-      socket: {
-        tls: true,
-        rejectUnauthorized: false
-      }
-    };
+    const redisUrl = process.env.REDIS_URL;
+    
+    // Check if it's a rediss:// URL (TLS) or redis:// URL (non-TLS)
+    if (redisUrl.startsWith('rediss://')) {
+      // TLS connection
+      return {
+        url: redisUrl,
+        socket: {
+          tls: true,
+          rejectUnauthorized: false
+        }
+      };
+    } else {
+      // Non-TLS connection (redis://)
+      return {
+        url: redisUrl,
+        socket: {
+          tls: false  // Explicitly disable TLS for redis://
+        }
+      };
+    }
   }
   
-  // Development - fallback to localhost
+  // Local development fallback
   return {
     socket: {
       host: 'localhost',
@@ -22,78 +35,59 @@ const getRedisConfig = () => {
   };
 };
 
-// Create Redis client with proper configuration
-const redisClient = redis.createClient(getRedisConfig());
+const client = redis.createClient(getRedisConfig());
 
-// Error handling - won't break your app
-redisClient.on('error', (err) => {
-  if (process.env.NODE_ENV === 'production') {
-    console.log('Redis Cloud Error (but app continues):', err.message);
-  } else {
-    console.log('Redis Client Error (but app continues):', err.message);
-  }
+client.on('error', (err) => {
+  console.log('❌ Redis Client Error:', err.message);
 });
 
-redisClient.on('connect', () => {
-  if (process.env.NODE_ENV === 'production') {
-    console.log('✅ Redis Cloud Connected Successfully');
-  } else {
-    console.log('✅ Redis Connected Successfully');
-  }
+client.on('connect', () => {
+  console.log('🔌 Redis Connecting to Cloud...');
 });
 
-// Connect to Redis (safe - won't crash app if Redis is down)
+client.on('ready', () => {
+  console.log('✅ Redis Cloud Connected Successfully');
+  console.log('✅ Redis Ready for Caching');
+});
+
 const connectRedis = async () => {
   try {
-    if (!redisClient.isOpen) {
-      await redisClient.connect();
-      if (process.env.NODE_ENV === 'production') {
-        console.log('✅ Redis Cloud Ready for Caching');
-      } else {
-        console.log('✅ Redis Ready for Caching');
-      }
-    }
-  } catch (error) {
-    console.log('⚠️ Redis not available, continuing without cache');
+    await client.connect();
+    console.log('🎯 Redis Cloud initialization completed');
+  } catch (err) {
+    console.log('⚠️ Redis Cloud connection failed:', err.message);
+    console.log('🚫 Running without Redis cache');
   }
 };
 
-// Safe cache middleware - ONLY for GET requests (keep your existing logic)
-const cache = (duration = 1800) => { // 30 minutes default
+// Cache middleware
+const cache = (duration) => {
   return async (req, res, next) => {
-    // Only cache GET requests, skip others
-    if (req.method !== 'GET') {
+    if (!client.isOpen) {
       return next();
     }
-    
-    const key = `cache:${req.originalUrl}`;
+
+    const key = '__express__' + req.originalUrl || req.url;
     
     try {
-      // Try to get from cache
-      const cachedData = await redisClient.get(key);
-      if (cachedData) {
-        console.log('✅ Serving from Redis cache:', key);
-        return res.json(JSON.parse(cachedData));
+      const cachedBody = await client.get(key);
+      if (cachedBody) {
+        res.send(JSON.parse(cachedBody));
+        return;
+      } else {
+        res.sendResponse = res.send;
+        res.send = (body) => {
+          if (client.isOpen) {
+            client.setEx(key, duration, JSON.stringify(body));
+          }
+          res.sendResponse(body);
+        };
+        next();
       }
-      
-      // If not in cache, proceed normally but cache the result
-      const originalJson = res.json;
-      res.json = function(data) {
-        // Only cache successful responses
-        if (res.statusCode === 200) {
-          redisClient.setEx(key, duration, JSON.stringify(data))
-            .catch(err => console.log('Cache set failed (non-critical):', err.message));
-        }
-        originalJson.call(this, data);
-      };
-      
-      next();
-    } catch (error) {
-      // If cache fails, just continue without caching
-      console.log('Cache middleware error (continuing normally):', error.message);
+    } catch (err) {
       next();
     }
   };
 };
 
-module.exports = { redisClient, connectRedis, cache };
+module.exports = { connectRedis, cache, client };
