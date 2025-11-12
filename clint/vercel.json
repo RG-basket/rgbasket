@@ -12,10 +12,12 @@
   "routes": [
     {
       "src": "/assets/(.*)",
-      "dest": "/assets/$1"
+      "headers": {
+        "Content-Type": "application/javascript"
+      }
     },
     {
-      "src": "/(.*\\.js$|\\.css$|\\.png$|\\.jpg$|\\.jpeg$|\\.gif$|\\.svg$|\\.woff$|\\.woff2$|\\.ttf$|\\.eot$)",
+      "src": "/(.*\\.js|\\.css|\\.png|\\.jpg|\\.jpeg|\\.gif|\\.svg|\\.woff|\\.woff2|\\.ttf|\\.eot|/static/.*)",
       "dest": "/$1"
     },
     {
