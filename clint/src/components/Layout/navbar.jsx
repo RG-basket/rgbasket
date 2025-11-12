@@ -13,6 +13,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useappcontext } from "../../context/appcontext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import Search from "../Products/Search.jsx";
+import Logo from "../../assets/favicon.svg"
 
 const Navbar = ({ onLocationClick }) => {
   const { isLoggedIn, setShowUserLogin, user, logout, getCartCount } =
@@ -429,7 +430,7 @@ const Navbar = ({ onLocationClick }) => {
                 className="flex items-center space-x-3 text-3xl font-extrabold text-gray-900 tracking-tight"
               >
                 <img
-                  src="/src/assets/favicon.svg"
+                  src={Logo}
                   alt="RG Basket Logo"
                   className="w-10 h-10"
                 />

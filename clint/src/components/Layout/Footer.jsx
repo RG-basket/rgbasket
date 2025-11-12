@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-
+import Logo from "../../assets/favicon.svg"
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -114,7 +114,7 @@ const Footer = () => {
         <motion.div className="flex-1" variants={itemVariants}>
           <motion.div className="flex items-center mb-6" variants={logoVariants}>
             <motion.img
-              src="/src/assets/favicon.svg"
+              src={Logo}
               alt="Logo"
               className="w-14 h-14 object-contain select-none"
               draggable={false}
