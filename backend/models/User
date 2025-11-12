@@ -1,0 +1,50 @@
+// models/User.js
+const mongoose = require('mongoose');
+
+const UserSchema = new mongoose.Schema({
+  // Unique identifier provided by Google
+  googleId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  // User's display name
+  name: {
+    type: String,
+    required: true
+  },
+  // User's email address
+  email: {
+    type: String,
+    required: true,
+    unique: true // Ensures the same email can't register twice
+  },
+  // Profile photo URL from Google
+  photo: {
+    type: String,
+    default: '' // It's optional, some users might not have a photo
+  },
+  // User status - active or banned
+  active: {
+    type: Boolean,
+    default: true
+  },
+  // Admin privileges
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  // Phone number (optional)
+  phone: {
+    type: String,
+    default: ''
+  }
+  // You can add more fields relevant to your app later
+  // defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },
+  // createdAt, etc.
+}, {
+  timestamps: true // This automatically adds `createdAt` and `updatedAt` fields
+});
+
+// Create the model from the schema
+module.exports = mongoose.model('User', UserSchema);

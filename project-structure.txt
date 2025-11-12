@@ -1,0 +1,16 @@
+﻿backend\controllers\adminController.js
+backend\middleware\auth.js
+backend\middleware\upload.js
+backend\models\Category.js
+backend\models\Order.js
+backend\models\Product.js
+backend\models\UserAddress.js
+backend\routes\addresses.js
+backend\routes\admin.js
+backend\routes\categories.js
+backend\routes\orders.js
+backend\routes\products.js
+backend\services\OrderService.js
+backend\services\redis.js
+backend\ecosystem.config.js
+backend\server.js
