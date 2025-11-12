@@ -35,7 +35,12 @@ app.use(helmet({
 
 // 2. CORS configuration
 app.use(cors({
-  origin:true,
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:5173", 
+    "https://rgbasket.vercel.app",  // Your Vercel domain
+    "https://rgbasket.onrender.com" // Your Render domain
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
