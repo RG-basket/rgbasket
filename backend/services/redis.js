@@ -1,15 +1,45 @@
 const redis = require('redis');
 
-// Create Redis client - uses default localhost:6379
-const redisClient = redis.createClient();
+// Redis configuration for production (Redis Cloud) and development
+const getRedisConfig = () => {
+  // Production - Use Redis Cloud
+  if (process.env.REDIS_URL) {
+    return {
+      url: process.env.REDIS_URL,
+      socket: {
+        tls: true,
+        rejectUnauthorized: false
+      }
+    };
+  }
+  
+  // Development - fallback to localhost
+  return {
+    socket: {
+      host: 'localhost',
+      port: 6379
+    }
+  };
+};
+
+// Create Redis client with proper configuration
+const redisClient = redis.createClient(getRedisConfig());
 
 // Error handling - won't break your app
 redisClient.on('error', (err) => {
-  console.log('Redis Client Error (but app continues):', err.message);
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Redis Cloud Error (but app continues):', err.message);
+  } else {
+    console.log('Redis Client Error (but app continues):', err.message);
+  }
 });
 
 redisClient.on('connect', () => {
-  console.log('✅ Redis Connected Successfully');
+  if (process.env.NODE_ENV === 'production') {
+    console.log('✅ Redis Cloud Connected Successfully');
+  } else {
+    console.log('✅ Redis Connected Successfully');
+  }
 });
 
 // Connect to Redis (safe - won't crash app if Redis is down)
@@ -17,14 +47,18 @@ const connectRedis = async () => {
   try {
     if (!redisClient.isOpen) {
       await redisClient.connect();
-      console.log('✅ Redis Ready for Caching');
+      if (process.env.NODE_ENV === 'production') {
+        console.log('✅ Redis Cloud Ready for Caching');
+      } else {
+        console.log('✅ Redis Ready for Caching');
+      }
     }
   } catch (error) {
     console.log('⚠️ Redis not available, continuing without cache');
   }
 };
 
-// Safe cache middleware - ONLY for GET requests
+// Safe cache middleware - ONLY for GET requests (keep your existing logic)
 const cache = (duration = 1800) => { // 30 minutes default
   return async (req, res, next) => {
     // Only cache GET requests, skip others
