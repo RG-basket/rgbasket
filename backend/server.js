@@ -10,30 +10,11 @@ require('dotenv').config();
 const User = require('./models/User');
 
 const app = express();
-const PORT = process.env.PORT ;
-const CLIENT_URL = process.env.CLIENT_URL ;
-const BACKEND_URL = process.env.BACKEND_URL ;
-// Middleware
-app.use(cors());
-app.use(express.json());
+const PORT = process.env.PORT;
+const CLIENT_URL = process.env.CLIENT_URL;
+const BACKEND_URL = process.env.BACKEND_URL;
 
-
-// 1. Helmet for security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", CLIENT_URL, BACKEND_URL],
-    },
-  },
-  crossOriginEmbedderPolicy: false
-}));
-
-// 2. CORS configuration
+// CORS configuration
 app.use(cors({
   origin: "*",
   credentials: true,
@@ -41,10 +22,28 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// 3. Rate limiting
+app.use(express.json());
+
+// Helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", CLIENT_URL, BACKEND_URL],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     error: 'Too many requests from this IP, please try again later.'
   },
@@ -52,8 +51,10 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Connect to LOCAL MongoDB
-const MONGODB_URI = process.env.MONGODB_URI ;
+app.use(limiter);
+
+// Connect to MongoDB
+const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -62,10 +63,9 @@ mongoose.connect(MONGODB_URI, {
 .then(() => console.log('✅ MongoDB connected successfully to mongodb database: rgbasketdb'))
 .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// ✅ ADD REDIS CONNECTION HERE (SAFE - WON'T BREAK APP)
+// Redis connection
 try {
   const { connectRedis } = require('./services/redis');
-  // Connect to Redis (non-blocking)
   connectRedis().then(() => {
     console.log('✅ Redis initialization completed');
   }).catch(err => {
@@ -80,6 +80,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   setHeaders: (res, path) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
   }
 }));
 
@@ -90,7 +91,7 @@ const safeCache = (duration) => {
       const cache = require('./services/redis').cache;
       return cache(duration)(req, res, next);
     } catch (error) {
-      next(); // Skip caching if Redis fails
+      next();
     }
   };
 };
@@ -141,7 +142,7 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // Update user profile
-app.put('/api/users/:userId', safeCache(900) ,async (req, res) => {
+app.put('/api/users/:userId', safeCache(900), async (req, res) => {
   try {
     const { name, email, phone, photo } = req.body;
     
