@@ -78,7 +78,31 @@ const App = () => {
       setShowServiceabilityModal(true);
     }
   }, []);
-
+  useEffect(() => {
+    // Debug environment variables
+    console.log('=== ENVIRONMENT DEBUG ===');
+    console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+    console.log('Mode:', import.meta.env.MODE);
+    console.log('Dev:', import.meta.env.DEV);
+    console.log('Prod:', import.meta.env.PROD);
+    console.log('All env vars:', import.meta.env);
+    
+    // Test API URL directly
+    const testAPI = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL;
+        console.log('Testing API URL:', API_URL);
+        
+        const response = await fetch(`${API_URL}/api/health`);
+        const data = await response.json();
+        console.log('✅ API Health Check:', data);
+      } catch (error) {
+        console.error('❌ API Health Check Failed:', error);
+      }
+    };
+    
+    testAPI();
+  }, []);
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") {

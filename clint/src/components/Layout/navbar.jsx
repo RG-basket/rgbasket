@@ -14,7 +14,6 @@ import { useappcontext } from "../../context/appcontext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import Search from "../Products/Search.jsx";
 import Logo from "../../assets/favicon.svg"
-
 const Navbar = ({ onLocationClick }) => {
   const { isLoggedIn, setShowUserLogin, user, logout, getCartCount } =
     useappcontext();

@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "name": "rgbasket-frontend",
   "builds": [
     {
       "src": "package.json",
@@ -11,18 +12,12 @@
   ],
   "routes": [
     {
-      "src": "/assets/(.*)",
-      "headers": {
-        "Content-Type": "application/javascript"
-      }
-    },
-    {
-      "src": "/(.*\\.js|\\.css|\\.png|\\.jpg|\\.jpeg|\\.gif|\\.svg|\\.woff|\\.woff2|\\.ttf|\\.eot|/static/.*)",
-      "dest": "/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "VITE_CURRENCY": "₹",
+    "VITE_API_URL": "https://rgbasket.onrender.com"
+  }
 }

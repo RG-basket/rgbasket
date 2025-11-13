@@ -1,21 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 3000,
-  },
+  plugins: [react(), tailwindcss()],
   build: {
     outDir: 'dist',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          firebase: ['firebase/app', 'firebase/auth']
-        }
-      }
-    }
+    sourcemap: true, // Enable sourcemaps for debugging
+  },
+  server: {
+    port: 5173,
+    host: true
+  },
+  // Explicitly define preview server
+  preview: {
+    port: 4173,
+    host: true
   }
 })
