@@ -6,7 +6,6 @@ export default defineConfig({
   base: '/',
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: 'dist',
-    sourcemap: false
+    outDir: 'dist'
   }
 })
