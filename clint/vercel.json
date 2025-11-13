@@ -12,12 +12,15 @@
   ],
   "routes": [
     {
+      "src": "/assets/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Type": "application/javascript"
+      }
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "env": {
-    "VITE_CURRENCY": "₹",
-    "VITE_API_URL": "https://rgbasket.onrender.com"
-  }
+  ]
 }
