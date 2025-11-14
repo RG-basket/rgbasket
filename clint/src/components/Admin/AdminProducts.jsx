@@ -692,7 +692,7 @@ const AdminProducts = () => {
               <div className="aspect-square bg-gray-100 relative group">
                 {product.images?.[0] ? (
                   <img
-                    src={`${import.meta.env.VITE_API_URL}${product.images[0]}`}
+                    src={product.images[0]}
                     alt={product.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {

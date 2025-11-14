@@ -3,9 +3,8 @@ const router = express.Router();
 const Product = require('../models/Product');
 const { uploadProductImages } = require('../middleware/upload');
 const { authenticateAdmin } = require('../middleware/auth');
-const fs = require('fs');
-const path = require('path');
 const { cache } = require("../services/redis");
+
 // GET all products with filtering and pagination
 router.get('/', async (req, res) => {
   try {
@@ -142,7 +141,7 @@ router.get('/category/:category', async (req, res) => {
 
 // ADMIN ROUTES
 
-// CREATE product (Admin only)
+// CREATE product (Admin only) - UPDATED FOR CLOUDINARY
 router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
   try {
     const productData = req.body;
@@ -152,11 +151,9 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
       productData.weights = JSON.parse(productData.weights);
     }
 
-    // Handle uploaded images
+    // Handle uploaded images from Cloudinary
     if (req.files && req.files.length > 0) {
-      productData.images = req.files.map(file => 
-        `/uploads/${file.filename}`
-      );
+      productData.images = req.files.map(file => file.path); // Cloudinary URL
     }
 
     const product = new Product(productData);
@@ -170,13 +167,6 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
   } catch (error) {
     console.error('Error creating product:', error);
     
-    // Clean up uploaded files if error
-    if (req.files) {
-      req.files.forEach(file => {
-        fs.unlinkSync(file.path);
-      });
-    }
-
     res.status(400).json({
       success: false,
       message: error.message || 'Error creating product'
@@ -184,7 +174,7 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
   }
 });
 
-// UPDATE product (Admin only)
+// UPDATE product (Admin only) - UPDATED FOR CLOUDINARY
 router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
   try {
     const productData = req.body;
@@ -194,21 +184,25 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
       productData.weights = JSON.parse(productData.weights);
     }
 
-    // Handle new images
+    // Handle new images from Cloudinary
     if (req.files && req.files.length > 0) {
-      productData.images = req.files.map(file => 
-        `/uploads/${file.filename}`
-      );
+      productData.images = req.files.map(file => file.path); // Cloudinary URLs
       
-      // Delete old images if new ones are uploaded
+      // Delete old images from Cloudinary if new ones are uploaded
       const oldProduct = await Product.findById(req.params.id);
       if (oldProduct && oldProduct.images) {
-        oldProduct.images.forEach(image => {
-          const imagePath = path.join(__dirname, '..', image);
-          if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
+        const { cloudinary } = require('../services/cloudinary');
+        for (const imageUrl of oldProduct.images) {
+          try {
+            // Extract public_id from Cloudinary URL
+            const urlParts = imageUrl.split('/');
+            const filename = urlParts[urlParts.length - 1];
+            const publicId = filename.split('.')[0];
+            await cloudinary.uploader.destroy(`rgbasket-products/${publicId}`);
+          } catch (deleteError) {
+            console.error('Error deleting old image from Cloudinary:', deleteError);
           }
-        });
+        }
       }
     }
 
@@ -233,13 +227,6 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
   } catch (error) {
     console.error('Error updating product:', error);
     
-    // Clean up uploaded files if error
-    if (req.files) {
-      req.files.forEach(file => {
-        fs.unlinkSync(file.path);
-      });
-    }
-
     res.status(400).json({
       success: false,
       message: error.message || 'Error updating product'
@@ -247,7 +234,7 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
   }
 });
 
-// DELETE product (Admin only)
+// DELETE product (Admin only) - UPDATED FOR CLOUDINARY
 router.delete('/:id', authenticateAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -259,14 +246,20 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Delete associated images
-    if (product.images) {
-      product.images.forEach(image => {
-        const imagePath = path.join(__dirname, '..', image);
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
+    // Delete associated images from Cloudinary
+    if (product.images && product.images.length > 0) {
+      const { cloudinary } = require('../services/cloudinary');
+      for (const imageUrl of product.images) {
+        try {
+          // Extract public_id from Cloudinary URL
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1];
+          const publicId = filename.split('.')[0];
+          await cloudinary.uploader.destroy(`rgbasket-products/${publicId}`);
+        } catch (deleteError) {
+          console.error('Error deleting image from Cloudinary:', deleteError);
         }
-      });
+      }
     }
 
     await Product.findByIdAndDelete(req.params.id);
@@ -316,7 +309,7 @@ router.patch('/bulk/update', authenticateAdmin, async (req, res) => {
 });
 
 // GET categories list
-router.get('/data/categories',cache(3600), async (req, res) => {
+router.get('/data/categories', cache(3600), async (req, res) => {
   try {
     const categories = await Product.distinct('category', { active: true });
     res.json({

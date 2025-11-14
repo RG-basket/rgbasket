@@ -32,7 +32,7 @@ const ProductCard = ({ product: initialProduct, productId }) => {
   const isAvailable = stockStatus.inStock && stockStatus.stock > 0;
 
   const baseUrl = import.meta.env.VITE_API_URL ;
-  const imageUrl = product.images?.[0] ? `${baseUrl}${product.images[0]}` : null;
+  const imageUrl = product.images?.[0] ? product.images[0] : null;
 
   useEffect(() => {
     if (weights.length > 0 && selectedWeightIndex >= weights.length) {

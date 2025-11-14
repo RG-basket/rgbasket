@@ -43,7 +43,7 @@ app.use(helmet({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: {
     error: 'Too many requests from this IP, please try again later.'
   },
@@ -75,14 +75,14 @@ try {
   console.log('⚠️ Redis service not available, continuing without cache');
 }
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, path) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-  }
-}));
+// // Serve static files from uploads directory
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+//   setHeaders: (res, path) => {
+//     res.setHeader('Access-Control-Allow-Origin', '*');
+//     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+//     res.setHeader('Cache-Control', 'public, max-age=31536000');
+//   }
+// }));
 
 // Safe cache fallback for Redis issues
 const safeCache = (duration) => {
