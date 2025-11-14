@@ -79,7 +79,7 @@ export default function Search({ mobile = false }) {
       ...productMatches.map((p) => ({
         type: "Product",
         label: p.name,
-        icon: p.images?.[0] ? `${baseUrl}${p.images[0]}` : null,
+        icon: p.images?.[0] ? p.images[0] : null,//fixed 
         href: `/products/${p.category?.toLowerCase()}/${p._id}`,
         price: p.weights?.[0]?.offerPrice || p.weights?.[0]?.price || 0,
       })),
