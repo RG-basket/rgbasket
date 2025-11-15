@@ -82,16 +82,14 @@ const App = () => {
     // Debug environment variables
     console.log('=== ENVIRONMENT DEBUG ===');
     
-    console.log('Mode:', import.meta.env.MODE);
-    console.log('Dev:', import.meta.env.DEV);
-    console.log('Prod:', import.meta.env.PROD);
+   
     
     
     // Test API URL directly
     const testAPI = async () => {
       try {
         const API_URL = import.meta.env.VITE_API_URL;
-        console.log('Testing API URL:', API_URL);
+        console.log('Testing API URL :working');
         
         const response = await fetch(`${API_URL}/api/health`);
         const data = await response.json();
