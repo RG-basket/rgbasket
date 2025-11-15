@@ -81,11 +81,11 @@ const App = () => {
   useEffect(() => {
     // Debug environment variables
     console.log('=== ENVIRONMENT DEBUG ===');
-    console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+    
     console.log('Mode:', import.meta.env.MODE);
     console.log('Dev:', import.meta.env.DEV);
     console.log('Prod:', import.meta.env.PROD);
-    console.log('All env vars:', import.meta.env);
+    
     
     // Test API URL directly
     const testAPI = async () => {
@@ -95,7 +95,7 @@ const App = () => {
         
         const response = await fetch(`${API_URL}/api/health`);
         const data = await response.json();
-        console.log('✅ API Health Check:', data);
+        console.log('✅ API Health Check: its ok ');
       } catch (error) {
         console.error('❌ API Health Check Failed:', error);
       }
