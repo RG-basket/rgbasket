@@ -23,7 +23,7 @@ const ProductsCategory = () => {
       {searchCategory && (
         <div className="flex flex-col items-end w-max mb-6">
           <p className="text-2xl font-medium capitalize">
-            {searchCategory.text}
+            {/* Text removed but structure kept */}
           </p>
           <div className="w-16 h-0.5 bg-primary rounded-full"></div>
         </div>
