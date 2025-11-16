@@ -542,9 +542,7 @@ const removeOutOfStockItems = () => {
               <div className="flex items-center space-x-2 sm:space-x-3">
                 {user.photo ? (
                   <img
-                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-green-200"
-                    src={user.photo}
-                    alt={user.name}
+                    
                   />
                 ) : (
                   <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">

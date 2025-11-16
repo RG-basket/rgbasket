@@ -24,11 +24,17 @@ const ScheduledDeliverySelector = ({
     return now.getHours() * 60 + now.getMinutes();
   };
 
-  // Check if a time slot is available for today
+  // 🛠️ FIXED: Check if a time slot is available for today
   const isSlotAvailableToday = (slot) => {
     const currentTime = getCurrentTimeInMinutes();
-    // Slot is available if current time is before slot end time (with 30 min buffer for order processing)
-    return currentTime < (slot.endTime - 30);
+    const START_TIME_BUFFER = 60; // 1 hour before slot starts
+    const END_TIME_BUFFER = 30;   // 30 minutes before slot ends
+    
+    // Slot is available only if:
+    // 1. Current time is at least 1 hour BEFORE slot starts
+    // 2. AND current time is at least 30 minutes BEFORE slot ends
+    return currentTime < (slot.startTime - START_TIME_BUFFER) && 
+           currentTime < (slot.endTime - END_TIME_BUFFER);
   };
 
   // Check if a time slot is available for a specific date
