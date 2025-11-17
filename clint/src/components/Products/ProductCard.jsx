@@ -107,6 +107,8 @@ const ProductCard = ({ product: initialProduct, productId }) => {
             alt={product.name}
             onError={handleImageError}
             loading="lazy"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer" 
           />
         ) : (
           <div className="text-gray-300 text-4xl sm:text-5xl">📦</div>
