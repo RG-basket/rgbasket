@@ -50,35 +50,36 @@ export const AppContextProvider = ({ children }) => {
   }, []);
 
   // UPDATED: Enhanced fetch products with better error handling
-  const fetchProducts = async (showToast = false) => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/products`);
+ // UPDATED: Remove dummy products fallback completely
+const fetchProducts = async (showToast = false) => {
+  try {
+    setLoading(true);
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/products`);
+    
+    if (response.data && (response.data.products || Array.isArray(response.data))) {
+      const productsData = response.data.products || response.data;
+      setProducts(productsData);
+      setLastUpdated(new Date());
       
-      if (response.data && (response.data.products || Array.isArray(response.data))) {
-        const productsData = response.data.products || response.data;
-        setProducts(productsData);
-        setLastUpdated(new Date());
-        
-        if (showToast) {
-          toast.success('Products updated');
-        }
-      } else {
-        // Fallback to dummy products if API fails
-        setProducts(dummyProducts);
-        console.warn('Using dummy products - API returned unexpected response format');
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      // Fallback to dummy products
-      setProducts(dummyProducts);
       if (showToast) {
-        toast.error('Failed to refresh products');
+        toast.success('Products updated');
       }
-    } finally {
-      setLoading(false);
+    } else {
+      // NO DUMMY PRODUCTS - set empty array
+      setProducts([]);
+      console.warn('API returned unexpected format, using empty products array');
     }
-  };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    // NO DUMMY PRODUCTS - set empty array
+    setProducts([]);
+    if (showToast) {
+      toast.error('Failed to fetch products');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // NEW: Start real-time polling for product updates
   const startProductPolling = () => {
