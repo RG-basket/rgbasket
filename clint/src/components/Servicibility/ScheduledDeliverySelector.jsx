@@ -56,7 +56,7 @@ const ScheduledDeliverySelector = ({
     const today = new Date();
     const currentTime = getCurrentTimeInMinutes();
     
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 3; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       const dateString = date.toISOString().split('T')[0];
