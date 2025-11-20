@@ -7,12 +7,14 @@ import CustomerReviews from '../components/User/CustomerReviews.jsx';
 import OurServices from './OurServices.jsx';
 import PWAInstallBanner from '../components/User/PWAInstallBanner.jsx';
 import NewArrivals from '../components/Dashboard/NewArrivals.jsx';
+import ShareApp from '../components/Dashboard/ShareAppBanner.jsx';
 
 
 const Home = () => {
 return (
 <div className='mt-0'>
 <MainBanner />
+<ShareApp/>
 <NewArrivals/>
 <BestSeller />
 <RecentViewed />
