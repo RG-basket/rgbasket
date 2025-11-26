@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+* {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Custom Scrollbar for Dark Theme */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #1a1b26;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #414868;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #565f89;
+}
+
+/* Global Dark Theme Utilities */
+.bg-tokyo-primary { background-color: #1a1b26; }
+.bg-tokyo-secondary { background-color: #24283b; }
+.text-tokyo-primary { color: #c0caf5; }
+.text-tokyo-secondary { color: #a9b1d6; }

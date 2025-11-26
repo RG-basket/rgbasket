@@ -1,0 +1,28 @@
+# Environment variables
+.env
+*.env
+
+# Node modules
+node_modules/
+backend/node_modules/
+clint/node_modules/
+
+# Logs
+backend/logs/
+*.log
+npm-debug.log*
+
+# Uploads
+backend/uploads/*
+
+# Build outputs
+clint/dist/
+clint/.vite/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
