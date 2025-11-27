@@ -213,7 +213,10 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => {
     loadAuthState();
     loadCartState();
-    loadSlotState();
+    // loadSlotState is now async, so we need to call it properly
+    loadSlotState().catch(err => {
+      console.error('Error loading slot state on mount:', err);
+    });
   }, []);
 
   const loadAuthState = () => {
@@ -245,17 +248,86 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-  const loadSlotState = () => {
+  // Validate if a saved slot is still valid (not expired)
+  const validateSavedSlot = async (slot) => {
+    if (!slot || !slot.date || !slot.timeSlot) {
+      return { valid: false, reason: 'Invalid slot data' };
+    }
+
+    try {
+      // Check if the slot date has passed
+      const slotDate = new Date(slot.date);
+      slotDate.setHours(0, 0, 0, 0);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // If slot date is in the past, it's invalid
+      if (slotDate < today) {
+        return { valid: false, reason: 'Slot date has passed' };
+      }
+
+      // For today's date, check if the slot cutoff has passed
+      if (slotDate.getTime() === today.getTime()) {
+        // Fetch availability for today to check if slot is still available
+        const response = await axios.get(`${API_URL}/api/slots/availability?date=${slot.date}`);
+
+        if (Array.isArray(response.data)) {
+          const slotInfo = response.data.find(s => s._id === slot.slotId);
+
+          if (slotInfo && !slotInfo.isAvailable) {
+            return { valid: false, reason: slotInfo.reason || 'Slot no longer available' };
+          }
+        }
+      }
+
+      // Slot is valid
+      return { valid: true };
+    } catch (error) {
+      console.error('Error validating slot:', error);
+      // On error, assume slot might be invalid and let it through
+      // (better to show potentially valid slot than force re-selection)
+      return { valid: true };
+    }
+  };
+
+  const loadSlotState = async () => {
     try {
       const savedSlot = localStorage.getItem('selectedSlot');
       if (savedSlot) {
         const slot = JSON.parse(savedSlot);
-        setSelectedSlot(slot);
 
-        // Calculate day of week for saved slot
-        if (slot?.date) {
-          const dayOfWeek = getDayOfWeek(slot.date);
-          setSelectedDayOfWeek(dayOfWeek);
+        // Validate the saved slot
+        const validation = await validateSavedSlot(slot);
+
+        if (validation.valid) {
+          // Slot is still valid, use it
+          setSelectedSlot(slot);
+
+          // Calculate day of week for saved slot
+          if (slot?.date) {
+            const dayOfWeek = getDayOfWeek(slot.date);
+            setSelectedDayOfWeek(dayOfWeek);
+          }
+        } else {
+          // Slot has expired, clear it and auto-select nearest available
+          console.log(`🔄 Saved slot expired: ${validation.reason}`);
+          localStorage.removeItem('selectedSlot');
+
+          // Auto-select nearest available slot
+          const nearestSlot = await findNearestAvailableSlot();
+          if (nearestSlot) {
+            setSelectedSlot(nearestSlot);
+            localStorage.setItem('selectedSlot', JSON.stringify(nearestSlot));
+
+            if (nearestSlot.date) {
+              const dayOfWeek = getDayOfWeek(nearestSlot.date);
+              setSelectedDayOfWeek(dayOfWeek);
+            }
+
+            // Notify user about the slot change
+            toast.info(`Your previous slot expired. Auto-selected: ${nearestSlot.timeSlot}`);
+          }
         }
       }
     } catch (error) {
