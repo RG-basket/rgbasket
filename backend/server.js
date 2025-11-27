@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,11 +5,12 @@ const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cache = require('./services/redis').cache;
+require('dotenv').config();
 
 const User = require('./models/User');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 const CLIENT_URL = process.env.CLIENT_URL;
 const BACKEND_URL = process.env.BACKEND_URL;
 
@@ -40,49 +40,18 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Rate limiting configurations
-// Global rate limiter - very lenient for production
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5000, // Increased from 1000 to 5000
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5000,
   message: {
     error: 'Too many requests from this IP, please try again later.'
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for API routes (they have their own limiters)
-    return req.path.startsWith('/api/');
-  }
 });
 
-// API routes rate limiter - very lenient for frequent polling
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // Very high limit for API routes
-  message: {
-    error: 'Too many API requests, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Auth routes rate limiter - stricter for security
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Stricter for auth routes
-  message: {
-    error: 'Too many authentication attempts, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Apply global limiter
-app.use(globalLimiter);
-
-// Apply API limiter to all API routes
-app.use('/api/', apiLimiter);
+app.use(limiter);
 
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -98,7 +67,7 @@ mongoose.connect(MONGODB_URI, {
 try {
   const { connectRedis } = require('./services/redis');
   connectRedis().then(() => {
-    // console.log('✅ Redis initialization completed');
+    console.log('✅ Redis initialization completed');
   }).catch(err => {
     console.log('⚠️ Redis setup failed, but app continues normally');
   });
@@ -106,14 +75,14 @@ try {
   console.log('⚠️ Redis service not available, continuing without cache');
 }
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, path) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
-  }
-}));
+// // Serve static files from uploads directory
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+//   setHeaders: (res, path) => {
+//     res.setHeader('Access-Control-Allow-Origin', '*');
+//     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+//     res.setHeader('Cache-Control', 'public, max-age=31536000');
+//   }
+// }));
 
 // Safe cache fallback for Redis issues
 const safeCache = (duration) => {
@@ -148,7 +117,7 @@ app.use('/api/slots', slotsRoutes);
 app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
 
 // Your existing routes
-app.post('/api/auth/google', authLimiter, async (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
   try {
     const { googleId, name, email, photo } = req.body;
 
@@ -240,13 +209,57 @@ app.get('/api/orders/user/:userId', async (req, res) => {
   try {
     const Order = require('./models/Order');
     const orders = await Order.find({ user: req.params.userId })
-      .populate('items.product')
+      .populate('user', 'name email')
       .sort({ createdAt: -1 });
-    res.json(orders);
+
+    res.json({
+      success: true,
+      orders,
+      total: orders.length
+    });
   } catch (error) {
     console.error('Error fetching user orders:', error);
-    res.status(500).json({ message: 'Error fetching orders' });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user orders'
+    });
   }
+});
+
+// Basic test route
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Server is working! Connected to local MongoDB' });
+});
+
+// Test uploads route
+app.get('/api/test-uploads', (req, res) => {
+  res.json({ message: 'Uploads directory is accessible' });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error'
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
 });
 
 app.listen(PORT, () => {
