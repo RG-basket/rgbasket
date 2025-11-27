@@ -29,34 +29,12 @@ const SlotSelector = ({ onSlotChange }) => {
   useEffect(() => {
     const fetchSlots = async () => {
       try {
-        // Check cache first (valid for 1 hour)
-        const cached = localStorage.getItem('slots_cache');
-        if (cached) {
-          const parsedCache = JSON.parse(cached);
-          const now = Date.now();
-          if (parsedCache.timestamp && (now - parsedCache.timestamp) < 3600000) {
-            console.log('✅ Using cached slots');
-            setSlots(parsedCache.data);
-            if (!date && allowedDates.length > 0 && parsedCache.data.length > 0) {
-              const firstDate = allowedDates[0];
-              setDate(firstDate);
-            }
-            return;
-          }
-        }
-
-        // Fetch fresh data
+        // Always fetch fresh slot data (no caching for time-sensitive availability)
         console.log('🔄 Fetching fresh slots');
         const res = await fetch(API_URL);
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
         setSlots(data);
-
-        // Store in cache
-        localStorage.setItem('slots_cache', JSON.stringify({
-          data,
-          timestamp: Date.now()
-        }));
 
         if (!date && allowedDates.length > 0 && data.length > 0) {
           const firstDate = allowedDates[0];
