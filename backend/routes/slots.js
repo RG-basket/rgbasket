@@ -187,6 +187,12 @@ router.get('/availability', async (req, res) => {
     }));
 
     console.log('================================');
+
+    // Prevent caching of time-sensitive availability data
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     res.json(availability);
   } catch (error) {
     console.error('Error checking availability:', error);
