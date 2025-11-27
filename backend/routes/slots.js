@@ -102,16 +102,33 @@ router.put('/:id', authenticateAdminOr404, async (req, res) => {
 });
 
 /* -------------------------------
-   Availability Route - FIXED TIMEZONE ISSUE
+   Availability Route - IST TIMEZONE SIMULATION
 --------------------------------- */
 
-// Helper: Check if cutoff has passed - FIXED UTC VERSION
-const hasCutoffPassed = (slot, selectedDateUTC, nowUTC, todayUTC) => {
-  const isToday = selectedDateUTC.getTime() === todayUTC.getTime();
-  const isPastDate = selectedDateUTC < todayUTC;
+// Helper: Convert UTC to IST (UTC+5:30)
+const convertToIST = (utcDate) => {
+  const istDate = new Date(utcDate.getTime() + (5 * 60 + 30) * 60 * 1000);
+  return istDate;
+};
+
+// Helper: Convert IST to UTC
+const convertToUTC = (istDate) => {
+  const utcDate = new Date(istDate.getTime() - (5 * 60 + 30) * 60 * 1000);
+  return utcDate;
+};
+
+// Helper: Check if cutoff has passed - IST TIMEZONE VERSION
+const hasCutoffPassed = (slot, selectedDate, now, today) => {
+  // Convert all times to IST for consistent behavior
+  const selectedDateIST = new Date(selectedDate.getTime() + (5 * 60 + 30) * 60 * 1000);
+  const todayIST = new Date(today.getTime() + (5 * 60 + 30) * 60 * 1000);
+  const nowIST = new Date(now.getTime() + (5 * 60 + 30) * 60 * 1000);
+
+  const isToday = selectedDateIST.toDateString() === todayIST.toDateString();
+  const isPastDate = selectedDateIST < todayIST;
 
   console.log(`  Slot: ${slot.name}, isToday: ${isToday}, isPastDate: ${isPastDate}`);
-  console.log(`  selectedDateUTC: ${selectedDateUTC.toISOString()}, todayUTC: ${todayUTC.toISOString()}`);
+  console.log(`  selectedDateIST: ${selectedDateIST.toString()}, todayIST: ${todayIST.toString()}`);
 
   // Past dates are always unavailable
   if (isPastDate) {
@@ -123,14 +140,14 @@ const hasCutoffPassed = (slot, selectedDateUTC, nowUTC, todayUTC) => {
   if (isToday) {
     const [hours, minutes] = slot.startTime.split(':').map(Number);
     
-    // Create cutoff time in UTC
-    const slotDateTime = new Date(selectedDateUTC);
-    slotDateTime.setUTCHours(hours, minutes, 0, 0);
+    // Create cutoff time in IST
+    const slotDateTimeIST = new Date(selectedDateIST);
+    slotDateTimeIST.setHours(hours, minutes, 0, 0);
 
-    const cutoffTime = new Date(slotDateTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
-    const passed = nowUTC > cutoffTime;
+    const cutoffTimeIST = new Date(slotDateTimeIST.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
+    const passed = nowIST > cutoffTimeIST;
     
-    console.log(`  -> Today UTC, cutoffTime: ${cutoffTime.toISOString()}, nowUTC: ${nowUTC.toISOString()}, passed: ${passed}`);
+    console.log(`  -> Today IST, cutoffTime: ${cutoffTimeIST.toString()}, nowIST: ${nowIST.toString()}, passed: ${passed}`);
     return passed;
   }
 
@@ -145,27 +162,34 @@ router.get('/availability', async (req, res) => {
     const { date } = req.query; // YYYY-MM-DD
     if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
-    // Create dates in UTC to avoid timezone issues
-    const selectedDateUTC = new Date(date + 'T00:00:00.000Z'); // Force UTC
-    const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z'); // Today in UTC
-    const nowUTC = new Date(); // Current time in UTC
+    // Parse the date in IST timezone (treat as IST)
+    const selectedDate = new Date(date + 'T00:00:00.000+05:30'); // Force IST interpretation
+    const today = new Date(); // Current server time
+    
+    // Create today's date in IST
+    const todayIST = new Date(today.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayStart = new Date(todayIST.getFullYear(), todayIST.getMonth(), todayIST.getDate());
+
+    // Current time
+    const now = new Date();
 
     // DEBUG LOGGING
     console.log('=== SLOT AVAILABILITY DEBUG ===');
     console.log('Requested date:', date);
-    console.log('selectedDate (UTC):', selectedDateUTC.toISOString());
-    console.log('today (UTC):', todayUTC.toISOString());
-    console.log('now (UTC):', nowUTC.toISOString());
-    console.log('selectedDate === today?', selectedDateUTC.getTime() === todayUTC.getTime());
+    console.log('selectedDate (IST treated):', selectedDate.toString());
+    console.log('today (Server):', today.toString());
+    console.log('todayStart (IST):', todayStart.toString());
+    console.log('now (Server):', now.toString());
+    console.log('selectedDate === todayStart?', selectedDate.toDateString() === todayStart.toDateString());
 
     const slots = await SlotConfig.find({ isActive: true }).sort({ startTime: 1 });
 
     const availability = await Promise.all(slots.map(async (slot) => {
-      const cutoffPassed = hasCutoffPassed(slot, selectedDateUTC, nowUTC, todayUTC);
+      const cutoffPassed = hasCutoffPassed(slot, selectedDate, now, todayStart);
 
-      // Use UTC dates for order counting too
-      const startOfDay = new Date(date + 'T00:00:00.000Z');
-      const endOfDay = new Date(date + 'T23:59:59.999Z');
+      // Use the same date range for order counting (IST interpretation)
+      const startOfDay = new Date(date + 'T00:00:00.000+05:30');
+      const endOfDay = new Date(date + 'T23:59:59.999+05:30');
 
       const orderCount = await Order.countDocuments({
         deliveryDate: { $gte: startOfDay, $lte: endOfDay },
