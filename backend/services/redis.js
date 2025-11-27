@@ -229,7 +229,7 @@ const redisManager = new RedisManager();
 const cacheKeys = {
   products: 'express:GET:/api/products*',
   categories: 'express:GET:/api/categories*',
-  slots: 'express:GET:/api/slots*',
+  slots: 'express:GET:/api/slots$', // Only cache /api/slots, NOT /api/slots/availability (time-sensitive)
   productSlots: 'express:GET:/api/product-slot-availability*',
   admin: 'express:*:/api/admin*',
   users: 'express:*:/api/users*',
