@@ -57,7 +57,10 @@ const cleanupDuplicates = async () => {
   }
 };
 
-initializeSlots();
+// Delay initialization to ensure MongoDB is ready
+setTimeout(() => {
+  initializeSlots();
+}, 3000);
 
 /* -------------------------------
    CRUD Routes
@@ -99,15 +102,16 @@ router.put('/:id', authenticateAdminOr404, async (req, res) => {
 });
 
 /* -------------------------------
-   Availability Route
+   Availability Route - FIXED TIMEZONE ISSUE
 --------------------------------- */
 
-// Helper: Check if cutoff has passed
-const hasCutoffPassed = (slot, selectedDate, now, today) => {
-  const isToday = selectedDate.getTime() === today.getTime();
-  const isPastDate = selectedDate < today;
+// Helper: Check if cutoff has passed - FIXED UTC VERSION
+const hasCutoffPassed = (slot, selectedDateUTC, nowUTC, todayUTC) => {
+  const isToday = selectedDateUTC.getTime() === todayUTC.getTime();
+  const isPastDate = selectedDateUTC < todayUTC;
 
   console.log(`  Slot: ${slot.name}, isToday: ${isToday}, isPastDate: ${isPastDate}`);
+  console.log(`  selectedDateUTC: ${selectedDateUTC.toISOString()}, todayUTC: ${todayUTC.toISOString()}`);
 
   // Past dates are always unavailable
   if (isPastDate) {
@@ -118,12 +122,15 @@ const hasCutoffPassed = (slot, selectedDate, now, today) => {
   // Only apply cutoff logic for today
   if (isToday) {
     const [hours, minutes] = slot.startTime.split(':').map(Number);
-    const slotDateTime = new Date(selectedDate);
-    slotDateTime.setHours(hours, minutes, 0, 0);
+    
+    // Create cutoff time in UTC
+    const slotDateTime = new Date(selectedDateUTC);
+    slotDateTime.setUTCHours(hours, minutes, 0, 0);
 
     const cutoffTime = new Date(slotDateTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
-    const passed = now > cutoffTime;
-    console.log(`  -> Today, cutoffTime: ${cutoffTime.toISOString()}, now: ${now.toISOString()}, passed: ${passed}`);
+    const passed = nowUTC > cutoffTime;
+    
+    console.log(`  -> Today UTC, cutoffTime: ${cutoffTime.toISOString()}, nowUTC: ${nowUTC.toISOString()}, passed: ${passed}`);
     return passed;
   }
 
@@ -138,34 +145,27 @@ router.get('/availability', async (req, res) => {
     const { date } = req.query; // YYYY-MM-DD
     if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
-    // Create selectedDate and normalize to midnight
-    const selectedDate = new Date(date);
-    selectedDate.setHours(0, 0, 0, 0);
-
-    // Create today and normalize to midnight
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Current time for cutoff comparison
-    const now = new Date();
+    // Create dates in UTC to avoid timezone issues
+    const selectedDateUTC = new Date(date + 'T00:00:00.000Z'); // Force UTC
+    const todayUTC = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z'); // Today in UTC
+    const nowUTC = new Date(); // Current time in UTC
 
     // DEBUG LOGGING
     console.log('=== SLOT AVAILABILITY DEBUG ===');
     console.log('Requested date:', date);
-    console.log('selectedDate:', selectedDate.toISOString());
-    console.log('today:', today.toISOString());
-    console.log('now:', now.toISOString());
-    console.log('selectedDate === today?', selectedDate.getTime() === today.getTime());
+    console.log('selectedDate (UTC):', selectedDateUTC.toISOString());
+    console.log('today (UTC):', todayUTC.toISOString());
+    console.log('now (UTC):', nowUTC.toISOString());
+    console.log('selectedDate === today?', selectedDateUTC.getTime() === todayUTC.getTime());
 
     const slots = await SlotConfig.find({ isActive: true }).sort({ startTime: 1 });
 
     const availability = await Promise.all(slots.map(async (slot) => {
-      const cutoffPassed = hasCutoffPassed(slot, selectedDate, now, today);
+      const cutoffPassed = hasCutoffPassed(slot, selectedDateUTC, nowUTC, todayUTC);
 
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Use UTC dates for order counting too
+      const startOfDay = new Date(date + 'T00:00:00.000Z');
+      const endOfDay = new Date(date + 'T23:59:59.999Z');
 
       const orderCount = await Order.countDocuments({
         deliveryDate: { $gte: startOfDay, $lte: endOfDay },
@@ -187,12 +187,6 @@ router.get('/availability', async (req, res) => {
     }));
 
     console.log('================================');
-
-    // Prevent caching of time-sensitive availability data
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-
     res.json(availability);
   } catch (error) {
     console.error('Error checking availability:', error);
