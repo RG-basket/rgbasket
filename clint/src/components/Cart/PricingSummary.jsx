@@ -8,7 +8,7 @@ const PricingSummary = ({ subtotal, shippingFee, tax, totalAmount, currencySymbo
                 <span className="font-semibold">{currencySymbol}{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-                <span>Shipping Fee</span>
+                <span>Convenience Fee</span>
                 <span className="text-green-600 font-semibold">{currencySymbol}{shippingFee}</span>
             </div>
             <div className="flex justify-between">
