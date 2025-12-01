@@ -179,7 +179,7 @@ const ScheduledDeliverySelector = ({
                 selectedDate === dateObj.date
                   ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-              } ${dateObj.isToday ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+              } ${dateObj.isToday ? 'font-semibold' : ''}`}
             >
               <div className="text-sm font-medium">{dateObj.display.split(' ')[0]}</div>
               <div className="text-xs text-gray-500 mt-1">{dateObj.display.split(' ').slice(1).join(' ')}</div>
