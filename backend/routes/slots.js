@@ -13,9 +13,9 @@ const initializeSlots = async () => {
     await SlotConfig.collection.createIndex({ name: 1 }, { unique: true });
 
     const defaultSlots = [
-      { name: 'Morning', startTime: '07:00', endTime: '10:00', capacity: 20, cutoffHours: 1 },
-      { name: 'Afternoon', startTime: '12:00', endTime: '14:00', capacity: 20, cutoffHours: 1 },
-      { name: 'Evening', startTime: '17:00', endTime: '20:00', capacity: 20, cutoffHours: 1 }
+      { name: 'Morning', startTime: '07:00', endTime: '10:00', capacity: 200, cutoffHours: 1 },
+      { name: 'Afternoon', startTime: '12:00', endTime: '14:00', capacity: 200, cutoffHours: 1 },
+      { name: 'Evening', startTime: '17:00', endTime: '20:00', capacity: 200, cutoffHours: 1 }
     ];
 
     const operations = defaultSlots.map(slot => ({
@@ -102,100 +102,91 @@ router.put('/:id', authenticateAdminOr404, async (req, res) => {
 });
 
 /* -------------------------------
-   Availability Route - IST TIMEZONE SIMULATION
+   Availability Route - ULTRA SIMPLE WORKING SOLUTION
 --------------------------------- */
 
-// Helper: Convert UTC to IST (UTC+5:30)
-const convertToIST = (utcDate) => {
-  const istDate = new Date(utcDate.getTime() + (5 * 60 + 30) * 60 * 1000);
-  return istDate;
-};
-
-// Helper: Convert IST to UTC
-const convertToUTC = (istDate) => {
-  const utcDate = new Date(istDate.getTime() - (5 * 60 + 30) * 60 * 1000);
-  return utcDate;
-};
-
-// Helper: Check if cutoff has passed - IST TIMEZONE VERSION
-const hasCutoffPassed = (slot, selectedDate, now, today) => {
-  // Convert all times to IST for consistent behavior
-  const selectedDateIST = new Date(selectedDate.getTime() + (5 * 60 + 30) * 60 * 1000);
-  const todayIST = new Date(today.getTime() + (5 * 60 + 30) * 60 * 1000);
-  const nowIST = new Date(now.getTime() + (5 * 60 + 30) * 60 * 1000);
-
-  const isToday = selectedDateIST.toDateString() === todayIST.toDateString();
-  const isPastDate = selectedDateIST < todayIST;
-
-  console.log(`  Slot: ${slot.name}, isToday: ${isToday}, isPastDate: ${isPastDate}`);
-  console.log(`  selectedDateIST: ${selectedDateIST.toString()}, todayIST: ${todayIST.toString()}`);
-
-  // Past dates are always unavailable
-  if (isPastDate) {
-    console.log(`  -> Past date, unavailable`);
+// SIMPLE: Check if cutoff has passed
+const hasCutoffPassed = (slot, selectedDate, now) => {
+  // Get today's date at 00:00:00
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  
+  // Get selected date at 00:00:00
+  const selected = new Date(selectedDate);
+  selected.setHours(0, 0, 0, 0);
+  
+  // Past dates: always unavailable
+  if (selected < today) {
     return true;
   }
-
-  // Only apply cutoff logic for today
-  if (isToday) {
-    const [hours, minutes] = slot.startTime.split(':').map(Number);
-    
-    // Create cutoff time in IST
-    const slotDateTimeIST = new Date(selectedDateIST);
-    slotDateTimeIST.setHours(hours, minutes, 0, 0);
-
-    const cutoffTimeIST = new Date(slotDateTimeIST.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
-    const passed = nowIST > cutoffTimeIST;
-    
-    console.log(`  -> Today IST, cutoffTime: ${cutoffTimeIST.toString()}, nowIST: ${nowIST.toString()}, passed: ${passed}`);
-    return passed;
+  
+  // Future dates: always available (no cutoff check)
+  if (selected > today) {
+    return false;
   }
-
-  // Future dates: cutoff never passed
-  console.log(`  -> Future date, available`);
-  return false;
+  
+  // TODAY: Check cutoff times
+  const [hours, minutes] = slot.startTime.split(':').map(Number);
+  
+  // Create slot time for today
+  const slotTime = new Date(today);
+  slotTime.setHours(hours, minutes, 0, 0);
+  
+  // Calculate cutoff time (1 hour before)
+  const cutoffTime = new Date(slotTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
+  
+  // Check if current time is past cutoff
+  return now > cutoffTime;
 };
 
-// GET /api/slots/availability - Check availability for a specific date
+// GET /api/slots/availability - SIMPLE AND WORKING
 router.get('/availability', async (req, res) => {
   try {
     const { date } = req.query; // YYYY-MM-DD
     if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
-    // Parse the date in IST timezone (treat as IST)
-    const selectedDate = new Date(date + 'T00:00:00.000+05:30'); // Force IST interpretation
-    const today = new Date(); // Current server time
-    
-    // Create today's date in IST
-    const todayIST = new Date(today.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const todayStart = new Date(todayIST.getFullYear(), todayIST.getMonth(), todayIST.getDate());
-
-    // Current time
     const now = new Date();
-
-    // DEBUG LOGGING
-    console.log('=== SLOT AVAILABILITY DEBUG ===');
-    console.log('Requested date:', date);
-    console.log('selectedDate (IST treated):', selectedDate.toString());
-    console.log('today (Server):', today.toString());
-    console.log('todayStart (IST):', todayStart.toString());
-    console.log('now (Server):', now.toString());
-    console.log('selectedDate === todayStart?', selectedDate.toDateString() === todayStart.toDateString());
+    const selectedDate = new Date(date + 'T00:00:00');
+    
+    console.log('\n=== SLOT AVAILABILITY ===');
+    console.log(`Requested date: ${date}`);
+    console.log(`Current server time: ${now.toString()}`);
+    console.log(`Server timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+    console.log(`Is today? ${selectedDate.toDateString() === new Date().toDateString()}`);
 
     const slots = await SlotConfig.find({ isActive: true }).sort({ startTime: 1 });
 
     const availability = await Promise.all(slots.map(async (slot) => {
-      const cutoffPassed = hasCutoffPassed(slot, selectedDate, now, todayStart);
-
-      // Use the same date range for order counting (IST interpretation)
-      const startOfDay = new Date(date + 'T00:00:00.000+05:30');
-      const endOfDay = new Date(date + 'T23:59:59.999+05:30');
-
+      // Simple cutoff check
+      const cutoffPassed = hasCutoffPassed(slot, selectedDate, now);
+      
+      // Count orders for the date (using local date range)
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
       const orderCount = await Order.countDocuments({
         deliveryDate: { $gte: startOfDay, $lte: endOfDay },
         timeSlot: slot.name
       });
-
+      
+      const isAvailable = !cutoffPassed && orderCount < slot.capacity;
+      
+      // Debug log
+      const [hours, minutes] = slot.startTime.split(':').map(Number);
+      const slotTime = new Date(selectedDate);
+      slotTime.setHours(hours, minutes, 0, 0);
+      const cutoffTime = new Date(slotTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
+      
+      console.log(`${slot.name}:`);
+      console.log(`  Slot time: ${slotTime.toLocaleTimeString('en-IN')}`);
+      console.log(`  Cutoff time: ${cutoffTime.toLocaleTimeString('en-IN')}`);
+      console.log(`  Current time: ${now.toLocaleTimeString('en-IN')}`);
+      console.log(`  Cutoff passed: ${cutoffPassed}`);
+      console.log(`  Booked: ${orderCount}/${slot.capacity}`);
+      console.log(`  Available: ${isAvailable}`);
+      
       return {
         _id: slot._id,
         name: slot.name,
@@ -203,14 +194,14 @@ router.get('/availability', async (req, res) => {
         endTime: slot.endTime,
         capacity: slot.capacity,
         booked: orderCount,
-        isAvailable: !cutoffPassed && orderCount < slot.capacity,
+        isAvailable: isAvailable,
         reason: cutoffPassed
           ? `Booking closed - cutoff time passed (${slot.cutoffHours} hour before delivery)`
           : (orderCount >= slot.capacity ? 'Slot full' : 'Available')
       };
     }));
 
-    console.log('================================');
+    console.log('================================\n');
     res.json(availability);
   } catch (error) {
     console.error('Error checking availability:', error);

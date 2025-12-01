@@ -34,17 +34,17 @@ const ScheduledDeliverySelector = ({
           year: 'numeric',
           month: 'long',
           day: 'numeric'
-        })
+        }),
+        isToday: i === 0 // Mark today's date
       });
     }
     
     setAvailableDates(dates);
     
-    // Set default date to tomorrow if not set
+    // Set default date to TODAY (not tomorrow)
+    const todayString = today.toISOString().split('T')[0];
     if (!selectedDate) {
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-      setSelectedDate(tomorrow.toISOString().split('T')[0]);
+      setSelectedDate(todayString);
     }
   }, []);
 
@@ -55,6 +55,24 @@ const ScheduledDeliverySelector = ({
     }
   }, [selectedDate]);
 
+  // Find the nearest available slot (chronologically first available)
+  const findNearestAvailableSlot = (slots) => {
+    if (!slots || slots.length === 0) return null;
+    
+    // Sort slots by start time (Morning → Afternoon → Evening)
+    const sortedSlots = [...slots].map(slot => {
+      // Convert startTime to number for sorting (07:00 -> 700, 12:00 -> 1200)
+      const [hours, minutes] = slot.startTime.split(':').map(Number);
+      return {
+        ...slot,
+        startTimeValue: hours * 100 + minutes
+      };
+    }).sort((a, b) => a.startTimeValue - b.startTimeValue);
+    
+    // Return first available slot
+    return sortedSlots.find(slot => slot.available) || null;
+  };
+
   const fetchSlotAvailability = async (date) => {
     setLoading(true);
     try {
@@ -63,7 +81,7 @@ const ScheduledDeliverySelector = ({
       
       const data = await response.json();
       
-      // Transform API data to match component expectations
+      // Transform API data
       const transformedSlots = data.map(slot => ({
         id: slot._id,
         time: `${slot.name} (${slot.startTime} - ${slot.endTime})`,
@@ -78,18 +96,38 @@ const ScheduledDeliverySelector = ({
       
       setAvailableSlots(transformedSlots);
       
-      // Auto-select first available slot if none selected or current selection is invalid
-      if (!selectedSlot || !transformedSlots.find(slot => slot.time === selectedSlot && slot.available)) {
-        const firstAvailable = transformedSlots.find(slot => slot.available);
-        if (firstAvailable) {
-          setSelectedSlot(firstAvailable.time);
-        } else {
-          setSelectedSlot('');
+      // Auto-select logic
+      const availableSlotsList = transformedSlots.filter(slot => slot.available);
+      
+      if (availableSlotsList.length > 0) {
+        // Strategy 1: Keep current selection if it's still available
+        if (selectedSlot) {
+          const currentSlotStillAvailable = availableSlotsList.find(
+            slot => slot.time === selectedSlot
+          );
+          if (currentSlotStillAvailable) {
+            return; // Keep user's choice
+          }
         }
+        
+        // Strategy 2: Find and select the NEAREST available slot
+        const nearestSlot = findNearestAvailableSlot(transformedSlots);
+        
+        if (nearestSlot) {
+          console.log('Auto-selecting nearest available slot:', nearestSlot.name);
+          setSelectedSlot(nearestSlot.time);
+        } else {
+          // Fallback: Select first available slot
+          setSelectedSlot(availableSlotsList[0].time);
+        }
+      } else {
+        // No slots available
+        setSelectedSlot('');
       }
     } catch (error) {
       console.error('Error fetching slot availability:', error);
       setAvailableSlots([]);
+      setSelectedSlot('');
     } finally {
       setLoading(false);
     }
@@ -141,10 +179,13 @@ const ScheduledDeliverySelector = ({
                 selectedDate === dateObj.date
                   ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-              }`}
+              } ${dateObj.isToday ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
             >
               <div className="text-sm font-medium">{dateObj.display.split(' ')[0]}</div>
               <div className="text-xs text-gray-500 mt-1">{dateObj.display.split(' ').slice(1).join(' ')}</div>
+              {dateObj.isToday && (
+                <div className="text-xs text-blue-600 font-medium mt-1">Today</div>
+              )}
             </motion.button>
           ))}
         </div>
