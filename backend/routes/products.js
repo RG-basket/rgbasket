@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
       inStock,
       featured,
       page = 1,
-      limit = 20,
+      limit = 50000,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -105,7 +105,7 @@ router.get('/:id', async (req, res) => {
 router.get('/category/:category', async (req, res) => {
   try {
     const { category } = req.params;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 50000 } = req.query;
 
     const products = await Product.find({ 
       category: { $regex: new RegExp(category, 'i') },

@@ -92,7 +92,7 @@ router.get('/products', authenticateAdmin, async (req, res) => {
     const Product = require('../models/Product');
     const {
       page = 1,
-      limit = 50,
+      limit = 50000,
       search = '',
       category = '',
       inStock = '',
