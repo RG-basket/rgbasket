@@ -3,6 +3,24 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+/* -------------------------------
+   IST Timezone Utilities
+--------------------------------- */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+const getISTDate = () => {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+};
+
+const getISTDateString = (date = null) => {
+    const d = date || new Date();
+    const istDate = new Date(d.toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+    const year = istDate.getFullYear();
+    const month = String(istDate.getMonth() + 1).padStart(2, '0');
+    const day = String(istDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const SlotFilter = () => {
     const navigate = useNavigate();
     const [selectedDate, setSelectedDate] = useState('');
@@ -11,14 +29,14 @@ const SlotFilter = () => {
     const [dates, setDates] = useState([]);
 
     useEffect(() => {
-        // Generate next 3 days
+        // Generate next 3 days using IST
         const nextDates = [];
-        const today = new Date();
+        const today = getISTDate(); // Use IST date
         for (let i = 0; i < 3; i++) {
             const d = new Date(today);
             d.setDate(today.getDate() + i);
             nextDates.push({
-                value: d.toISOString().split('T')[0],
+                value: getISTDateString(d), // Use IST date string
                 display: d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }),
                 label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-IN', { weekday: 'long' })
             });

@@ -2,6 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock } from 'lucide-react';
 
+/* -------------------------------
+   IST Timezone Utilities
+--------------------------------- */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+const getISTDate = () => {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+};
+
+const getISTDateString = (date = null) => {
+    const d = date || new Date();
+    const istDate = new Date(d.toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+    const year = istDate.getFullYear();
+    const month = String(istDate.getMonth() + 1).padStart(2, '0');
+    const day = String(istDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const ProductSlotSelector = ({
     selectedDate,
     setSelectedDate,
@@ -13,15 +31,15 @@ const ProductSlotSelector = ({
     const [availableSlots, setAvailableSlots] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Generate available dates (next 3 days)
+    // Generate available dates (next 3 days) - USING IST
     useEffect(() => {
         const dates = [];
-        const today = new Date();
+        const today = getISTDate(); // Use IST date
 
         for (let i = 0; i < 3; i++) {
             const date = new Date(today);
             date.setDate(today.getDate() + i);
-            const dateString = date.toISOString().split('T')[0];
+            const dateString = getISTDateString(date); // Use IST date string
 
             dates.push({
                 date: dateString,
@@ -41,11 +59,11 @@ const ProductSlotSelector = ({
 
         setAvailableDates(dates);
 
-        // Set default date to tomorrow if not set
+        // Set default date to tomorrow if not set - USING IST
         if (!selectedDate) {
             const tomorrow = new Date(today);
             tomorrow.setDate(today.getDate() + 1);
-            setSelectedDate(tomorrow.toISOString().split('T')[0]);
+            setSelectedDate(getISTDateString(tomorrow));
         }
     }, []);
 
@@ -138,8 +156,8 @@ const ProductSlotSelector = ({
                             whileTap={{ scale: 0.97 }}
                             onClick={() => handleDateSelect(dateObj.date)}
                             className={`p-2 rounded-lg border-2 text-center transition-all duration-200 ${selectedDate === dateObj.date
-                                    ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+                                ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
+                                : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
                                 }`}
                         >
                             <div className="text-xs font-medium">{dateObj.display.split(' ')[0]}</div>
@@ -178,10 +196,10 @@ const ProductSlotSelector = ({
                                     onClick={() => handleSlotSelect(slot)}
                                     disabled={!slot.available}
                                     className={`p-3 rounded-lg border-2 text-left transition-all duration-200 ${selectedSlot === slot.time
-                                            ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
-                                            : slot.available
-                                                ? 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-                                                : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                        ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
+                                        : slot.available
+                                            ? 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+                                            : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
                                         }`}
                                 >
                                     <div className="flex justify-between items-center">

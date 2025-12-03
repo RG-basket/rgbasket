@@ -2,29 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock } from 'lucide-react';
 
-const ScheduledDeliverySelector = ({ 
-  selectedDate, 
-  setSelectedDate, 
-  selectedSlot, 
-  setSelectedSlot 
+/* -------------------------------
+   IST Timezone Utilities
+--------------------------------- */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+// Get current date/time in IST
+const getISTDate = () => {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+};
+
+// Get IST date string in YYYY-MM-DD format
+const getISTDateString = (date = null) => {
+  const d = date || new Date();
+  const istDate = new Date(d.toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+  const year = istDate.getFullYear();
+  const month = String(istDate.getMonth() + 1).padStart(2, '0');
+  const day = String(istDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const ScheduledDeliverySelector = ({
+  selectedDate,
+  setSelectedDate,
+  selectedSlot,
+  setSelectedSlot
 }) => {
   const [availableDates, setAvailableDates] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Generate available dates (next 3 days)
+  // Generate available dates (next 3 days) - USING IST
   useEffect(() => {
     const dates = [];
-    const today = new Date();
-    
+    const today = getISTDate(); // Use IST date instead of browser timezone
+
     for (let i = 0; i < 3; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      const dateString = date.toISOString().split('T')[0];
-      
+      const dateString = getISTDateString(date); // Use IST date string
+
       dates.push({
         date: dateString,
-        display: date.toLocaleDateString('en-IN', { 
+        display: date.toLocaleDateString('en-IN', {
           weekday: 'short',
           month: 'short',
           day: 'numeric'
@@ -38,11 +58,11 @@ const ScheduledDeliverySelector = ({
         isToday: i === 0 // Mark today's date
       });
     }
-    
+
     setAvailableDates(dates);
-    
-    // Set default date to TODAY (not tomorrow)
-    const todayString = today.toISOString().split('T')[0];
+
+    // Set default date to TODAY (not tomorrow) - USING IST
+    const todayString = getISTDateString(today);
     if (!selectedDate) {
       setSelectedDate(todayString);
     }
@@ -58,7 +78,7 @@ const ScheduledDeliverySelector = ({
   // Find the nearest available slot (chronologically first available)
   const findNearestAvailableSlot = (slots) => {
     if (!slots || slots.length === 0) return null;
-    
+
     // Sort slots by start time (Morning → Afternoon → Evening)
     const sortedSlots = [...slots].map(slot => {
       // Convert startTime to number for sorting (07:00 -> 700, 12:00 -> 1200)
@@ -68,7 +88,7 @@ const ScheduledDeliverySelector = ({
         startTimeValue: hours * 100 + minutes
       };
     }).sort((a, b) => a.startTimeValue - b.startTimeValue);
-    
+
     // Return first available slot
     return sortedSlots.find(slot => slot.available) || null;
   };
@@ -78,9 +98,9 @@ const ScheduledDeliverySelector = ({
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/slots/availability?date=${date}`);
       if (!response.ok) throw new Error('Failed to fetch slot availability');
-      
+
       const data = await response.json();
-      
+
       // Transform API data
       const transformedSlots = data.map(slot => ({
         id: slot._id,
@@ -93,12 +113,12 @@ const ScheduledDeliverySelector = ({
         booked: slot.booked,
         reason: slot.reason
       }));
-      
+
       setAvailableSlots(transformedSlots);
-      
+
       // Auto-select logic
       const availableSlotsList = transformedSlots.filter(slot => slot.available);
-      
+
       if (availableSlotsList.length > 0) {
         // Strategy 1: Keep current selection if it's still available
         if (selectedSlot) {
@@ -109,10 +129,10 @@ const ScheduledDeliverySelector = ({
             return; // Keep user's choice
           }
         }
-        
+
         // Strategy 2: Find and select the NEAREST available slot
         const nearestSlot = findNearestAvailableSlot(transformedSlots);
-        
+
         if (nearestSlot) {
           console.log('Auto-selecting nearest available slot:', nearestSlot.name);
           setSelectedSlot(nearestSlot.time);
@@ -175,11 +195,10 @@ const ScheduledDeliverySelector = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleDateSelect(dateObj.date)}
-              className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${
-                selectedDate === dateObj.date
+              className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${selectedDate === dateObj.date
                   ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-              } ${dateObj.isToday ? 'font-semibold' : ''}`}
+                } ${dateObj.isToday ? 'font-semibold' : ''}`}
             >
               <div className="text-sm font-medium">{dateObj.display.split(' ')[0]}</div>
               <div className="text-xs text-gray-500 mt-1">{dateObj.display.split(' ').slice(1).join(' ')}</div>
@@ -204,7 +223,7 @@ const ScheduledDeliverySelector = ({
               Select Time Slot {loading && "(Checking...)"}
             </label>
           </div>
-          
+
           {loading ? (
             <div className="text-center py-4">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
@@ -219,13 +238,12 @@ const ScheduledDeliverySelector = ({
                   whileTap={{ scale: slot.available ? 0.98 : 1 }}
                   onClick={() => handleSlotSelect(slot)}
                   disabled={!slot.available}
-                  className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
-                    selectedSlot === slot.time
+                  className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${selectedSlot === slot.time
                       ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
                       : slot.available
-                      ? 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-                      : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
-                  }`}
+                        ? 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+                        : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                    }`}
                 >
                   <div className="flex justify-between items-center">
                     <div>
@@ -235,9 +253,8 @@ const ScheduledDeliverySelector = ({
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-sm font-medium ${
-                        slot.available ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <div className={`text-sm font-medium ${slot.available ? 'text-green-600' : 'text-red-600'
+                        }`}>
                         {slot.available ? 'Available' : 'Unavailable'}
                       </div>
                       <div className="text-xs text-gray-500">

@@ -2,6 +2,26 @@ import React, { useEffect, useState, useCallback } from "react";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/slots`;
 
+/* -------------------------------
+   IST Timezone Utilities
+--------------------------------- */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+// Get current date/time in IST
+const getISTDate = () => {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+};
+
+// Get IST date string in YYYY-MM-DD format
+const getISTDateString = (date = null) => {
+  const d = date || new Date();
+  const istDate = new Date(d.toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+  const year = istDate.getFullYear();
+  const month = String(istDate.getMonth() + 1).padStart(2, '0');
+  const day = String(istDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const SlotManager = () => {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -9,11 +29,11 @@ const SlotManager = () => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ capacity: 20, cutoffHours: 1 });
 
-  // Preview State
+  // Preview State - Initialize with IST tomorrow
   const [previewDate, setPreviewDate] = useState(() => {
-    const tomorrow = new Date();
+    const tomorrow = getISTDate();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    return getISTDateString(tomorrow);
   });
   const [previewAvailability, setPreviewAvailability] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);

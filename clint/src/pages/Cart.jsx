@@ -10,6 +10,27 @@ import {
   UnavailableItemsModal
 } from "../components/Cart";
 
+/* -------------------------------
+   IST Timezone Utilities
+--------------------------------- */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+// Get current date/time in IST
+const getISTDate = () => {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+};
+
+// Get IST date string in YYYY-MM-DD format
+const getISTDateString = (date = null) => {
+  const d = date || new Date();
+  const istDate = new Date(d.toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+  const year = istDate.getFullYear();
+  const month = String(istDate.getMonth() + 1).padStart(2, '0');
+  const day = String(istDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+
 const Cart = () => {
   const {
     products,
@@ -101,6 +122,36 @@ const Cart = () => {
       }
     }
   }, [deliveryDate, deliverySlot]);
+
+  // Validate saved slot on Cart mount (important for midnight transitions)
+  useEffect(() => {
+    const validateSavedSlot = () => {
+      if (!selectedSlot || !selectedSlot.date) return;
+
+      // Parse slot date as IST
+      const parseISTDate = (dateString) => {
+        return new Date(dateString + 'T00:00:00+05:30');
+      };
+
+      const slotDate = parseISTDate(selectedSlot.date);
+      slotDate.setHours(0, 0, 0, 0);
+
+      const today = getISTDate();
+      today.setHours(0, 0, 0, 0);
+
+      // If slot date is in the past, clear it and set to tomorrow
+      if (slotDate < today) {
+        console.log('🔄 Saved slot expired, updating to tomorrow');
+        const tomorrow = getISTDate();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setDeliveryDate(getISTDateString(tomorrow));
+        setDeliverySlot(''); // Clear slot to force re-selection
+        toast.info('Your saved delivery date has passed. Please select a new slot.');
+      }
+    };
+
+    validateSavedSlot();
+  }, []); // Run once on mount
 
   // Fetch user addresses
   const fetchAddresses = async () => {
@@ -405,10 +456,10 @@ const Cart = () => {
 
   useEffect(() => {
     if (!deliveryDate) {
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-      setDeliveryDate(tomorrow.toISOString().split("T")[0]);
+      // Get tomorrow's date in IST
+      const tomorrow = getISTDate();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setDeliveryDate(getISTDateString(tomorrow));
     }
   }, []);
 

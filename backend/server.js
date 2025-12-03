@@ -239,10 +239,13 @@ app.get('/api/test-uploads', (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  const now = new Date();
   res.json({
     status: 'OK',
     database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
-    timestamp: new Date().toISOString()
+    timestamp: now.toISOString(),
+    timezone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    istTime: now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
   });
 });
 

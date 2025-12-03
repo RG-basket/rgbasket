@@ -5,6 +5,31 @@ import toast from 'react-hot-toast';
 import { auth, provider } from '../Firebase.js';
 import { signInWithPopup, signOut } from 'firebase/auth';
 
+/* -------------------------------
+   IST Timezone Utilities
+--------------------------------- */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+// Get current date/time in IST
+const getISTDate = () => {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+};
+
+// Get IST date string in YYYY-MM-DD format
+const getISTDateString = (date = null) => {
+  const d = date || new Date();
+  const istDate = new Date(d.toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+  const year = istDate.getFullYear();
+  const month = String(istDate.getMonth() + 1).padStart(2, '0');
+  const day = String(istDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Parse a date string (YYYY-MM-DD) as IST midnight
+const parseISTDate = (dateString) => {
+  return new Date(dateString + 'T00:00:00+05:30');
+};
+
 const API_URL = import.meta.env.VITE_API_URL;
 const CURRENCY = '₹';
 const POLLING_INTERVAL = 300000; // 5 minutes (increased from 30 seconds to reduce server load)
@@ -92,10 +117,10 @@ export const AppContextProvider = ({ children }) => {
   // ===== SLOT AUTO-SELECTION =====
   const findNearestAvailableSlot = async () => {
     try {
-      // Get tomorrow's date for availability check
-      const tomorrow = new Date();
+      // Get tomorrow's date in IST for availability check
+      const tomorrow = getISTDate();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowDate = tomorrow.toISOString().split('T')[0];
+      const tomorrowDate = getISTDateString(tomorrow);
 
       // Fetch slot availability for tomorrow
       const response = await axios.get(`${API_URL}/api/slots/availability?date=${tomorrowDate}`);
@@ -124,10 +149,10 @@ export const AppContextProvider = ({ children }) => {
 
     } catch (error) {
       console.log('Slot API not available, using default slot:', error.message);
-      // Fallback: Create default slot
-      const tomorrow = new Date();
+      // Fallback: Create default slot using IST
+      const tomorrow = getISTDate();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowDate = tomorrow.toISOString().split('T')[0];
+      const tomorrowDate = getISTDateString(tomorrow);
 
       return {
         date: tomorrowDate,
@@ -248,18 +273,18 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-  // Validate if a saved slot is still valid (not expired)
+  // Validate if a saved slot is still valid (not expired) - IST aware
   const validateSavedSlot = async (slot) => {
     if (!slot || !slot.date || !slot.timeSlot) {
       return { valid: false, reason: 'Invalid slot data' };
     }
 
     try {
-      // Check if the slot date has passed
-      const slotDate = new Date(slot.date);
+      // Check if the slot date has passed (using IST)
+      const slotDate = parseISTDate(slot.date);
       slotDate.setHours(0, 0, 0, 0);
 
-      const today = new Date();
+      const today = getISTDate();
       today.setHours(0, 0, 0, 0);
 
       // If slot date is in the past, it's invalid

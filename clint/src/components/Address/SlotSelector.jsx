@@ -3,6 +3,24 @@ import { useAppContext } from "../../context/AppContext";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/slots`;
 
+/* -------------------------------
+   IST Timezone Utilities
+--------------------------------- */
+const IST_TIMEZONE = 'Asia/Kolkata';
+
+const getISTDate = () => {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+};
+
+const getISTDateString = (date = null) => {
+  const d = date || new Date();
+  const istDate = new Date(d.toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+  const year = istDate.getFullYear();
+  const month = String(istDate.getMonth() + 1).padStart(2, '0');
+  const day = String(istDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const SlotSelector = ({ onSlotChange }) => {
   const {
     selectedSlot,
@@ -19,11 +37,12 @@ const SlotSelector = ({ onSlotChange }) => {
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const today = new Date();
+  // Use IST for date generation
+  const today = getISTDate();
   const allowedDates = Array.from({ length: 3 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    return d.toISOString().split("T")[0];
+    return getISTDateString(d); // Use IST date string
   });
 
   useEffect(() => {
