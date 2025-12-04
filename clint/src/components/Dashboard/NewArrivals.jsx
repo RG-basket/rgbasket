@@ -273,7 +273,7 @@ const NewArrivals = () => {
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
-              <div className="bg-white rounded-lg shadow-sm border border-emerald-100 overflow-hidden hover:shadow-md transition-all duration-200">
+              <div className="">
                 <ProductCard 
                   product={product}
                   showBadge={true}
@@ -295,7 +295,7 @@ const NewArrivals = () => {
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
-              <div className="bg-white rounded-lg shadow-sm border border-emerald-100 overflow-hidden hover:shadow-md transition-all duration-200">
+              <div className="">
                 <ProductCard 
                   product={product}
                   showBadge={true}
@@ -330,7 +330,7 @@ const NewArrivals = () => {
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
-              <div className="bg-white rounded-lg shadow-sm border border-lime-100 overflow-hidden hover:shadow-md transition-all duration-200">
+              <div className="">
                 <ProductCard 
                   product={product}
                   showBadge={true}
@@ -352,7 +352,7 @@ const NewArrivals = () => {
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
-              <div className="bg-white rounded-lg shadow-sm border border-lime-100 overflow-hidden hover:shadow-md transition-all duration-200">
+              <div className="">
                 <ProductCard 
                   product={product}
                   showBadge={true}

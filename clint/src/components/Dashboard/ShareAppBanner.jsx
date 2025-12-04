@@ -179,7 +179,7 @@ const ShareAppBanner = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <motion.button
+            <motion.span
               whileHover={!isSupported ? { scale: 1.05 } : {}}
               whileTap={!isSupported ? { scale: 0.95 } : {}}
               onClick={handleSupport}
@@ -200,7 +200,7 @@ const ShareAppBanner = () => {
               <span className="hidden sm:inline">
                 {isSupported ? 'Supported!' : 'Support'}
               </span>
-            </motion.button>
+            </motion.span>
 
             <motion.button
               whileHover={{ scale: 1.05 }}
