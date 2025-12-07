@@ -81,10 +81,10 @@ const Footer = () => {
     {
       title: "Follow Us",
       links: [
-        { text: "Instagram", url: "#" },
-        { text: "Twitter", url: "#" },
+        { text: "Instagram", url: "https://www.instagram.com/rg.basket?igsh=MW5peWhqeXIybWdhNA==" },
+        { text: "X", url: "https://x.com/Rgbasket?t=7aE40eFefW7o51PgcFJk5Q&s=08" },
         { text: "Facebook", url: "#" },
-        { text: "YouTube", url: "#" },
+        { text: "YouTube", url: "https://youtube.com/@rgbasket?si=8p36hGcaKuzr32C-" },
       ],
     },
   ];
@@ -230,12 +230,12 @@ const Footer = () => {
               key={platform}
               href={
                 platform === "Instagram"
-                  ? "https://instagram.com/rgbasket"
+                  ? "https://www.instagram.com/rg.basket?igsh=MW5peWhqeXIybWdhNA=="
                   : platform === "Twitter"
-                  ? "https://twitter.com/rgbasket"
+                  ? "hhttps://x.com/Rgbasket?t=7aE40eFefW7o51PgcFJk5Q&s=08"
                   : platform === "Facebook"
                   ? "https://facebook.com/rgbasket"
-                  : "https://youtube.com/@rgbasket"
+                  : "https://youtube.com/@rgbasket?si=iPzE8I-Tm6ieZCLR"
               }
               className="w-10 h-10 bg-white/50 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-600 hover:text-[#005650] border border-white/20 shadow-lg"
               whileHover={{

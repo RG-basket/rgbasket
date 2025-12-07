@@ -5,20 +5,47 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- 🔧 PWA FIX - ADD THESE 3 LINES -->
+    <!-- 🔧 PWA -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#22c55e" />
-    <meta name="description" content="RG Basket - Your local grocery store, now with smart delivery. Schedule your grocery delivery and enjoy fresh, quality products at your convenience." />
-    <!-- ✅ END PWA FIX -->
     
-    <!-- 🔍 GOOGLE SEARCH CONSOLE VERIFICATION -->
+    <!-- 🔍 BRAND-FOCUSED SEO -->
+    <title>RGBasket - Smart Grocery Delivery App</title>
+    <meta name="description" content="RGBasket - Your smart grocery delivery service. Schedule fresh groceries delivered to your door.">
+    
+    <!-- 🎯 BRAND KEYWORDS -->
+    <meta name="keywords" content="RGBasket, rgbasket, R G Basket, RG Basket, RG Basket app, RGBasket grocery, RGBasket delivery">
+    
+    <!-- 🏷️ BRAND STRUCTURED DATA -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "RGBasket",
+      "applicationCategory": "ShoppingApplication",
+      "operatingSystem": "Web",
+      "description": "RGBasket grocery delivery application",
+      "url": "https://rgbasket.vercel.app",
+      "sameAs": "https://rgbasket.vercel.app"
+    }
+    </script>
+    
+    <!-- 🔍 GOOGLE SEARCH CONSOLE -->
     <meta name="google-site-verification" content="WU43WLX6ENEwifWCL-OAB1xuJFE2xbm7nV4nngcazKo" />
-    <!-- ✅ END GOOGLE VERIFICATION -->
     
-    <title>RG Basket </title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- 🎯 HIDDEN BRAND TEXT FOR SEO (for immediate ranking) -->
+    <div style="display:none;">
+      <h1>RGBasket</h1>
+      <h2>RGBasket App</h2>
+      <h3>RGBasket Grocery Delivery</h3>
+      <p>Welcome to RGBasket. RGBasket is your smart grocery delivery service. 
+      Download the RGBasket app for fresh groceries. RGBasket delivers quality products. 
+      Use RGBasket for scheduled delivery. RGBasket online grocery store.</p>
+    </div>
   </body>
 </html>
