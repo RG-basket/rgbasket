@@ -2,36 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" /> <!-- ADD ?v=2 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- 🔧 PWA -->
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.json?v=2" /> <!-- ADD ?v=2 -->
     <meta name="theme-color" content="#22c55e" />
     
     <!-- 🔍 BRAND-FOCUSED SEO -->
-    <title>RGBasket - Smart Grocery Delivery App</title>
-    <meta name="description" content="RGBasket - Your smart grocery delivery service. Schedule fresh groceries delivered to your door.">
+    <title>RGBasket - Smart Grocery Delivery App | Fresh Groceries</title> <!-- ADD | Fresh Groceries -->
+    <meta name="description" content="RGBasket - Smart grocery delivery service in Cuttack. Schedule fresh fruits, vegetables, dairy delivered to your doorstep."> <!-- ADD "in Cuttack" -->
     
     <!-- 🎯 BRAND KEYWORDS -->
-    <meta name="keywords" content="RGBasket, rgbasket, R G Basket, RG Basket, RG Basket app, RGBasket grocery, RGBasket delivery">
+    <meta name="keywords" content="RGBasket, rgbasket, RG Basket, RG Basket app, RGBasket grocery, RGBasket delivery, grocery delivery Cuttack">
     
     <!-- 🏷️ BRAND STRUCTURED DATA -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebApplication",
+      "@type": "GroceryStore",
       "name": "RGBasket",
-      "applicationCategory": "ShoppingApplication",
-      "operatingSystem": "Web",
-      "description": "RGBasket grocery delivery application",
+      "alternateName": "RG Basket",
       "url": "https://rgbasket.vercel.app",
-      "sameAs": "https://rgbasket.vercel.app"
+      "description": "Smart grocery delivery service in Cuttack, Odisha",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Cuttack",
+        "addressRegion": "Odisha"
+      },
+      "areaServed": "Cuttack",
+      "openingHours": "Mo-Su 07:00-22:00"
     }
     </script>
     
     <!-- 🔍 GOOGLE SEARCH CONSOLE -->
     <meta name="google-site-verification" content="WU43WLX6ENEwifWCL-OAB1xuJFE2xbm7nV4nngcazKo" />
+    
+    <!-- ⚡ CACHE CONTROL -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     
   </head>
   <body>
@@ -43,9 +51,9 @@
       <h1>RGBasket</h1>
       <h2>RGBasket App</h2>
       <h3>RGBasket Grocery Delivery</h3>
-      <p>Welcome to RGBasket. RGBasket is your smart grocery delivery service. 
-      Download the RGBasket app for fresh groceries. RGBasket delivers quality products. 
-      Use RGBasket for scheduled delivery. RGBasket online grocery store.</p>
+      <p>Welcome to RGBasket. RGBasket is your smart grocery delivery service in Cuttack. 
+      Download the RGBasket app for fresh groceries. RGBasket delivers quality products in Cuttack area. 
+      Use RGBasket for scheduled delivery. RGBasket online grocery store in Cuttack, Odisha.</p>
     </div>
   </body>
 </html>
