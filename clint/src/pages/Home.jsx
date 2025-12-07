@@ -18,9 +18,9 @@ const Home = () => {
             <ShareApp />
             <NewArrivals />
             <BestSeller />
+            <PWAInstallBanner />
             <RecentViewed />
             <OurServices />
-            <PWAInstallBanner />
             <CustomerReviews />
             <ServiceableBanner />
         </div>
