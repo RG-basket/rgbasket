@@ -19,6 +19,8 @@ const OrderSummary = ({
     deliverySlot,
     setDeliverySlot,
     subtotal,
+    totalMRP,
+    totalSavings,
     shippingFee,
     tax,
     totalAmount,
@@ -59,6 +61,8 @@ const OrderSummary = ({
                     {/* Pricing Summary */}
                     <PricingSummary
                         subtotal={subtotal}
+                        totalMRP={totalMRP}
+                        totalSavings={totalSavings}
                         shippingFee={shippingFee}
                         tax={tax}
                         totalAmount={totalAmount}

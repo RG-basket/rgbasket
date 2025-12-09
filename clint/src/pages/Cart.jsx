@@ -471,6 +471,9 @@ const Cart = () => {
 
   // Calculate totals
   const subtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity, 0);
+  const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
+  const totalSavings = totalMRP - subtotal;
+
   const shippingFee = cartArray.length > 0 ? 29 : 0;
   const tax = 0;
   const totalAmount = subtotal + shippingFee + tax;
@@ -616,6 +619,8 @@ const Cart = () => {
           deliverySlot={deliverySlot}
           setDeliverySlot={setDeliverySlot}
           subtotal={subtotal}
+          totalMRP={totalMRP}
+          totalSavings={totalSavings}
           shippingFee={shippingFee}
           tax={tax}
           totalAmount={totalAmount}
