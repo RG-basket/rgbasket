@@ -8,16 +8,17 @@ const { authenticateAdmin } = require('../middleware/auth');
 router.post('/', async (req, res) => {
   try {
     console.log('🔍 Order creation request body:', JSON.stringify(req.body, null, 2));
-    
-    const { 
-      items, 
-      shippingAddress, 
-      paymentMethod = 'cash_on_delivery', 
-      deliveryDate, 
+
+    const {
+      items,
+      shippingAddress,
+      paymentMethod = 'cash_on_delivery',
+      deliveryDate,
       timeSlot,
       userId,
       userInfo,
-      location // Add location data from request
+      location, // Add location data from request
+      instruction
     } = req.body;
 
     // Validate required fields
@@ -29,7 +30,7 @@ router.post('/', async (req, res) => {
     }
 
     console.log('📦 Items received:', items);
-    
+
     // Log location data if present
     if (location) {
       console.log('📍 Location data received:', {
@@ -68,7 +69,8 @@ router.post('/', async (req, res) => {
       shippingAddress,
       paymentMethod,
       deliveryDate: new Date(deliveryDate),
-      timeSlot
+      timeSlot,
+      instruction: instruction || ''
     };
 
     // Add location data if provided
@@ -109,7 +111,7 @@ router.post('/', async (req, res) => {
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     console.log('🔍 Fetching orders for user:', userId);
 
     if (!userId) {
@@ -143,7 +145,7 @@ router.get('/user/:userId', async (req, res) => {
 router.get('/admin/orders', authenticateAdmin, async (req, res) => {
   try {
     console.log('🔍 Admin: Fetching all orders');
-    
+
     const orders = await Order.find()
       .sort({ createdAt: -1 });
 
@@ -173,7 +175,7 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
     console.log(`🔄 Updating order ${orderId} status to:`, status);
 
     const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
-    
+
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -182,7 +184,7 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
     }
 
     const updateData = { status };
-    
+
     // If marking as delivered, set deliveredAt timestamp
     if (status === 'delivered') {
       updateData.deliveredAt = new Date();
@@ -300,7 +302,7 @@ router.put("/:orderId/cancel", async (req, res) => {
 
     // Update the order status
     order.status = 'cancelled';
-    
+
     // Add cancellation reason if provided
     if (cancelReason) {
       order.cancelReason = cancelReason;
@@ -354,7 +356,7 @@ router.put('/:orderId/delivered', async (req, res) => {
     // Update the order
     order.status = 'delivered';
     order.deliveredAt = new Date();
-    
+
     await order.save();
 
     console.log(`✅ User confirmed delivery for order ${orderId}`);

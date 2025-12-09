@@ -5,6 +5,7 @@ import PaymentDeliverySection from './PaymentDeliverySection';
 import PricingSummary from './PricingSummary';
 import PlaceOrderButton from './PlaceOrderButton';
 import OutOfStockWarning from './OutOfStockWarning';
+import DeliveryInstruction from './DeliveryInstruction';
 
 const OrderSummary = ({
     user,
@@ -28,7 +29,9 @@ const OrderSummary = ({
     placeOrder,
     isPlacingOrder,
     outOfStockItems,
-    unavailableItems
+    unavailableItems,
+    instruction,
+    setInstruction
 }) => {
     return (
         <div className="w-full lg:max-w-md bg-green-50 border border-green-200 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 h-fit sticky top-20 lg:top-24">
@@ -48,6 +51,12 @@ const OrderSummary = ({
             {/* Only show payment/delivery if address exists and no issues */}
             {addresses.length > 0 && selectedAddress && outOfStockItems.length === 0 && (!unavailableItems || Object.keys(unavailableItems).length === 0) && (
                 <>
+                    {/* Delivery Instruction */}
+                    <DeliveryInstruction
+                        instruction={instruction}
+                        setInstruction={setInstruction}
+                    />
+
                     {/* Payment and Delivery */}
                     <PaymentDeliverySection
                         paymentOption={paymentOption}

@@ -63,11 +63,11 @@ const AdminOrdersDark = () => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       if (data.success) {
         setOrders(data.orders || []);
@@ -216,10 +216,10 @@ const AdminOrdersDark = () => {
 
   const printOrderBill = () => {
     if (!selectedOrder) return;
-    
+
     const printWindow = window.open('', '_blank');
     const order = selectedOrder;
-    
+
     const billHtml = `
 <!DOCTYPE html>
 <html>
@@ -545,6 +545,15 @@ const AdminOrdersDark = () => {
         </div>
       </div>
 
+      ${order.instruction ? `
+        <div class="info-card" style="margin-bottom: 25px;">
+          <div class="card-title">📝 DELIVERY INSTRUCTION</div>
+          <div style="font-size: 13px; font-style: italic; color: #d97706; background: #fffbeb; padding: 10px; border-radius: 6px; border: 1px solid #fcd34d;">
+            "${order.instruction}"
+          </div>
+        </div>
+      ` : ''}
+
       ${order.location && order.location.coordinates ? `
         <div class="info-card" style="grid-column: span 3;">
           <div class="card-title">📍 DELIVERY LOCATION (GPS)</div>
@@ -588,15 +597,15 @@ const AdminOrdersDark = () => {
             </tr>
           </thead>
           <tbody>
-            ${order.items.map(item => 
-              '<tr>' +
-                '<td><strong>' + item.name + '</strong><br><span style="font-size: 11px; color: #64748b;">' + item.description + '</span></td>' +
-                '<td>' + item.weight + '</td>' +
-                '<td>' + item.quantity + '</td>' +
-                '<td>₹' + item.price + '</td>' +
-                '<td><strong>₹' + (item.price * item.quantity).toFixed(2) + '</strong></td>' +
-              '</tr>'
-            ).join('')}
+            ${order.items.map(item =>
+      '<tr>' +
+      '<td><strong>' + item.name + '</strong><br><span style="font-size: 11px; color: #64748b;">' + item.description + '</span></td>' +
+      '<td>' + item.weight + (item.unit ? ' ' + item.unit : '') + '</td>' +
+      '<td>' + item.quantity + '</td>' +
+      '<td>₹' + item.price + '</td>' +
+      '<td><strong>₹' + (item.price * item.quantity).toFixed(2) + '</strong></td>' +
+      '</tr>'
+    ).join('')}
           </tbody>
         </table>
       </div>
@@ -647,21 +656,21 @@ const AdminOrdersDark = () => {
     if (filterStatus !== 'all' && order.status !== filterStatus) {
       return false;
     }
-    
+
     if (dateFilter) {
       const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
       if (orderDate !== dateFilter) {
         return false;
       }
     }
-    
+
     if (deliveryDateFilter) {
       const deliveryDate = new Date(order.deliveryDate).toISOString().split('T')[0];
       if (deliveryDate !== deliveryDateFilter) {
         return false;
       }
     }
-    
+
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -671,7 +680,7 @@ const AdminOrdersDark = () => {
         (order.shippingAddress?.fullName?.toLowerCase() || '').includes(searchLower)
       );
     }
-    
+
     return true;
   });
 
@@ -705,7 +714,16 @@ const AdminOrdersDark = () => {
     {
       key: '_id',
       label: 'Order ID',
-      render: (id) => <span className={`font-mono text-xs ${tw.textSecondary}`}>#{id?.slice(-8)}</span>
+      render: (id, order) => (
+        <div className="flex items-center gap-2">
+          <span className={`font-mono text-xs ${tw.textSecondary}`}>#{id?.slice(-8)}</span>
+          {order.instruction && (
+            <span className="text-yellow-500" title="Has Delivery Instruction">
+              📝
+            </span>
+          )}
+        </div>
+      )
     },
     {
       key: 'customer',
@@ -876,11 +894,10 @@ const AdminOrdersDark = () => {
             <button
               key={key}
               onClick={() => setFilterStatus(key)}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                filterStatus === key
-                  ? 'border-[#7aa2f7] bg-[#7aa2f7]/20'
-                  : `${tw.borderPrimary} hover:border-[#7aa2f7]/50`
-              }`}
+              className={`p-4 rounded-xl border-2 transition-all ${filterStatus === key
+                ? 'border-[#7aa2f7] bg-[#7aa2f7]/20'
+                : `${tw.borderPrimary} hover:border-[#7aa2f7]/50`
+                }`}
             >
               <p className={`text-2xl font-bold ${tw.textPrimary}`}>{statusCounts[key]}</p>
               <p className={`text-sm ${tw.textSecondary}`}>{label}</p>
@@ -907,7 +924,7 @@ const AdminOrdersDark = () => {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
-            
+
             <div>
               <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Order Date</label>
               <input
@@ -917,7 +934,7 @@ const AdminOrdersDark = () => {
                 className={`w-full ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
               />
             </div>
-            
+
             <div>
               <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Delivery Date</label>
               <input
@@ -927,7 +944,7 @@ const AdminOrdersDark = () => {
                 className={`w-full ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
               />
             </div>
-            
+
             <div>
               <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Search</label>
               <div className="relative">
@@ -1032,6 +1049,18 @@ const AdminOrdersDark = () => {
                 </div>
               </div>
 
+              {/* Delivery Instruction */}
+              {selectedOrder.instruction && (
+                <div className={`p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10`}>
+                  <h3 className={`font-medium text-yellow-500 mb-2 flex items-center gap-2`}>
+                    <span>📝</span> Delivery Instruction
+                  </h3>
+                  <p className={`text-sm ${tw.textPrimary} italic`}>
+                    "{selectedOrder.instruction}"
+                  </p>
+                </div>
+              )}
+
               {/* Geolocation Information */}
               {selectedOrder.location && selectedOrder.location.coordinates && (
                 <div className={`p-4 rounded-lg border border-[#7aa2f7]/30 bg-[#7aa2f7]/10`}>
@@ -1061,7 +1090,7 @@ const AdminOrdersDark = () => {
                     </div>
                   </div>
                   <div className="mt-3">
-                    <a 
+                    <a
                       href={`https://www.google.com/maps?q=${selectedOrder.location.coordinates.latitude},${selectedOrder.location.coordinates.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -1092,8 +1121,8 @@ const AdminOrdersDark = () => {
                         <tr key={index}>
                           <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>
                             <div className="flex items-center gap-3">
-                              <img 
-                                src={getProductImage(item)} 
+                              <img
+                                src={getProductImage(item)}
                                 alt={item.name}
                                 className="w-10 h-10 rounded object-cover border border-gray-600"
                                 onError={(e) => {
@@ -1106,7 +1135,7 @@ const AdminOrdersDark = () => {
                               </div>
                             </div>
                           </td>
-                          <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.weight}</td>
+                          <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.weight} {item.unit}</td>
                           <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.quantity}</td>
                           <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>₹{item.price}</td>
                           <td className={`px-4 py-3 text-sm font-medium text-right ${tw.textPrimary}`}>
@@ -1163,20 +1192,32 @@ const AdminOrdersDark = () => {
                 </div>
               </div>
 
+              {/* Delivery Instruction in Edit Modal */}
+              {editingOrder.instruction && (
+                <div className={`p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10`}>
+                  <h3 className={`font-medium text-yellow-500 mb-2 flex items-center gap-2`}>
+                    <span>📝</span> Delivery Instruction
+                  </h3>
+                  <p className={`text-sm ${tw.textPrimary} italic`}>
+                    "{editingOrder.instruction}"
+                  </p>
+                </div>
+              )}
+
               <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
                 <h3 className={`font-medium ${tw.textPrimary} mb-4`}>Order Items</h3>
                 <div className="space-y-4">
                   {editingOrder.items.map((item, index) => (
                     <div key={index} className={`flex items-center gap-4 p-4 border ${tw.borderPrimary} rounded-lg`}>
-                      <img 
-                        src={getProductImage(item)} 
+                      <img
+                        src={getProductImage(item)}
                         alt={item.name}
                         className="w-16 h-16 rounded object-cover border border-gray-600"
                       />
                       <div className="flex-1">
                         <h4 className={`font-medium ${tw.textPrimary}`}>{item.name}</h4>
                         <p className={`text-sm ${tw.textSecondary}`}>{item.description}</p>
-                        <p className={`text-sm ${tw.textSecondary}`}>{item.weight}</p>
+                        <p className={`text-sm ${tw.textSecondary}`}>{item.weight} {item.unit}</p>
                       </div>
                       <div className="flex items-center gap-3">
                         <div>
@@ -1288,8 +1329,8 @@ const AdminOrdersDark = () => {
                 <div className={`p-4 rounded-lg ${tw.bgCard} border ${tw.borderPrimary}`}>
                   <h3 className={`text-sm font-semibold ${tw.textSecondary} mb-2`}>Captured</h3>
                   <p className={`text-sm ${tw.textPrimary}`}>
-                    {selectedLocation.timestamp 
-                      ? new Date(selectedLocation.timestamp).toLocaleString() 
+                    {selectedLocation.timestamp
+                      ? new Date(selectedLocation.timestamp).toLocaleString()
                       : 'N/A'}
                   </p>
                 </div>

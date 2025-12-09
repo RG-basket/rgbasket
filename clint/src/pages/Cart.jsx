@@ -60,6 +60,14 @@ const Cart = () => {
   const [outOfStockItems, setOutOfStockItems] = useState([]);
   const [unavailableItems, setUnavailableItems] = useState({});
   const [showUnavailableModal, setShowUnavailableModal] = useState(false);
+  const [instruction, setInstruction] = useState(() => {
+    return localStorage.getItem('cartInstruction') || "";
+  });
+
+  // Persist instruction
+  useEffect(() => {
+    localStorage.setItem('cartInstruction', instruction);
+  }, [instruction]);
 
   // Safe currency symbol
   const currencySymbol = CURRENCY || '₹';
@@ -306,6 +314,7 @@ const Cart = () => {
         tempArray.push({
           ...product,
           weight: variant.weight,
+          unit: variant.unit,
           offerPrice: variant.offerPrice,
           price: variant.price,
           quantity: cartItems[key],
@@ -357,6 +366,7 @@ const Cart = () => {
           ? item.description.join(', ')
           : (item.description || `${item.name} - ${item.weight}`),
         weight: item.weight,
+        unit: item.unit,
         quantity: item.quantity,
         price: item.offerPrice || item.price,
         image: item.images?.[0] || item.image?.[0] || '',
@@ -388,7 +398,8 @@ const Cart = () => {
           email: user?.email || '',
           photo: user?.photo || '',
           phone: selectedAddress.phoneNumber
-        }
+        },
+        instruction
       };
 
       // Silently add location data if captured (user never sees this)
@@ -410,7 +421,9 @@ const Cart = () => {
         toast.success('Order placed successfully!');
 
         localStorage.removeItem('cartItems');
+        localStorage.removeItem('cartInstruction');
         setCartItems({});
+        setInstruction("");
 
         setTimeout(() => {
           window.location.href = '/order-success';
@@ -630,6 +643,8 @@ const Cart = () => {
           outOfStockItems={outOfStockItems}
           unavailableItems={unavailableItems}
           hasUnavailableItems={hasUnavailableItems}
+          instruction={instruction}
+          setInstruction={setInstruction}
         />
       )}
     </div>

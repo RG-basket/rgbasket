@@ -30,16 +30,16 @@ const MyOrders = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       const userId = currentUser?.id || currentUser?._id;
-      
+
       if (!userId) {
         throw new Error('Please login to view your orders');
       }
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/user/${userId}`);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch orders: ${response.status}`);
       }
@@ -83,7 +83,7 @@ const MyOrders = () => {
   const getStatusCounts = () => {
     return statusFilters.map(filter => {
       let count = 0;
-      
+
       if (filter.value === 'all') {
         count = orders.length;
       } else if (filter.value === 'out for delivery') {
@@ -91,7 +91,7 @@ const MyOrders = () => {
       } else {
         count = orders.filter(order => order.status === filter.value).length;
       }
-      
+
       return {
         ...filter,
         count
@@ -101,7 +101,7 @@ const MyOrders = () => {
 
   const getOrderStatusColor = (status) => {
     const displayStatus = status === 'shipped' ? 'out for delivery' : status;
-    
+
     const colors = {
       confirmed: 'bg-blue-100 text-blue-800 border border-blue-200',
       'out for delivery': 'bg-indigo-100 text-indigo-800 border border-indigo-200',
@@ -114,7 +114,7 @@ const MyOrders = () => {
 
   const getStatusIcon = (status) => {
     const displayStatus = status === 'shipped' ? 'out for delivery' : status;
-    
+
     const icons = {
       confirmed: '✅',
       'out for delivery': '🚚',
@@ -150,7 +150,7 @@ const MyOrders = () => {
 
     try {
       setUpdatingOrder(true);
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/${orderToCancel._id}/cancel`, {
         method: 'PUT',
         headers: {
@@ -168,7 +168,7 @@ const MyOrders = () => {
 
       await response.json();
       await fetchUserOrders();
-      
+
       setError('');
       setShowCancelConfirm(false);
       setOrderToCancel(null);
@@ -211,7 +211,7 @@ const MyOrders = () => {
 
     try {
       setUpdatingOrder(true);
-      
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/${orderToDeliver._id}/delivered`, {
         method: 'PUT',
         headers: {
@@ -225,7 +225,7 @@ const MyOrders = () => {
 
       await response.json();
       await fetchUserOrders();
-      
+
       setError('');
       setShowDeliveryConfirm(false);
       setOrderToDeliver(null);
@@ -280,7 +280,7 @@ const MyOrders = () => {
           >
             <span className="text-xl">⚠️</span>
           </motion.div>
-          <motion.h2 
+          <motion.h2
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
@@ -288,7 +288,7 @@ const MyOrders = () => {
           >
             Something went wrong
           </motion.h2>
-          <motion.p 
+          <motion.p
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -324,13 +324,13 @@ const MyOrders = () => {
   const statusCounts = getStatusCounts();
 
   return (
-    <motion.div 
+    <motion.div
       initial="hidden"
       animate="visible"
       className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-4"
     >
       <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6">
-        
+
         {/* Header */}
         <div className="text-center mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-3">
@@ -367,25 +367,23 @@ const MyOrders = () => {
               Showing {filteredOrders.length} of {orders.length} orders
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
             {statusCounts.map((filter) => (
               <button
                 key={filter.value}
                 onClick={() => handleStatusFilter(filter.value)}
-                className={`relative p-2 sm:p-3 rounded-lg sm:rounded-xl transition-all duration-200 font-medium text-xs sm:text-sm ${
-                  selectedStatus === filter.value
+                className={`relative p-2 sm:p-3 rounded-lg sm:rounded-xl transition-all duration-200 font-medium text-xs sm:text-sm ${selectedStatus === filter.value
                     ? 'bg-white text-gray-900 shadow-md sm:shadow-lg border border-[#26544a]'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
-                }`}
+                  }`}
               >
                 <div className="flex flex-col items-center">
                   <span className="font-semibold">{filter.label}</span>
-                  <span className={`text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full mt-1 ${
-                    selectedStatus === filter.value 
-                      ? 'bg-[#26544a] text-white' 
+                  <span className={`text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full mt-1 ${selectedStatus === filter.value
+                      ? 'bg-[#26544a] text-white'
                       : 'bg-gray-300 text-gray-700'
-                  }`}>
+                    }`}>
                     {filter.count}
                   </span>
                 </div>
@@ -410,7 +408,7 @@ const MyOrders = () => {
               {selectedStatus === 'all' ? 'No Orders Yet' : `No ${selectedStatus} Orders`}
             </h2>
             <p className="text-gray-600 mb-6 text-sm sm:text-base">
-              {selectedStatus === 'all' 
+              {selectedStatus === 'all'
                 ? "You haven't placed any orders yet. Start shopping to see your orders here!"
                 : `You don't have any ${selectedStatus} orders at the moment.`
               }
@@ -432,7 +430,7 @@ const MyOrders = () => {
           </motion.div>
         ) : (
           <div className="space-y-4 sm:space-y-6">
-            
+
             {/* Summary Card */}
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -445,7 +443,7 @@ const MyOrders = () => {
                     {selectedStatus === 'all' ? 'Order Summary' : `${getDisplayStatus(selectedStatus)} Orders`}
                   </h2>
                   <p className="text-green-100 opacity-90 text-sm">
-                    {selectedStatus === 'all' 
+                    {selectedStatus === 'all'
                       ? `You have ${orders.length} order${orders.length > 1 ? 's' : ''} in total`
                       : `Showing ${filteredOrders.length} ${selectedStatus} order${filteredOrders.length > 1 ? 's' : ''}`
                     }
@@ -472,7 +470,7 @@ const MyOrders = () => {
                   transition={{ delay: index * 0.1 }}
                   className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 overflow-hidden"
                 >
-                  
+
                   {/* Order Header */}
                   <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 p-4 sm:p-6">
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4">
@@ -485,7 +483,7 @@ const MyOrders = () => {
                             Order #{order._id ? order._id.slice(-8).toUpperCase() : `ORDER-${index + 1}`}
                           </h3>
                           <p className="text-gray-600 text-xs sm:text-sm mt-1">
-                            Placed on {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', { 
+                            Placed on {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
                               weekday: 'long',
                               year: 'numeric',
                               month: 'long',
@@ -513,7 +511,7 @@ const MyOrders = () => {
                                 Mark as Delivered
                               </button>
                             )}
-                            
+
                             {/* Cancel Order Button - Only show for cancellable orders */}
                             {canCancelOrder(order) && (
                               <button
@@ -539,7 +537,7 @@ const MyOrders = () => {
                         </h4>
                         <div className="space-y-3">
                           {order.items?.map((item, itemIndex) => (
-                            <motion.div 
+                            <motion.div
                               key={itemIndex}
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ opacity: 1, x: 0 }}
@@ -548,8 +546,8 @@ const MyOrders = () => {
                             >
                               {/* Product Image */}
                               <div className="flex-shrink-0">
-                                <img 
-                                  src={getProductImage(item)} 
+                                <img
+                                  src={getProductImage(item)}
                                   alt={item.name}
                                   className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-lg border border-gray-300"
                                   onError={(e) => {
@@ -620,7 +618,7 @@ const MyOrders = () => {
                                 {order.paymentMethod ? order.paymentMethod.replace(/_/g, ' ') : 'Cash on Delivery'}
                               </span>
                             </div>
-                            
+
                             {order.deliveryDate && (
                               <div>
                                 <span className="text-gray-600 text-xs sm:text-sm block mb-1">Delivery Schedule</span>
@@ -662,6 +660,17 @@ const MyOrders = () => {
                                 </div>
                               </div>
                             )}
+
+                            {order.instruction && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <span className="text-gray-600 text-xs sm:text-sm block mb-1 flex items-center gap-1">
+                                  <span>📝</span> Delivery Instruction
+                                </span>
+                                <p className="text-gray-800 text-sm bg-yellow-50 p-2 rounded border border-yellow-100 italic">
+                                  "{order.instruction}"
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -693,11 +702,11 @@ const MyOrders = () => {
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/60 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 border border-white/30">
                   <span className="text-lg sm:text-xl">📦</span>
                 </div>
-                
+
                 <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1 sm:mb-2">
                   Confirm Delivery
                 </h3>
-                
+
                 <p className="text-gray-700 text-sm sm:text-base mb-4 sm:mb-6">
                   Have you received your order? This action cannot be undone.
                 </p>
@@ -716,7 +725,7 @@ const MyOrders = () => {
                   >
                     Cancel
                   </button>
-                  
+
                   <button
                     onClick={confirmDelivery}
                     disabled={updatingOrder}
@@ -757,11 +766,11 @@ const MyOrders = () => {
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/60 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 border border-white/30">
                   <span className="text-lg sm:text-xl">❌</span>
                 </div>
-                
+
                 <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1 sm:mb-2">
                   Cancel Order
                 </h3>
-                
+
                 <p className="text-gray-700 text-sm sm:text-base mb-4 sm:mb-6">
                   Are you sure you want to cancel this order? This action cannot be undone.
                 </p>
@@ -794,7 +803,7 @@ const MyOrders = () => {
                   >
                     Keep Order
                   </button>
-                  
+
                   <button
                     onClick={confirmCancelOrder}
                     disabled={updatingOrder}

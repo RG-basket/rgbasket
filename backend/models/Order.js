@@ -43,6 +43,10 @@ const OrderSchema = new mongoose.Schema({
       type: String,
       required: true
     },
+    unit: {
+      type: String,
+      default: ''
+    },
     quantity: {
       type: Number,
       required: true,
@@ -123,6 +127,11 @@ const OrderSchema = new mongoose.Schema({
     },
     accuracy: { type: Number },
     timestamp: { type: Date }
+  },
+  instruction: {
+    type: String,
+    default: '',
+    maxLength: 1000
   }
 }, {
   timestamps: true,
@@ -136,7 +145,7 @@ OrderSchema.index({ status: 1 });
 OrderSchema.index({ 'location.coordinates.latitude': 1, 'location.coordinates.longitude': 1 });
 
 // Virtual for Google Maps URL
-OrderSchema.virtual('location.googleMapsUrl').get(function() {
+OrderSchema.virtual('location.googleMapsUrl').get(function () {
   if (this.location?.coordinates?.latitude && this.location?.coordinates?.longitude) {
     return `https://www.google.com/maps?q=${this.location.coordinates.latitude},${this.location.coordinates.longitude}`;
   }
@@ -144,14 +153,14 @@ OrderSchema.virtual('location.googleMapsUrl').get(function() {
 });
 
 // Optional: Coordinate validation
-OrderSchema.path('location.coordinates.latitude').validate(function(value) {
+OrderSchema.path('location.coordinates.latitude').validate(function (value) {
   if (value !== undefined && value !== null) {
     return value >= -90 && value <= 90;
   }
   return true;
 }, 'Latitude must be between -90 and 90');
 
-OrderSchema.path('location.coordinates.longitude').validate(function(value) {
+OrderSchema.path('location.coordinates.longitude').validate(function (value) {
   if (value !== undefined && value !== null) {
     return value >= -180 && value <= 180;
   }
