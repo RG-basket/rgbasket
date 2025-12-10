@@ -390,7 +390,8 @@ export const AppContextProvider = ({ children }) => {
 
       setShowUserLogin(false);
       toast.success("Login successful");
-      navigate("/profile");
+      // Stay on current page (e.g. Cart, Checkout) instead of redirecting to Profile
+      // navigate("/profile");
     } catch (error) {
       handleLoginError(error);
     } finally {
@@ -417,7 +418,7 @@ export const AppContextProvider = ({ children }) => {
 
       setShowUserLogin(false);
       toast.success("Login successful (offline mode)");
-      navigate("/profile");
+      // navigate("/profile");
     } else {
       toast.error("Google login failed");
     }
@@ -440,8 +441,8 @@ export const AppContextProvider = ({ children }) => {
 
   const requireAuth = () => {
     if (!user) {
-      toast.error("Please login to continue");
-      navigate("/login");
+      console.log('User not logged in, showing popup');
+      setShowUserLogin(true);
       return false;
     }
     return true;

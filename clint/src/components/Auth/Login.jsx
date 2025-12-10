@@ -9,14 +9,16 @@ const Login = () => {
       <h2 className="text-xl font-bold text-center text-[#005531]">
         Login to RG Basket
       </h2>
+      <p className="text-gray-500 text-center text-sm -mt-4">
+        Please sign in to continue
+      </p>
 
       <button
         onClick={loginWithGoogle}
         disabled={loading}
         aria-label="Sign in with Google"
-        className={`w-full flex items-center justify-center gap-2 bg-[#005531] text-white py-2 rounded-md transition ${
-          loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#004024]"
-        }`}
+        className={`w-full flex items-center justify-center gap-2 bg-[#005531] text-white py-2 rounded-md transition ${loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#004024]"
+          }`}
       >
         {loading && (
           <svg

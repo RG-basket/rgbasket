@@ -45,6 +45,7 @@ import CategoryStrip from "./components/Dashboard/CategoryStrip.jsx";
 import ServiceabilityModal from "./components/Servicibility/servic.jsx";
 import SlotManager from "./components/Admin/SlotManagerDark.jsx";
 import ProtectedRoute from "./components/Auth/ProtectedRoute.jsx";
+import LoginGuard from "./components/Auth/LoginGuard.jsx";
 
 const PincodeSchema = z.string().regex(/^\d{6}$/);
 
@@ -91,19 +92,13 @@ const App = () => {
       setShowServiceabilityModal(true);
     }
   }, []);
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === "Escape") {
-        setShowUserLogin(false);
-      }
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [setShowUserLogin]);
+  // Removed Escape key listener to strictly enforce "dismissible only via X button"
+  // as per requirements.
 
   return (
     <div className="min-h-screen flex flex-col justify-between">
       <ScrollToTop />
+      {!isAdminPath && <LoginGuard />}
 
       {!isAdminPath && (
         <>
