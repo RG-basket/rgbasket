@@ -46,6 +46,7 @@ import ServiceabilityModal from "./components/Servicibility/servic.jsx";
 import SlotManager from "./components/Admin/SlotManagerDark.jsx";
 import ProtectedRoute from "./components/Auth/ProtectedRoute.jsx";
 import LoginGuard from "./components/Auth/LoginGuard.jsx";
+import InstallPopup from "./components/Install/InstallPopup.jsx";
 
 const PincodeSchema = z.string().regex(/^\d{6}$/);
 
@@ -99,6 +100,7 @@ const App = () => {
     <div className="min-h-screen flex flex-col justify-between">
       <ScrollToTop />
       {!isAdminPath && <LoginGuard />}
+      {!isAdminPath && <InstallPopup />}
 
       {!isAdminPath && (
         <>
