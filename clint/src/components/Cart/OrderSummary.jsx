@@ -6,6 +6,7 @@ import PricingSummary from './PricingSummary';
 import PlaceOrderButton from './PlaceOrderButton';
 import OutOfStockWarning from './OutOfStockWarning';
 import DeliveryInstruction from './DeliveryInstruction';
+import PromoCodeSection from './PromoCodeSection';
 
 const OrderSummary = ({
     user,
@@ -31,7 +32,11 @@ const OrderSummary = ({
     outOfStockItems,
     unavailableItems,
     instruction,
-    setInstruction
+    setInstruction,
+    applyPromo,
+    removePromo,
+    promoCode,
+    discountAmount
 }) => {
     return (
         <div className="w-full lg:max-w-md bg-green-50 border border-green-200 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 h-fit sticky top-20 lg:top-24">
@@ -67,6 +72,15 @@ const OrderSummary = ({
                         setDeliverySlot={setDeliverySlot}
                     />
 
+                    {/* Promo Code Section */}
+                    <PromoCodeSection
+                        onApply={applyPromo}
+                        onRemove={removePromo}
+                        appliedCode={promoCode}
+                        discountAmount={discountAmount}
+                        currencySymbol={currencySymbol}
+                    />
+
                     {/* Pricing Summary */}
                     <PricingSummary
                         subtotal={subtotal}
@@ -76,6 +90,8 @@ const OrderSummary = ({
                         tax={tax}
                         totalAmount={totalAmount}
                         currencySymbol={currencySymbol}
+                        discountAmount={discountAmount}
+                        promoCode={promoCode}
                     />
 
                     {/* Order Button */}

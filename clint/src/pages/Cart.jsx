@@ -64,6 +64,11 @@ const Cart = () => {
     return localStorage.getItem('cartInstruction') || "";
   });
 
+  // Promo Code State
+  const [promoCode, setPromoCode] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [promoApplied, setPromoApplied] = useState(false);
+
   // Persist instruction
   useEffect(() => {
     localStorage.setItem('cartInstruction', instruction);
@@ -399,7 +404,8 @@ const Cart = () => {
           photo: user?.photo || '',
           phone: selectedAddress.phoneNumber
         },
-        instruction
+        instruction,
+        promoCode: promoApplied ? promoCode : null
       };
 
       // Silently add location data if captured (user never sees this)
@@ -489,7 +495,57 @@ const Cart = () => {
 
   const shippingFee = cartArray.length > 0 ? 29 : 0;
   const tax = 0;
-  const totalAmount = subtotal + shippingFee + tax;
+  // Dynamic Total
+  let totalAmount = subtotal + shippingFee + tax - discountAmount;
+  if (totalAmount < 0) totalAmount = 0;
+
+  // Re-apply promo if subtotal changes
+  useEffect(() => {
+    if (promoApplied && promoCode) {
+      // Debounce or just call
+      const timer = setTimeout(() => {
+        applyPromoCode(promoCode, true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [subtotal]);
+
+  const applyPromoCode = async (code, silent = false) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/promo/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          totalAmount: subtotal,
+          userId: user?.id || user?._id // Pass user ID for validation
+        })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setDiscountAmount(data.data.discountAmount);
+        setPromoCode(data.data.code);
+        setPromoApplied(true);
+        if (!silent) toast.success(`Promo code applied! Saved ₹${data.data.discountAmount}`);
+      } else {
+        if (!silent) toast.error(data.message || 'Invalid promo code');
+        // If validation fails on re-check, remove it
+        if (silent) removePromoCode();
+      }
+    } catch (error) {
+      console.error(error);
+      if (!silent) toast.error('Error applying promo code');
+    }
+  };
+
+  const removePromoCode = () => {
+    setPromoCode(null);
+    setDiscountAmount(0);
+    setPromoApplied(false);
+    if (!promoApplied) return; // Prevent toast loop if called from silent fail
+    // toast.success('Promo code removed'); // Optional
+  };
 
   // Check if there are any unavailable items (out of stock or slot unavailable)
   const hasUnavailableItems = outOfStockItems.length > 0 || Object.keys(unavailableItems).length > 0;
@@ -645,6 +701,12 @@ const Cart = () => {
           hasUnavailableItems={hasUnavailableItems}
           instruction={instruction}
           setInstruction={setInstruction}
+
+          // Promo Props
+          applyPromo={applyPromoCode}
+          removePromo={removePromoCode}
+          promoCode={promoCode}
+          discountAmount={discountAmount}
         />
       )}
     </div>

@@ -35,6 +35,9 @@ const ProductForm = lazy(() => import("./components/Admin/ProductFormDark.jsx"))
 const CategoryForm = lazy(() => import("./components/Products/CategoryForm.jsx"));
 const AnalyticsDashboard = lazy(() => import("./components/Admin/AnalyticsDashboard.jsx"));
 const AdminCategories = lazy(() => import("./components/Admin/AdminCategoriesDark.jsx"));
+const AdminPromoCodes = lazy(() => import("./components/Admin/AdminPromoCodesDark.jsx"));
+
+const InfluencerDashboard = lazy(() => import("./pages/InfluencerDashboard.jsx"));
 
 // Shared Components
 import Navbar from "./components/Navbar/Navbar.jsx";
@@ -216,6 +219,15 @@ const App = () => {
                 <SlotManager />
               </ProtectedRoute>
             } />
+            <Route path="/admin/promocodes" element={
+              <ProtectedRoute>
+                <AdminPromoCodes />
+              </ProtectedRoute>
+            } />
+
+            {/* Influencer Route */}
+            <Route path="/influencer/:routeName" element={<InfluencerDashboard />} />
+
             <Route path="/admin/servicibility" element={
               <ProtectedRoute>
                 <ServiceabilityModal />

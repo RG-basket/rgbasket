@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Package, ShoppingCart, Users, Settings,
     Calendar, MapPin, ChevronLeft, ChevronRight, LogOut,
-    Bell, Search, Menu, X
+    Bell, Search, Menu, X, Tag
 } from 'lucide-react';
 import { tokyoNight, tw } from '../../config/tokyoNightTheme';
 
@@ -31,6 +31,7 @@ const AdminLayoutDark = ({ children }) => {
         },
         { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
         { path: '/admin/users', icon: Users, label: 'Users' },
+        { path: '/admin/promocodes', icon: Tag, label: 'Promo Codes' },
         {
             label: 'Servicibility',
             icon: Calendar,

@@ -88,6 +88,22 @@ const OrderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  promoCode: {
+    type: String, // Storing code string for easy reference, could be ObjectId if strict relation needed
+    default: null
+  },
+  discountAmount: {
+    type: Number,
+    default: 0
+  },
+  originalTotal: {
+    type: Number, // Total before discount
+    default: 0
+  },
+  finalTotal: {
+    type: Number, // Total after discount (should match totalAmount if no discount)
+    default: 0
+  },
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
@@ -143,6 +159,7 @@ const OrderSchema = new mongoose.Schema({
 OrderSchema.index({ user: 1 });
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ 'location.coordinates.latitude': 1, 'location.coordinates.longitude': 1 });
+OrderSchema.index({ promoCode: 1 });
 
 // Virtual for Google Maps URL
 OrderSchema.virtual('location.googleMapsUrl').get(function () {

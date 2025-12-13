@@ -623,6 +623,12 @@ const AdminOrdersDark = () => {
           <span>Tax:</span>
           <span>₹${order.tax.toFixed(2)}</span>
         </div>
+        ${order.discountAmount > 0 ? `
+        <div class="total-row" style="color: #10b981;">
+          <span>Discount (${order.promoCode || 'PROMO'}):</span>
+          <span>-₹${order.discountAmount.toFixed(2)}</span>
+        </div>
+        ` : ''}
         <div class="total-row final">
           <span>TOTAL AMOUNT:</span>
           <span>₹${order.totalAmount.toFixed(2)}</span>
@@ -1151,6 +1157,14 @@ const AdminOrdersDark = () => {
                           ₹{selectedOrder.totalAmount?.toFixed(2)}
                         </td>
                       </tr>
+                      {selectedOrder.discountAmount > 0 && (
+                        <tr>
+                          <td colSpan="4" className={`px-4 py-2 text-sm text-right text-green-400`}>Discount ({selectedOrder.promoCode})</td>
+                          <td className={`px-4 py-2 text-sm text-right text-green-400`}>
+                            -₹{selectedOrder.discountAmount?.toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
                     </tfoot>
                   </table>
                 </div>

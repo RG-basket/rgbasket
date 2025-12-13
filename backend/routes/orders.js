@@ -4,105 +4,31 @@ const Order = require('../models/Order');
 const cache = require('../services/redis').cache;
 const { authenticateAdmin } = require('../middleware/auth');
 
+const OrderService = require('../services/OrderService');
+
 // Create new order from cart
 router.post('/', async (req, res) => {
   try {
     console.log('🔍 Order creation request body:', JSON.stringify(req.body, null, 2));
 
-    const {
-      items,
-      shippingAddress,
-      paymentMethod = 'cash_on_delivery',
-      deliveryDate,
-      timeSlot,
-      userId,
-      userInfo,
-      location, // Add location data from request
-      instruction
-    } = req.body;
+    // Use OrderService to handle creation, validation, pricing, and promo codes
+    const order = await OrderService.createOrder(req.body, req.body.userId);
 
-    // Validate required fields
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order must contain at least one item'
-      });
-    }
-
-    console.log('📦 Items received:', items);
-
-    // Log location data if present
-    if (location) {
-      console.log('📍 Location data received:', {
-        hasCoordinates: !!location.coordinates,
-        accuracy: location.accuracy,
-        timestamp: location.timestamp
-      });
-    }
-
-    // Calculate totals
-    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const shippingFee = 29;
-    const tax = 0;
-    const totalAmount = subtotal + shippingFee + tax;
-
-    console.log('💰 Calculated totals:', { subtotal, shippingFee, totalAmount });
-
-    // Create order with user information and location
-    const orderData = {
-      user: userId || 'guest_user',
-      userInfo: userInfo || {
-        name: 'Guest',
-        email: '',
-        photo: '',
-        phone: shippingAddress?.phoneNumber || ''
-      },
-      items: items.map(item => ({
-        ...item,
-        userName: item.userName || userInfo?.name || 'Guest',
-        userImage: item.userImage || userInfo?.photo || ''
-      })),
-      subtotal,
-      shippingFee,
-      tax,
-      totalAmount,
-      shippingAddress,
-      paymentMethod,
-      deliveryDate: new Date(deliveryDate),
-      timeSlot,
-      instruction: instruction || ''
-    };
-
-    // Add location data if provided
-    if (location && location.coordinates) {
-      orderData.location = {
-        coordinates: {
-          latitude: location.coordinates.latitude,
-          longitude: location.coordinates.longitude
-        },
-        accuracy: location.accuracy,
-        timestamp: location.timestamp ? new Date(location.timestamp) : new Date()
-      };
-      console.log('✅ Location data added to order');
-    }
-
-    const order = new Order(orderData);
-
-    console.log('💾 Saving order to database...');
-    const savedOrder = await order.save();
-    console.log('✅ Order saved successfully:', savedOrder._id);
+    console.log('✅ Order created via OrderService:', order.id);
 
     res.status(201).json({
       success: true,
       message: 'Order placed successfully!',
-      order: savedOrder
+      order: order
     });
 
   } catch (error) {
     console.error('💥 ORDER CREATION ERROR:', error);
-    res.status(500).json({
+    // Handle specific AppError status codes if available, else 500
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Error creating order: ' + error.message
+      message: error.message || 'Error creating order'
     });
   }
 });

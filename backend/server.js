@@ -106,6 +106,7 @@ const categoryRoutes = require('./routes/categories');
 const geocodeRoutes = require('./routes/geocode');
 const slotsRoutes = require('./routes/slots');
 const productSlotAvailabilityRoutes = require('./routes/productSlotAvailability');
+const promoCodeRoutes = require('./routes/promoCodeRoutes');
 
 // Use routes
 app.use('/api/admin', adminRoutes);
@@ -116,6 +117,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/geocode', geocodeRoutes);
 app.use('/api/slots', slotsRoutes);
 app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
+app.use('/api/promo', promoCodeRoutes);
 
 // Your existing routes
 app.post('/api/auth/google', async (req, res) => {

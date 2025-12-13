@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const PromoCode = require('../models/PromoCode');
 const AppError = require('../utils/AppError');
 
 class OrderService {
@@ -10,24 +11,101 @@ class OrderService {
     try {
       // Validate products and inventory
       const { validatedItems, subtotal } = await this.validateOrderItems(orderData.items);
-      
+
+      // Validate and apply promo code
+      let discountAmount = 0;
+      let promoCodeDoc = null;
+
+      if (orderData.promoCode) {
+        promoCodeDoc = await PromoCode.findOne({
+          code: orderData.promoCode.toUpperCase(),
+          isActive: true
+        });
+
+        if (!promoCodeDoc) {
+          throw new AppError('Invalid or inactive promo code', 400);
+        }
+
+        // Ensure we have a valid userId to check against
+        const checkUserId = userId || orderData.user || orderData.userId;
+
+        console.log(`[OrderService] Validating promo ${promoCodeDoc.code} for user ${checkUserId}`);
+        console.log(`[OrderService] Code used by:`, promoCodeDoc.usedBy.map(u => u.user));
+
+        if (!checkUserId) {
+          console.warn('[OrderService] Warning: No userId provided for promo validation');
+        } else {
+          // Check if user has already used this code
+          const hasUsed = promoCodeDoc.usedBy.some(usage => {
+            // Handle both populated user objects or string IDs
+            const usedId = usage.user && usage.user._id ? usage.user._id.toString() : usage.user.toString();
+            return usedId === checkUserId.toString();
+          });
+
+          if (hasUsed) {
+            console.log(`[OrderService] Blocked: User ${checkUserId} already used ${promoCodeDoc.code}`);
+            throw new AppError('You have already used this promo code', 400);
+          }
+        }
+
+        // Calculate discount on subtotal
+        discountAmount = promoCodeDoc.calculateDiscount(subtotal);
+      }
+
       // Calculate pricing
-      const pricing = this.calculatePricing(subtotal, orderData.taxRate);
-      
+      const pricing = this.calculatePricing(subtotal, orderData.taxRate, discountAmount);
+
       // Create order
       const order = new Order({
         ...orderData,
         user: userId,
         items: validatedItems,
-        pricing
+        pricing, // Keeping for backward compat if used elsewhere
+
+        // Explicit Schema Fields
+        subtotal: pricing.subtotal,
+        shippingFee: pricing.shippingFee,
+        tax: pricing.taxAmount,
+        totalAmount: pricing.totalAmount,
+
+        // Promo Fields
+        promoCode: promoCodeDoc ? promoCodeDoc.code : null,
+        discountAmount: pricing.discount,
+        originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount, // pre-discount
+        finalTotal: pricing.totalAmount
       });
 
       // Update product inventory
       await this.updateProductInventory(validatedItems, 'decrement');
 
       const savedOrder = await order.save();
+
+      // Update Promo Usage - SAFER IMPLEMENTATION
+      if (promoCodeDoc) {
+        console.log(`[OrderService] Attempting to update usage for code: ${promoCodeDoc.code}`);
+        // We do this asynchronously without awaiting to prevent blocking response if DB is slow/locked
+        // But we catch errors to ensure server doesn't crash
+        (async () => {
+          try {
+            // Fetch fresh doc to avoid version errors
+            const freshPromo = await PromoCode.findById(promoCodeDoc._id);
+            if (freshPromo) {
+              await freshPromo.updateUsage(
+                userId,
+                savedOrder._id,
+                pricing.discount,
+                savedOrder.totalAmount
+              );
+              console.log(`[OrderService] Successfully updated usage for ${freshPromo.code}`);
+            }
+          } catch (err) {
+            console.error(`[OrderService] BACKGROUND ERROR: Failed to update promo usage: ${err.message}`);
+          }
+        })();
+      }
+
       return this.formatOrderResponse(savedOrder);
-      
+
     } catch (error) {
       if (error.name === 'InventoryError') {
         throw new AppError(`Insufficient inventory: ${error.message}`, 400);
@@ -49,7 +127,7 @@ class OrderService {
 
     for (const item of items) {
       const product = await Product.findById(item.productId);
-      
+
       if (!product) {
         throw new AppError(`Product not found: ${item.productId}`, 404);
       }
@@ -62,14 +140,29 @@ class OrderService {
         throw new AppError(`Insufficient stock for ${product.name}. Available: ${product.stock}`, 400);
       }
 
+      // Find the specific weight variant ordered
+      // Assuming item.weight (from cart) matches one of the product.weights[].weight
+      // If no exact match, default to first weight variant
+      const productVariant = product.weights.find(w => w.weight === item.weight) || product.weights[0];
+
+      const price = productVariant.offerPrice || productVariant.price;
+
+      if (isNaN(price)) {
+        throw new AppError(`Invalid price for product ${product.name}`, 500);
+      }
+
       const validatedItem = {
         productId: product._id,
         name: product.name,
-        description: product.description,
-        weight: product.weight?.value ? `${product.weight.value}${product.weight.unit}` : 'N/A',
+        // Description in Product model is [String], but Order model expects String
+        description: Array.isArray(product.description)
+          ? product.description.join(', ')
+          : product.description || '',
+        weight: productVariant.weight,
+        unit: productVariant.unit,
         quantity: item.quantity,
-        unitPrice: product.price,
-        totalPrice: product.price * item.quantity,
+        price: price, // Mapped to 'price' in Order schema (not unitPrice)
+        totalPrice: price * item.quantity, // Not stored in schema item but used for subtotal calculation
         image: product.images[0] || '',
         sku: product.sku
       };
@@ -84,17 +177,18 @@ class OrderService {
   /**
    * Calculate order pricing with tax and discounts
    */
-  calculatePricing(subtotal, taxRate = 0) {
+  calculatePricing(subtotal, taxRate = 0, discount = 0) {
     const shippingFee = 29; // Fixed shipping fee
     const taxAmount = (subtotal * taxRate) / 100;
-    const totalAmount = subtotal + shippingFee + taxAmount;
+    let totalAmount = subtotal + shippingFee + taxAmount - discount;
+    if (totalAmount < 0) totalAmount = 0;
 
     return {
       subtotal: Math.round(subtotal * 100) / 100,
       shippingFee,
       taxAmount: Math.round(taxAmount * 100) / 100,
       taxRate,
-      discount: 0, // Can be extended with coupon system
+      discount: Math.round(discount * 100) / 100,
       totalAmount: Math.round(totalAmount * 100) / 100
     };
   }
@@ -106,8 +200,8 @@ class OrderService {
     const bulkOperations = items.map(item => ({
       updateOne: {
         filter: { _id: item.productId },
-        update: { 
-          $inc: { 
+        update: {
+          $inc: {
             stock: operation === 'decrement' ? -item.quantity : item.quantity,
             'meta.purchases': operation === 'decrement' ? item.quantity : -item.quantity
           }
@@ -130,7 +224,7 @@ class OrderService {
     } = pagination;
 
     const query = this.buildOrderQuery(filters);
-    
+
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -165,7 +259,7 @@ class OrderService {
    */
   buildOrderQuery(filters) {
     const query = {};
-    
+
     if (filters.userId) query.user = filters.userId;
     if (filters.status) query.status = filters.status;
     if (filters.startDate || filters.endDate) {
@@ -185,7 +279,7 @@ class OrderService {
    */
   formatOrderResponse(order) {
     const orderObj = order.toObject ? order.toObject() : order;
-    
+
     return {
       id: orderObj._id,
       orderNumber: orderObj.orderNumber,
@@ -210,7 +304,7 @@ class OrderService {
    */
   async cancelOrder(orderId, userId, reason = 'Cancelled by user') {
     const order = await Order.findOne({ _id: orderId, user: userId });
-    
+
     if (!order) {
       throw new AppError('Order not found', 404);
     }
@@ -228,7 +322,7 @@ class OrderService {
    */
   async getOrderStats(timeframe = 'month') {
     const dateRange = this.getDateRange(timeframe);
-    
+
     const stats = await Order.aggregate([
       {
         $match: {

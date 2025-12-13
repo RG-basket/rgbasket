@@ -1,6 +1,6 @@
 import React from 'react';
 
-const PricingSummary = ({ subtotal, totalMRP, totalSavings, shippingFee, tax, totalAmount, currencySymbol }) => {
+const PricingSummary = ({ subtotal, totalMRP, totalSavings, shippingFee, tax, totalAmount, currencySymbol, discountAmount = 0, promoCode = null }) => {
     return (
         <div className="text-gray-700 space-y-2 sm:space-y-3 mb-4 sm:mb-6 text-sm">
             {/* Total MRP */}
@@ -9,13 +9,20 @@ const PricingSummary = ({ subtotal, totalMRP, totalSavings, shippingFee, tax, to
                 <span className="line-through">{currencySymbol}{(totalMRP || 0).toFixed(2)}</span>
             </div>
 
-            {/* Savings */}
             {totalSavings > 0 && (
                 <div className="flex justify-between text-green-600 font-medium">
                     <span className="flex items-center gap-1">
                         You Save 🏷️
                     </span>
                     <span>- {currencySymbol}{totalSavings.toFixed(2)} 🎉</span>
+                </div>
+            )}
+
+            {/* Promo Code Discount */}
+            {discountAmount > 0 && (
+                <div className="flex justify-between text-green-700 font-medium bg-green-50 p-1 rounded">
+                    <span>Promo Discount ({promoCode ? promoCode : 'Applied'})</span>
+                    <span>- {currencySymbol}{discountAmount.toFixed(2)} 🔥</span>
                 </div>
             )}
 
