@@ -98,14 +98,35 @@ exports.getInfluencerStats = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Influencer route not found' });
         }
 
+        // Calculate stats dynamically from DELIVERED orders only
+        // This ensures earnings are only credited when order is successful
+        const Order = require('../models/Order'); // Ensure Order is imported
+
+        const deliveredOrders = await Order.find({
+            promoCode: promo.code,
+            status: 'delivered'
+        });
+
+        // Calculate total earnings
+        let totalEarnings = 0;
+        if (promo.influencerPercentage > 0) {
+            totalEarnings = deliveredOrders.reduce((sum, order) => {
+                const orderTotal = order.finalTotal || order.totalAmount || 0;
+                return sum + ((orderTotal * promo.influencerPercentage) / 100);
+            }, 0);
+        }
+
         res.json({
             success: true,
             data: {
                 name: promo.name,
                 code: promo.code,
-                usageCount: promo.usageCount,
-                earnings: promo.influencerEarnings,
-                totalDiscountGiven: promo.totalDiscountGiven
+                // Usage count strictly for delivered orders as per new logic? 
+                // Or total usages? The prompt implies "earns from that order".
+                // We'll show delivered count as 'usageCount' for the dashboard to align with earnings.
+                usageCount: deliveredOrders.length,
+                earnings: Math.round(totalEarnings * 100) / 100,
+                totalDiscountGiven: promo.totalDiscountGiven // This remains historical total
             }
         });
 

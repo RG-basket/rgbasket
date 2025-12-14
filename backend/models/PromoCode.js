@@ -85,11 +85,9 @@ promoCodeSchema.methods.updateUsage = async function (userId, orderId, discountA
     this.usageCount += 1;
     this.totalDiscountGiven += discountAmount;
 
-    if (this.influencerRoute && this.influencerPercentage > 0) {
-        const earning = (orderTotal * this.influencerPercentage) / 100;
-        this.influencerEarnings += earning;
-        console.log(`[PromoCode] Influencer earning added: ${earning}. Total: ${this.influencerEarnings}`);
-    }
+    // Influencer earnings are now calculated dynamically based on DELIVERED order status only.
+    // We do NOT add earnings here anymore to prevent earnings from pending/cancelled orders.
+    // if (this.influencerRoute && this.influencerPercentage > 0) { ... }
 
     this.usedBy.push({
         user: userId,
