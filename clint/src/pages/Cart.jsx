@@ -493,7 +493,7 @@ const Cart = () => {
   const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
   const totalSavings = totalMRP - subtotal;
 
-  const shippingFee = cartArray.length > 0 ? 29 : 0;
+  const shippingFee = cartArray.length > 0 ? (subtotal > 300 ? 0 : 29) : 0;
   const tax = 0;
   // Dynamic Total
   let totalAmount = subtotal + shippingFee + tax - discountAmount;

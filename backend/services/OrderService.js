@@ -178,7 +178,7 @@ class OrderService {
    * Calculate order pricing with tax and discounts
    */
   calculatePricing(subtotal, taxRate = 0, discount = 0) {
-    const shippingFee = 29; // Fixed shipping fee
+    const shippingFee = subtotal > 300 ? 0 : 29; // Free delivery over 300, else 29
     const taxAmount = (subtotal * taxRate) / 100;
     let totalAmount = subtotal + shippingFee + taxAmount - discount;
     if (totalAmount < 0) totalAmount = 0;
