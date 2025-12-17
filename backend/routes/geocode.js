@@ -1,4 +1,5 @@
 const express = require('express');
+const https = require('https');
 const router = express.Router();
 
 // GET /api/geocode/reverse - Reverse geocode coordinates to address
@@ -31,21 +32,48 @@ router.get('/reverse', async (req, res) => {
             });
         }
 
-        // Make request to Nominatim API
+        // Make request to Nominatim API using https module
         const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
 
-        const response = await fetch(nominatimUrl, {
-            headers: {
-                'Accept-Language': 'en',
-                'User-Agent': 'RG-Basket-App/1.0' // Required by Nominatim usage policy
-            }
-        });
+        // Helper function to make HTTPS request
+        const makeRequest = (url) => {
+            return new Promise((resolve, reject) => {
+                const options = {
+                    headers: {
+                        'Accept-Language': 'en',
+                        'User-Agent': 'RG-Basket-App/1.0', // Required by Nominatim usage policy
+                        'Referer': 'https://rgbasket.onrender.com' // Good practice
+                    }
+                };
 
-        if (!response.ok) {
-            throw new Error(`Nominatim API error: ${response.status} ${response.statusText}`);
-        }
+                https.get(url, options, (response) => {
+                    let data = '';
 
-        const data = await response.json();
+                    // A chunk of data has been received
+                    response.on('data', (chunk) => {
+                        data += chunk;
+                    });
+
+                    // The whole response has been received
+                    response.on('end', () => {
+                        if (response.statusCode >= 200 && response.statusCode < 300) {
+                            try {
+                                resolve(JSON.parse(data));
+                            } catch (e) {
+                                reject(new Error('Failed to parse response'));
+                            }
+                        } else {
+                            // Handle non-200 responses (like 403 or 503) without crashing
+                            reject(new Error(`Nominatim API error: ${response.statusCode} ${response.statusMessage}`));
+                        }
+                    });
+                }).on('error', (err) => {
+                    reject(err);
+                });
+            });
+        };
+
+        const data = await makeRequest(nominatimUrl);
 
         // Extract relevant address information
         const address = data.address || {};
@@ -65,6 +93,7 @@ router.get('/reverse', async (req, res) => {
 
     } catch (error) {
         console.error('Geocoding error:', error);
+        // Fallback or friendly error
         res.status(500).json({
             success: false,
             message: 'Failed to geocode location',
