@@ -40,7 +40,7 @@ router.get('/reverse', async (req, res) => {
                         'User-Agent': 'Mozilla/5.0 (compatible; RG-Basket-App/1.0; +https://rgbasket.onrender.com)',
                         'Referer': 'https://rgbasket.onrender.com'
                     },
-                    family: 4, // <--- CRITICAL: Force IPv4 to avoid ENETUNREACH on Render
+                    family: 4, // Force IPv4 to avoid ENETUNREACH on cloud platforms
                     timeout: 5000
                 };
 
@@ -75,58 +75,62 @@ router.get('/reverse', async (req, res) => {
             });
         };
 
-        // Strategy: Try Nominatim first, fail gracefully?
-        // Note: BigDataCloud free API doesn't require key for client side, but server side might be limited.
-        // Let's stick to Nominatim with IPv4 forced first. 
-
-        const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
+        // Strategy: Use BigDataCloud's FREE Client API as PRIMARY
+        // It is much more lenient with cloud IPs (Render) and doesn't require an API key.
+        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
 
         try {
-            const data = await makeRequest(nominatimUrl);
+            const data = await makeRequest(bdcUrl);
 
-            // Extract relevant address information
-            const address = data.address || {};
+            // Map BigDataCloud response to our schema
             const locationData = {
-                area: address.suburb || address.neighbourhood || address.hamlet || '',
-                district: address.county || address.state_district || '',
-                state: address.state || '',
-                pincode: address.postcode || '',
-                fullAddress: data.display_name || '',
+                area: data.locality || '',
+                district: data.city || data.principalSubdivision || '',
+                state: data.principalSubdivision || '',
+                pincode: data.postcode || '',
+                fullAddress: `${data.locality ? data.locality + ', ' : ''}${data.city ? data.city + ', ' : ''}${data.principalSubdivision || ''}, ${data.countryName || ''}`,
                 raw: data
             };
 
+            // Enhance with administrative data if available
+            if (data.localityInfo && data.localityInfo.administrative) {
+                const admin = data.localityInfo.administrative;
+                const district = admin.find(a => a.order === 6 || a.order === 7)?.name;
+                const state = admin.find(a => a.order === 4)?.name;
+
+                if (district) locationData.district = district;
+                if (state) locationData.state = state;
+            }
+
             return res.json({
                 success: true,
-                location: locationData
+                location: locationData,
+                source: 'bigdatacloud'
             });
 
-        } catch (nominatimError) {
-            console.error('Nominatim failed, trying fallback source...', nominatimError.message);
+        } catch (bdcError) {
+            console.error('BigDataCloud failed, trying Nominatim fallback...', bdcError.message);
 
-            // Fallback: Using a different public OSM instance (Geocode.maps.co)
-            // Note: This is a backup free tier
-            const fallbackUrl = `https://geocode.maps.co/reverse?lat=${latitude}&lon=${longitude}`;
+            // FALLBACK: Nominatim (might be blocked, but worth a try)
+            const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
 
             try {
-                const fallbackData = await makeRequest(fallbackUrl);
-
-                const addr = fallbackData.address || {};
-                const locationData = {
-                    area: addr.suburb || addr.neighbourhood || '',
-                    district: addr.county || '',
-                    state: addr.state || '',
-                    pincode: addr.postcode || '',
-                    fullAddress: fallbackData.display_name || '',
-                    raw: fallbackData
-                };
+                const osmData = await makeRequest(nominatimUrl);
+                const address = osmData.address || {};
 
                 return res.json({
                     success: true,
-                    location: locationData,
-                    source: 'fallback'
+                    location: {
+                        area: address.suburb || address.neighbourhood || '',
+                        district: address.county || '',
+                        state: address.state || '',
+                        pincode: address.postcode || '',
+                        fullAddress: osmData.display_name || '',
+                        raw: osmData
+                    },
+                    source: 'nominatim'
                 });
-            } catch (fallbackError) {
-                console.error('Fallback failed too:', fallbackError.message);
+            } catch (finalError) {
                 throw new Error('All geocoding services failed');
             }
         }
