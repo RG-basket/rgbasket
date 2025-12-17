@@ -14,43 +14,28 @@ router.get('/reverse', async (req, res) => {
             });
         }
 
-        // Validate coordinates
         const latitude = parseFloat(lat);
         const longitude = parseFloat(lon);
 
         if (isNaN(latitude) || isNaN(longitude)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid coordinates'
-            });
+            return res.status(400).json({ success: false, message: 'Invalid coordinates' });
         }
 
-        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-            return res.status(400).json({
-                success: false,
-                message: 'Coordinates out of range'
-            });
-        }
-
+        // Generic Helper for HTTPS requests
         const makeRequest = (url) => {
             return new Promise((resolve, reject) => {
                 const options = {
                     headers: {
-                        'Accept-Language': 'en',
-                        'User-Agent': 'Mozilla/5.0 (compatible; RG-Basket-App/1.0; +https://rgbasket.onrender.com)',
+                        'User-Agent': 'Mozilla/5.0 (compatible; RG-Basket-App/1.0)',
                         'Referer': 'https://rgbasket.onrender.com'
                     },
-                    family: 4, // Force IPv4 to avoid ENETUNREACH on cloud platforms
+                    family: 4, // Force IPv4 to avoid ENETUNREACH
                     timeout: 5000
                 };
 
                 const req = https.get(url, options, (response) => {
                     let data = '';
-
-                    response.on('data', (chunk) => {
-                        data += chunk;
-                    });
-
+                    response.on('data', (chunk) => data += chunk);
                     response.on('end', () => {
                         if (response.statusCode >= 200 && response.statusCode < 300) {
                             try {
@@ -59,15 +44,12 @@ router.get('/reverse', async (req, res) => {
                                 reject(new Error('Failed to parse response'));
                             }
                         } else {
-                            reject(new Error(`API Error: ${response.statusCode} ${response.statusMessage}`));
+                            reject(new Error(`API Error: ${response.statusCode}`));
                         }
                     });
                 });
 
-                req.on('error', (err) => {
-                    reject(err);
-                });
-
+                req.on('error', (err) => reject(err));
                 req.on('timeout', () => {
                     req.destroy();
                     reject(new Error('Request timeout'));
@@ -75,68 +57,91 @@ router.get('/reverse', async (req, res) => {
             });
         };
 
-        // Strategy: Use BigDataCloud's FREE Client API as PRIMARY
-        // It is much more lenient with cloud IPs (Render) and doesn't require an API key.
-        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
-
+        // --- SOURCE 1: BigDataCloud (Reliable, no blocks) ---
         try {
+            const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
             const data = await makeRequest(bdcUrl);
 
-            // Map BigDataCloud response to our schema
-            const locationData = {
-                area: data.locality || '',
-                district: data.city || data.principalSubdivision || '',
-                state: data.principalSubdivision || '',
-                pincode: data.postcode || '',
-                fullAddress: `${data.locality ? data.locality + ', ' : ''}${data.city ? data.city + ', ' : ''}${data.principalSubdivision || ''}, ${data.countryName || ''}`,
-                raw: data
-            };
-
-            // Enhance with administrative data if available
-            if (data.localityInfo && data.localityInfo.administrative) {
-                const admin = data.localityInfo.administrative;
-                const district = admin.find(a => a.order === 6 || a.order === 7)?.name;
-                const state = admin.find(a => a.order === 4)?.name;
-
-                if (district) locationData.district = district;
-                if (state) locationData.state = state;
-            }
-
-            return res.json({
-                success: true,
-                location: locationData,
-                source: 'bigdatacloud'
-            });
-
-        } catch (bdcError) {
-            console.error('BigDataCloud failed, trying Nominatim fallback...', bdcError.message);
-
-            // FALLBACK: Nominatim (might be blocked, but worth a try)
-            const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
-
-            try {
-                const osmData = await makeRequest(nominatimUrl);
-                const address = osmData.address || {};
-
+            if (data.postcode) {
+                // If we got a pincode, this is a WIN
                 return res.json({
                     success: true,
                     location: {
-                        area: address.suburb || address.neighbourhood || '',
-                        district: address.county || '',
-                        state: address.state || '',
-                        pincode: address.postcode || '',
-                        fullAddress: osmData.display_name || '',
-                        raw: osmData
+                        area: data.locality || '',
+                        district: data.city || data.principalSubdivision || '',
+                        state: data.principalSubdivision || '',
+                        pincode: data.postcode, // We have it!
+                        fullAddress: `${data.locality ? data.locality + ', ' : ''}${data.city ? data.city + ', ' : ''}${data.principalSubdivision || ''}, ${data.countryName || ''}`,
+                        raw: data
                     },
-                    source: 'nominatim'
+                    source: 'bigdatacloud'
                 });
-            } catch (finalError) {
-                throw new Error('All geocoding services failed');
             }
+            console.log('BigDataCloud success but missing pincode. Trying next source...');
+        } catch (e) {
+            console.error('BigDataCloud failed:', e.message);
+        }
+
+        // --- SOURCE 2: Photon / Komoot (OSM data, usually not blocked) ---
+        try {
+            const photonUrl = `https://photon.komoot.io/reverse?lat=${latitude}&lon=${longitude}`;
+            const data = await makeRequest(photonUrl);
+
+            if (data.features && data.features.length > 0) {
+                const props = data.features[0].properties;
+
+                // Construct location object
+                const locationData = {
+                    area: props.district || props.city || props.name || '',
+                    district: props.county || props.city || '',
+                    state: props.state || '',
+                    pincode: props.postcode || '', // Photon usually has this!
+                    fullAddress: `${props.name || ''}, ${props.city || ''}, ${props.state || ''}, ${props.postcode || ''}`,
+                    raw: data
+                };
+
+                // If Photon gave us a pincode, return perfectly
+                if (locationData.pincode) {
+                    return res.json({
+                        success: true,
+                        location: locationData,
+                        source: 'photon'
+                    });
+                }
+            }
+            console.log('Photon success but missing pincode. Trying next source...');
+        } catch (e) {
+            console.error('Photon failed:', e.message);
+        }
+
+        // --- SOURCE 3: Nominatim (Original, blocked often, but last resort) ---
+        try {
+            const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
+            const data = await makeRequest(nominatimUrl);
+            const address = data.address || {};
+
+            return res.json({
+                success: true,
+                location: {
+                    area: address.suburb || address.neighbourhood || '',
+                    district: address.county || address.state_district || '',
+                    state: address.state || '',
+                    pincode: address.postcode || '',
+                    fullAddress: data.display_name || '',
+                    raw: data
+                },
+                source: 'nominatim'
+            });
+        } catch (e) {
+            console.error('Nominatim failed:', e.message);
+
+            // If ALL failed, return whatever partial data we might have had? 
+            // Better to fail so frontend knows.
+            throw new Error('All geocoding services failed or returned incomplete data');
         }
 
     } catch (error) {
-        console.error('Geocoding final error:', error);
+        console.error('Final Geocode Error:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to geocode location',
