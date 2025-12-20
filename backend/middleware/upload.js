@@ -21,5 +21,7 @@ const upload = multer({
 
 // Middleware for handling multiple images
 const uploadProductImages = upload.array('images', 5);
+const uploadBannerImage = upload.single('image');
+const uploadMultipleBanners = upload.array('images', 10);
 
-module.exports = { uploadProductImages };
+module.exports = { uploadProductImages, uploadBannerImage, uploadMultipleBanners };

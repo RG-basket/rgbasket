@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import mainBanner from '../../assets/spikes-ripe-wheat-farmers-field-ai-generated-image.avif';
+import BannerCarousel from './BannerCarousel';
 
 const MainBanner = () => {
-  return (
+  // Static content as fallback
+  const StaticBanner = (
     <section className="px-2 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-4 md:py-6">
-      <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl group aspect-[7/2]">
+      <div
+        className="relative w-full rounded-2xl overflow-hidden shadow-2xl group aspect-[21/9] cursor-pointer"
+        onClick={() => window.location.href = '/products/all'}
+      >
         {/* Background Image */}
         <div className="absolute inset-0">
           <img
@@ -39,16 +44,6 @@ const MainBanner = () => {
             </span>
           </h1>
 
-          {/* CTA Button */}
-          <button className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-1 px-3 sm:py-1.5 sm:px-5 md:py-2 md:px-6 lg:py-2.5 lg:px-8 rounded-full shadow-xl transform transition duration-300 hover:scale-105 active:scale-95 border border-emerald-400/30 text-[0.6rem] sm:text-xs md:text-sm lg:text-base max-w-full overflow-hidden">
-            Shop Now
-          </button>
-
-          {/* Tagline */}
-          <div className="mt-1 sm:mt-2 md:mt-3 flex items-center space-x-1 sm:space-x-2 text-[0.55rem] sm:text-[0.65rem] md:text-sm text-emerald-100 max-w-full overflow-hidden">
-            <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-            <span className="truncate">Fresh • Organic • Delivered</span>
-          </div>
         </div>
 
         {/* Decorative Elements */}
@@ -72,6 +67,8 @@ const MainBanner = () => {
       `}</style>
     </section>
   );
+
+  return <BannerCarousel fallbackBanner={StaticBanner} />;
 };
 
 export default MainBanner;

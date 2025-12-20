@@ -107,6 +107,7 @@ const geocodeRoutes = require('./routes/geocode');
 const slotsRoutes = require('./routes/slots');
 const productSlotAvailabilityRoutes = require('./routes/productSlotAvailability');
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
+const bannerRoutes = require('./routes/banners');
 
 // Use routes
 app.use('/api/admin', adminRoutes);
@@ -118,6 +119,7 @@ app.use('/api/geocode', geocodeRoutes);
 app.use('/api/slots', slotsRoutes);
 app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
 app.use('/api/promo', promoCodeRoutes);
+app.use('/api/banners', bannerRoutes);
 
 // Your existing routes
 app.post('/api/auth/google', async (req, res) => {
