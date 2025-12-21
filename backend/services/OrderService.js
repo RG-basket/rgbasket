@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const PromoCode = require('../models/PromoCode');
+const TelegramService = require('./TelegramService');
 const AppError = require('../utils/AppError');
 
 class OrderService {
@@ -85,6 +86,11 @@ class OrderService {
       await this.updateProductInventory(validatedItems, 'decrement');
 
       const savedOrder = await order.save();
+
+      // Send Telegram Notification (Async - don't block response)
+      TelegramService.sendOrderNotification(savedOrder).catch(err =>
+        console.error('[OrderService] Telegram Notification failed:', err.message)
+      );
 
       // Update Promo Usage - SAFER IMPLEMENTATION
       if (promoCodeDoc) {
