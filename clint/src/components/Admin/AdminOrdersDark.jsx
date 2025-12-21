@@ -554,14 +554,30 @@ const AdminOrdersDark = () => {
         </div>
       ` : ''}
 
-      ${order.location && order.location.coordinates ? `
+      ${order.selectedGift ? `
+        <div class="info-card" style="margin-bottom: 25px; border: 2px solid #10b981;">
+          <div class="card-title" style="color: #10b981;">🎁 FREE GIFT SELECTED</div>
+          <div style="font-size: 14px; font-weight: 800; color: #059669; background: #ecfdf5; padding: 12px; border-radius: 6px;">
+            "${order.selectedGift}"
+          </div>
+        </div>
+      ` : `
+        <!-- DEBUG: No selectedGift found in order object -->
+      `}
+
+
+
+      ${(order.location && (order.location.coordinates || (order.location.lat && order.location.lng))) ? `
         <div class="info-card" style="grid-column: span 3;">
           <div class="card-title">📍 DELIVERY LOCATION (GPS)</div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; font-size: 12px;">
             <div>
               <div style="color: #64748b; margin-bottom: 4px;">Coordinates:</div>
               <div style="font-weight: 600; color: #059669;">
-                ${order.location.coordinates.latitude.toFixed(6)}, ${order.location.coordinates.longitude.toFixed(6)}
+                ${order.location.coordinates
+          ? `${order.location.coordinates.latitude.toFixed(6)}, ${order.location.coordinates.longitude.toFixed(6)}`
+          : `${order.location.lat.toFixed(6)}, ${order.location.lng.toFixed(6)}`
+        }
               </div>
             </div>
             <div>
@@ -575,7 +591,7 @@ const AdminOrdersDark = () => {
           </div>
           <div style="margin-top: 12px;">
             <a 
-              href="https://www.google.com/maps?q=${order.location.coordinates.latitude},${order.location.coordinates.longitude}" 
+              href="https://www.google.com/maps?q=${order.location.coordinates ? order.location.coordinates.latitude : order.location.lat},${order.location.coordinates ? order.location.coordinates.longitude : order.location.lng}" 
               target="_blank"
               style="display: inline-block; background: #059669; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">
               🗺️ View on Google Maps
@@ -583,6 +599,7 @@ const AdminOrdersDark = () => {
           </div>
         </div>
         ` : ''}
+
 
       <div class="items-section">
         <div class="section-title">ORDER ITEMS (${order.items.length})</div>
@@ -598,14 +615,14 @@ const AdminOrdersDark = () => {
           </thead>
           <tbody>
             ${order.items.map(item =>
-      '<tr>' +
-      '<td><strong>' + item.name + '</strong><br><span style="font-size: 11px; color: #64748b;">' + item.description + '</span></td>' +
-      '<td>' + item.weight + (item.unit ? ' ' + item.unit : '') + '</td>' +
-      '<td>' + item.quantity + '</td>' +
-      '<td>₹' + item.price + '</td>' +
-      '<td><strong>₹' + (item.price * item.quantity).toFixed(2) + '</strong></td>' +
-      '</tr>'
-    ).join('')}
+          '<tr>' +
+          '<td><strong>' + item.name + '</strong><br><span style="font-size: 11px; color: #64748b;">' + item.description + '</span></td>' +
+          '<td>' + item.weight + (item.unit ? ' ' + item.unit : '') + '</td>' +
+          '<td>' + item.quantity + '</td>' +
+          '<td>₹' + item.price + '</td>' +
+          '<td><strong>₹' + (item.price * item.quantity).toFixed(2) + '</strong></td>' +
+          '</tr>'
+        ).join('')}
           </tbody>
         </table>
       </div>
@@ -1067,8 +1084,21 @@ const AdminOrdersDark = () => {
                 </div>
               )}
 
+              {/* Free Gift Offer */}
+              {selectedOrder.selectedGift && (
+                <div className={`p-4 rounded-lg border border-[#9ece6a]/30 bg-[#9ece6a]/10`}>
+                  <h3 className={`font-medium text-[#9ece6a] mb-2 flex items-center gap-2`}>
+                    <span>🎁</span> Free Gift Offer
+                  </h3>
+                  <p className={`text-sm font-bold ${tw.textPrimary}`}>
+                    "{selectedOrder.selectedGift}"
+                  </p>
+                </div>
+              )}
+
+
               {/* Geolocation Information */}
-              {selectedOrder.location && selectedOrder.location.coordinates && (
+              {selectedOrder.location && (selectedOrder.location.coordinates || (selectedOrder.location.lat && selectedOrder.location.lng)) && (
                 <div className={`p-4 rounded-lg border border-[#7aa2f7]/30 bg-[#7aa2f7]/10`}>
                   <h3 className={`font-medium text-[#7aa2f7] mb-3 flex items-center gap-2`}>
                     <span>📍</span>
@@ -1078,8 +1108,10 @@ const AdminOrdersDark = () => {
                     <div>
                       <p className={tw.textSecondary}>Coordinates:</p>
                       <p className={`font-mono text-[#7aa2f7] font-medium`}>
-                        {selectedOrder.location.coordinates.latitude.toFixed(6)},<br />
-                        {selectedOrder.location.coordinates.longitude.toFixed(6)}
+                        {selectedOrder.location.coordinates
+                          ? `${selectedOrder.location.coordinates.latitude.toFixed(6)}, ${selectedOrder.location.coordinates.longitude.toFixed(6)}`
+                          : `${selectedOrder.location.lat.toFixed(6)}, ${selectedOrder.location.lng.toFixed(6)}`
+                        }
                       </p>
                     </div>
                     <div>
@@ -1097,7 +1129,7 @@ const AdminOrdersDark = () => {
                   </div>
                   <div className="mt-3">
                     <a
-                      href={`https://www.google.com/maps?q=${selectedOrder.location.coordinates.latitude},${selectedOrder.location.coordinates.longitude}`}
+                      href={`https://www.google.com/maps?q=${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.latitude : selectedOrder.location.lat},${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.longitude : selectedOrder.location.lng}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 bg-[#7aa2f7] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#658cdf] transition-colors"
@@ -1107,6 +1139,7 @@ const AdminOrdersDark = () => {
                   </div>
                 </div>
               )}
+
 
               {/* Order Items */}
               <div>

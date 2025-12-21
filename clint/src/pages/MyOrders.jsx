@@ -374,15 +374,15 @@ const MyOrders = () => {
                 key={filter.value}
                 onClick={() => handleStatusFilter(filter.value)}
                 className={`relative p-2 sm:p-3 rounded-lg sm:rounded-xl transition-all duration-200 font-medium text-xs sm:text-sm ${selectedStatus === filter.value
-                    ? 'bg-white text-gray-900 shadow-md sm:shadow-lg border border-[#26544a]'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
+                  ? 'bg-white text-gray-900 shadow-md sm:shadow-lg border border-[#26544a]'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
                   }`}
               >
                 <div className="flex flex-col items-center">
                   <span className="font-semibold">{filter.label}</span>
                   <span className={`text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full mt-1 ${selectedStatus === filter.value
-                      ? 'bg-[#26544a] text-white'
-                      : 'bg-gray-300 text-gray-700'
+                    ? 'bg-[#26544a] text-white'
+                    : 'bg-gray-300 text-gray-700'
                     }`}>
                     {filter.count}
                   </span>
@@ -671,6 +671,18 @@ const MyOrders = () => {
                                 </p>
                               </div>
                             )}
+
+                            {order.selectedGift && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <span className="text-green-600 text-xs sm:text-sm block mb-1 flex items-center gap-1 font-bold">
+                                  <span>🎁</span> Free Gift Offer
+                                </span>
+                                <p className="text-green-800 text-sm bg-green-50 p-2 rounded border border-green-100 font-bold">
+                                  "{order.selectedGift}"
+                                </p>
+                              </div>
+                            )}
+
                           </div>
                         </div>
                       </div>

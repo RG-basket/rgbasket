@@ -37,6 +37,8 @@ const AnalyticsDashboard = lazy(() => import("./components/Admin/AnalyticsDashbo
 const AdminCategories = lazy(() => import("./components/Admin/AdminCategoriesDark.jsx"));
 const AdminPromoCodes = lazy(() => import("./components/Admin/AdminPromoCodesDark.jsx"));
 const AdminBanners = lazy(() => import("./components/Admin/AdminBanners.jsx"));
+const AdminOffers = lazy(() => import("./components/Admin/AdminOffersDark.jsx"));
+
 
 const InfluencerDashboard = lazy(() => import("./pages/InfluencerDashboard.jsx"));
 
@@ -230,6 +232,12 @@ const App = () => {
                 <AdminBanners />
               </ProtectedRoute>
             } />
+            <Route path="/admin/offers" element={
+              <ProtectedRoute>
+                <AdminOffers />
+              </ProtectedRoute>
+            } />
+
 
             {/* Influencer Route */}
             <Route path="/influencer/:routeName" element={<InfluencerDashboard />} />

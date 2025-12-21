@@ -61,8 +61,23 @@ mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => console.log('✅ MongoDB connected successfully to mongodb database: rgbasketdb'))
+  .then(async () => {
+    console.log('✅ MongoDB connected successfully to mongodb database: rgbasketdb');
+    // Cleanup obsolete indexes for Offers collection
+    try {
+      const collections = await mongoose.connection.db.listCollections({ name: 'offers' }).toArray();
+      if (collections.length > 0) {
+        await mongoose.connection.db.collection('offers').dropIndex('code_1').catch(e => {
+          // Ignore error if index doesn't exist
+        });
+        console.log('🧹 Cleaned up obsolete offer indexes');
+      }
+    } catch (err) {
+      console.log('ℹ️ No obsolete offer indexes to clean');
+    }
+  })
   .catch(err => console.error('❌ MongoDB connection error:', err));
+
 
 // Redis connection
 try {
@@ -108,6 +123,8 @@ const slotsRoutes = require('./routes/slots');
 const productSlotAvailabilityRoutes = require('./routes/productSlotAvailability');
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const bannerRoutes = require('./routes/banners');
+const offerRoutes = require('./routes/offerRoutes');
+
 
 // Use routes
 app.use('/api/admin', adminRoutes);
@@ -120,6 +137,8 @@ app.use('/api/slots', slotsRoutes);
 app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
 app.use('/api/promo', promoCodeRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/offers', offerRoutes);
+
 
 // Your existing routes
 app.post('/api/auth/google', async (req, res) => {

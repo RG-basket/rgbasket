@@ -148,8 +148,13 @@ const OrderSchema = new mongoose.Schema({
     type: String,
     default: '',
     maxLength: 1000
+  },
+  selectedGift: {
+    type: String,
+    default: null
   }
 }, {
+
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }

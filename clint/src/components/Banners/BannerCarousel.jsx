@@ -71,7 +71,7 @@ const BannerCarousel = ({ fallbackBanner }) => {
     if (isLoading) {
         return (
             <div className="px-2 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-4 md:py-6">
-                <div className="w-full aspect-[21/9] bg-gray-200 animate-pulse rounded-2xl shadow-lg border border-gray-100" />
+                <div className="w-full aspect-[7/2] bg-gray-200 animate-pulse rounded-2xl shadow-lg border border-gray-100" />
             </div>
         );
     }
@@ -141,6 +141,13 @@ const BannerCarousel = ({ fallbackBanner }) => {
                                 </motion.p>
                             ) : null}
 
+                            {/* Tagline / Decorative if no specific content but we want to keep the look */}
+                            {(!activeBanner.title && !activeBanner.subtitle) && (
+                                <div className="mt-1 sm:mt-2 md:mt-3 flex items-center space-x-1 sm:space-x-2 text-[0.55rem] sm:text-[0.65rem] md:text-sm text-emerald-100 opacity-80">
+                                    <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                                    <span>Fresh • Organic • Delivered</span>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 </AnimatePresence>

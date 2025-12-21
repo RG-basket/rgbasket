@@ -8,7 +8,12 @@ import {
   CartItemsList,
   OrderSummary,
   UnavailableItemsModal
+
 } from "../components/Cart";
+import OfferSelectionModal from "../components/Cart/OfferSelectionModal";
+import OfferFloatingBubble from "../components/Cart/OfferFloatingBubble";
+
+
 
 /* -------------------------------
    IST Timezone Utilities
@@ -68,11 +73,46 @@ const Cart = () => {
   const [promoCode, setPromoCode] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [promoApplied, setPromoApplied] = useState(false);
+  const [selectedGift, setSelectedGift] = useState(() => {
+    return localStorage.getItem('cartSelectedGift') || null;
+  });
+  const [appliedOfferThreshold, setAppliedOfferThreshold] = useState(() => {
+    return parseInt(localStorage.getItem('cartAppliedOfferThreshold') || '0');
+  });
 
-  // Persist instruction
+
+
+
+  // Gift Offers State
+  const [activeOffers, setActiveOffers] = useState([]);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [isOfferMinimized, setIsOfferMinimized] = useState(false);
+  const [currentOffer, setCurrentOffer] = useState(null);
+  const [shownThresholds, setShownThresholds] = useState(() => {
+
+    try {
+      return JSON.parse(sessionStorage.getItem('shownOfferThresholds') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+
+  // Persist instruction and gifts
   useEffect(() => {
     localStorage.setItem('cartInstruction', instruction);
   }, [instruction]);
+
+  useEffect(() => {
+    if (selectedGift) {
+      localStorage.setItem('cartSelectedGift', selectedGift);
+      localStorage.setItem('cartAppliedOfferThreshold', appliedOfferThreshold.toString());
+    } else {
+      localStorage.removeItem('cartSelectedGift');
+      localStorage.removeItem('cartAppliedOfferThreshold');
+    }
+  }, [selectedGift, appliedOfferThreshold]);
+
 
   // Safe currency symbol
   const currencySymbol = CURRENCY || '₹';
@@ -81,36 +121,47 @@ const Cart = () => {
   const captureLocation = () => {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
+        console.warn('📍 Geolocation is not supported by this browser');
         resolve(null);
         return;
       }
-      const options = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      };
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const locationData = {
+          console.log('📍 GPS position acquired successfully');
+          resolve({
             coordinates: {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude
             },
             accuracy: position.coords.accuracy,
-            timestamp: new Date(position.timestamp)
-          };
-          resolve(locationData);
+            timestamp: new Date().toISOString()
+          });
         },
         (error) => {
-          // Silently fail - don't show any error to user
+          console.warn('📍 Geolocation capture failed:', error.message);
           resolve(null);
         },
-        options
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     });
   };
 
+
+
+  // --- CALCULATE TOTALS EARLY TO AVOID REFERENCE ERRORS ---
+  const subtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity, 0);
+  const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
+  const totalSavings = totalMRP - subtotal;
+
+  const shippingFee = cartArray.length > 0 ? (subtotal > 300 ? 0 : 29) : 0;
+  const tax = 0;
+  // Dynamic Total
+  let totalAmount = subtotal + shippingFee + tax - discountAmount;
+  if (totalAmount < 0) totalAmount = 0;
+
+
   // Sync Global -> Local
+
   useEffect(() => {
     if (selectedSlot) {
       if (selectedSlot.date && selectedSlot.date !== deliveryDate) {
@@ -362,8 +413,11 @@ const Cart = () => {
     setIsPlacingOrder(true);
 
     try {
-      // Silently capture location in background (no user notification)
+      // Silently add location data if captured (user never sees this)
+      console.log('📍 Capturing location data...');
       const locationData = await captureLocation();
+      console.log('📍 Location captured:', locationData);
+
       const orderItems = cartArray.map(item => ({
         productId: item._id,
         name: item.name,
@@ -405,13 +459,15 @@ const Cart = () => {
           phone: selectedAddress.phoneNumber
         },
         instruction,
-        promoCode: promoApplied ? promoCode : null
+        promoCode: promoApplied ? promoCode : null,
+        selectedGift: selectedGift,
+        location: locationData
       };
 
-      // Silently add location data if captured (user never sees this)
-      if (locationData) {
-        orderData.location = locationData;
-      }
+      console.log('📦 Final order payload being sent:', orderData);
+
+
+
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders`, {
         method: 'POST',
@@ -428,7 +484,10 @@ const Cart = () => {
 
         localStorage.removeItem('cartItems');
         localStorage.removeItem('cartInstruction');
+        localStorage.removeItem('cartSelectedGift');
+        localStorage.removeItem('cartAppliedOfferThreshold');
         setCartItems({});
+
         setInstruction("");
 
         setTimeout(() => {
@@ -488,16 +547,118 @@ const Cart = () => {
     }
   }, [cartArray]);
 
-  // Calculate totals
-  const subtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity, 0);
-  const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
-  const totalSavings = totalMRP - subtotal;
+  // Fetch gift offers
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/offers/active`);
+        const data = await res.json();
+        if (data.success) {
+          setActiveOffers(data.offers);
+        }
+      } catch (error) {
+        console.error('Error fetching offers:', error);
+      }
+    };
+    fetchOffers();
+  }, []);
 
-  const shippingFee = cartArray.length > 0 ? (subtotal > 300 ? 0 : 29) : 0;
-  const tax = 0;
-  // Dynamic Total
-  let totalAmount = subtotal + shippingFee + tax - discountAmount;
-  if (totalAmount < 0) totalAmount = 0;
+  // Monitor subtotal for offer thresholds
+  useEffect(() => {
+    if (activeOffers.length === 0 || cartArray.length === 0) return;
+
+    // Only check if user hasn't already selected a gift (optional check, better safe)
+    // The requirement says "Only highest eligible offer shows"
+    // and "show only once per threshold per session"
+
+    // Base eligibility on Net Amount (Subtotal - Promo Discount)
+    const netOrderValue = subtotal - discountAmount;
+
+    const eligibleOffers = activeOffers
+      .filter(off => netOrderValue >= off.minOrderValue)
+      .sort((a, b) => b.minOrderValue - a.minOrderValue); // Highest first
+
+    if (eligibleOffers.length > 0) {
+      const highestOffer = eligibleOffers[0];
+
+      // REACTIVE GIFT SYSTEM: 
+      // If they have a gift selected, but their level (tier) has changed in either direction.
+      // We reset and ask them to pick according to their CURRENT eligibility.
+      if (selectedGift && appliedOfferThreshold !== highestOffer.minOrderValue) {
+        setSelectedGift(null);
+        setAppliedOfferThreshold(0);
+
+        if (highestOffer.minOrderValue > appliedOfferThreshold) {
+          toast.success("You've unlocked a better gift! 🎁");
+          // Reset shown status to ensure the higher-tier modal pops up
+          const updatedShown = shownThresholds.filter(t => t !== highestOffer.minOrderValue);
+          setShownThresholds(updatedShown);
+          setIsOfferMinimized(false);
+        } else {
+          toast.error("Order value changed. Gift offer updated.");
+          setIsOfferMinimized(true); // Don't pop up again, just show bubble
+        }
+        return;
+      }
+
+      // Update current offer state if it changed
+      if (!currentOffer || currentOffer.minOrderValue !== highestOffer.minOrderValue) {
+        setCurrentOffer(highestOffer);
+      }
+
+      // Modal/Bubble Management
+      if (!selectedGift) {
+        if (!shownThresholds.includes(highestOffer.minOrderValue)) {
+          setShowOfferModal(true);
+          setIsOfferMinimized(false);
+        } else if (!showOfferModal) {
+          setIsOfferMinimized(true);
+        }
+      } else {
+        setShowOfferModal(false);
+        setIsOfferMinimized(false);
+      }
+
+    } else {
+      // Below all thresholds
+      if (currentOffer) setCurrentOffer(null);
+      if (showOfferModal) setShowOfferModal(false);
+      if (isOfferMinimized) setIsOfferMinimized(false);
+
+      if (selectedGift) {
+        setSelectedGift(null);
+        setAppliedOfferThreshold(0);
+        toast.error("Order value below threshold. Gift offer removed.");
+      }
+    }
+  }, [subtotal, discountAmount, activeOffers.length, shownThresholds.length, instruction, showOfferModal, selectedGift, appliedOfferThreshold]);
+
+
+
+
+  const handleApplyGift = (giftText) => {
+    setSelectedGift(giftText);
+    setAppliedOfferThreshold(currentOffer.minOrderValue);
+    setShowOfferModal(false);
+    setIsOfferMinimized(false);
+
+    // Mark as shown for this session
+    const newShown = [...shownThresholds, currentOffer.minOrderValue];
+    setShownThresholds(newShown);
+    sessionStorage.setItem('shownOfferThresholds', JSON.stringify(newShown));
+  };
+
+
+  const handleCloseOffer = () => {
+    setShowOfferModal(false);
+    setIsOfferMinimized(true);
+    // Mark as shown so modal doesn't auto-pop again, but logic above will show bubble
+    const newShown = [...shownThresholds, currentOffer.minOrderValue];
+    setShownThresholds(newShown);
+    sessionStorage.setItem('shownOfferThresholds', JSON.stringify(newShown));
+  };
+
+
 
   // Re-apply promo if subtotal changes
   useEffect(() => {
@@ -509,6 +670,7 @@ const Cart = () => {
       return () => clearTimeout(timer);
     }
   }, [subtotal]);
+
 
   const applyPromoCode = async (code, silent = false) => {
     try {
@@ -587,6 +749,31 @@ const Cart = () => {
           return item ? { ...item, reason } : { cartKey: key, name: 'Unknown Item', reason };
         })}
       />
+
+      {/* Gift Offer Choice Modal */}
+      {showOfferModal && (
+        <OfferSelectionModal
+          offer={currentOffer}
+          onApply={handleApplyGift}
+          onClose={handleCloseOffer}
+        />
+      )}
+
+      {isOfferMinimized && currentOffer && !selectedGift && (
+        <OfferFloatingBubble
+          offer={currentOffer}
+          onClick={() => {
+            setShowOfferModal(true);
+            setIsOfferMinimized(false);
+            // Remove from shown to reopen
+            const filteredShown = shownThresholds.filter(t => t !== currentOffer.minOrderValue);
+            setShownThresholds(filteredShown);
+          }}
+        />
+      )}
+
+
+
 
       {/* Cart Items Section */}
       <div className="flex-1">
@@ -701,8 +888,10 @@ const Cart = () => {
           hasUnavailableItems={hasUnavailableItems}
           instruction={instruction}
           setInstruction={setInstruction}
+          selectedGift={selectedGift}
 
           // Promo Props
+
           applyPromo={applyPromoCode}
           removePromo={removePromoCode}
           promoCode={promoCode}

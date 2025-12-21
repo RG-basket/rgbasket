@@ -8,6 +8,10 @@ const OrderSuccess = () => {
   useEffect(() => {
     // Clear cart items once order is placed
     localStorage.removeItem('cartItems');
+    localStorage.removeItem('cartSelectedGift');
+    localStorage.removeItem('cartInstruction');
+    localStorage.removeItem('cartAppliedOfferThreshold');
+
 
     // Redirect after 3 seconds
     const timer = setTimeout(() => {

@@ -9,6 +9,10 @@ class OrderService {
    */
   async createOrder(orderData, userId) {
     try {
+      console.log('🛒 OrderService receiving data. Location present:', !!orderData.location);
+      if (orderData.location) {
+        console.log('📍 Location data details:', JSON.stringify(orderData.location, null, 2));
+      }
       // Validate products and inventory
       const { validatedItems, subtotal } = await this.validateOrderItems(orderData.items);
 
@@ -72,8 +76,10 @@ class OrderService {
         promoCode: promoCodeDoc ? promoCodeDoc.code : null,
         discountAmount: pricing.discount,
         originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount, // pre-discount
-        finalTotal: pricing.totalAmount
+        finalTotal: pricing.totalAmount,
+        selectedGift: orderData.selectedGift || null
       });
+
 
       // Update product inventory
       await this.updateProductInventory(validatedItems, 'decrement');
@@ -295,8 +301,25 @@ class OrderService {
       createdAt: orderObj.createdAt,
       updatedAt: orderObj.updatedAt,
       isDelivered: orderObj.isDelivered,
-      isCancellable: orderObj.isCancellable
+      isCancellable: orderObj.isCancellable,
+      instruction: orderObj.instruction,
+      selectedGift: orderObj.selectedGift,
+      location: orderObj.location,
+      subtotal: orderObj.subtotal,
+      shippingFee: orderObj.shippingFee,
+      tax: orderObj.tax,
+      totalAmount: orderObj.totalAmount,
+      promoCode: orderObj.promoCode,
+      discountAmount: orderObj.discountAmount,
+      originalTotal: orderObj.originalTotal,
+      finalTotal: orderObj.finalTotal,
+      deliveryDate: orderObj.deliveryDate,
+      timeSlot: orderObj.timeSlot,
+      paymentMethod: orderObj.paymentMethod
     };
+
+
+
   }
 
   /**

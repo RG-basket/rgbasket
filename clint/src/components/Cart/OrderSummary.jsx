@@ -33,8 +33,10 @@ const OrderSummary = ({
     unavailableItems,
     instruction,
     setInstruction,
+    selectedGift,
     applyPromo,
     removePromo,
+
     promoCode,
     discountAmount
 }) => {
@@ -62,6 +64,9 @@ const OrderSummary = ({
                         setInstruction={setInstruction}
                     />
 
+
+
+
                     {/* Payment and Delivery */}
                     <PaymentDeliverySection
                         paymentOption={paymentOption}
@@ -80,6 +85,24 @@ const OrderSummary = ({
                         discountAmount={discountAmount}
                         currencySymbol={currencySymbol}
                     />
+
+                    {/* Selected Gift (Read Only) */}
+                    {selectedGift && (
+                        <div className="mb-6 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-0.5 shadow-lg shadow-emerald-200/50 overflow-hidden">
+                            <div className="bg-white dark:bg-gray-900 rounded-[14px] p-4 flex items-center gap-4">
+                                <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xl">🎁</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 dark:text-emerald-400">Your Free Gift</p>
+                                    <p className="text-sm font-bold text-gray-800 dark:text-white truncate">
+                                        {selectedGift}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
 
                     {/* Pricing Summary */}
                     <PricingSummary

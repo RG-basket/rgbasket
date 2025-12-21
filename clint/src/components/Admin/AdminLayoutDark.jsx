@@ -5,6 +5,10 @@ import {
     Calendar, MapPin, ChevronLeft, ChevronRight, LogOut,
     Bell, Search, Menu, X, Tag, Image as ImageIcon
 } from 'lucide-react';
+import { FaGift } from 'react-icons/fa';
+
+
+
 import { tokyoNight, tw } from '../../config/tokyoNightTheme';
 
 const AdminLayoutDark = ({ children }) => {
@@ -31,8 +35,12 @@ const AdminLayoutDark = ({ children }) => {
         },
         { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
         { path: '/admin/users', icon: Users, label: 'Users' },
+        { path: '/admin/offers', icon: FaGift, label: 'Gift Offers' },
         { path: '/admin/promocodes', icon: Tag, label: 'Promo Codes' },
         { path: '/admin/banners', icon: ImageIcon, label: 'Banners' },
+
+
+
         {
             label: 'Servicibility',
             icon: Calendar,

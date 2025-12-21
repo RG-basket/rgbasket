@@ -3,6 +3,8 @@ import {
     TrendingUp, ShoppingBag, Users, DollarSign,
     Package, Clock, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react';
+import { FaGift } from 'react-icons/fa';
+
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell
@@ -121,7 +123,16 @@ const AdminDashboardDark = () => {
                         </div>
                         <div className="flex gap-3">
                             <AdminButtonDark variant="secondary" icon={Clock}>Last 7 Days</AdminButtonDark>
+                            <AdminButtonDark
+                                variant="primary"
+                                icon={FaGift}
+                                onClick={() => window.location.href = '/admin/offers'}
+                            >
+                                Gift Offers
+                            </AdminButtonDark>
+
                             <AdminButtonDark variant="primary" icon={TrendingUp}>View Reports</AdminButtonDark>
+
                         </div>
                     </div>
 
@@ -266,9 +277,9 @@ const AdminDashboardDark = () => {
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm ${tw.textSecondary}`}>{order.user?.name || 'Guest'}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${order.status === 'Delivered' ? 'bg-[#9ece6a]/20 text-[#9ece6a]' :
-                                                        order.status === 'Processing' ? 'bg-[#7aa2f7]/20 text-[#7aa2f7]' :
-                                                            order.status === 'Cancelled' ? 'bg-[#f7768e]/20 text-[#f7768e]' :
-                                                                'bg-[#e0af68]/20 text-[#e0af68]'
+                                                    order.status === 'Processing' ? 'bg-[#7aa2f7]/20 text-[#7aa2f7]' :
+                                                        order.status === 'Cancelled' ? 'bg-[#f7768e]/20 text-[#f7768e]' :
+                                                            'bg-[#e0af68]/20 text-[#e0af68]'
                                                     }`}>
                                                     {order.status}
                                                 </span>
