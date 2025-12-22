@@ -37,7 +37,14 @@ const PricingSummary = ({ subtotal, totalMRP, totalSavings, shippingFee, tax, to
             {/* Convenience Fee */}
             <div className="flex justify-between">
                 <span>Convenience Fee</span>
-                <span className="text-green-600 font-semibold">{currencySymbol}{shippingFee}</span>
+                {shippingFee === 0 ? (
+                    <div className="flex items-center gap-2">
+                        <span className="text-gray-400 line-through text-xs">{currencySymbol}29</span>
+                        <span className="text-green-600 font-semibold">{currencySymbol}0</span>
+                    </div>
+                ) : (
+                    <span className="text-gray-900 font-semibold">{currencySymbol}{shippingFee}</span>
+                )}
             </div>
 
             {/* Tax */}

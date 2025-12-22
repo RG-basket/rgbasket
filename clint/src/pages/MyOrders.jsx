@@ -242,6 +242,310 @@ const MyOrders = () => {
     setOrderToDeliver(null);
   };
 
+  const printOrderBill = (order) => {
+    if (!order) return;
+
+    const printWindow = window.open('', '_blank');
+
+    const billHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Order Bill - ${order._id}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Inter', sans-serif; 
+      margin: 15px; 
+      color: #1f2937;
+      background: #f8fafc;
+      line-height: 1.5;
+    }
+    
+    .invoice-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+    
+    .header { 
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      color: white;
+      padding: 25px 30px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+      font-weight: 300;
+    }
+    
+    .content {
+      padding: 25px 30px;
+    }
+    
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+    
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    
+    .info-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #059669;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .info-item {
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    
+    .info-label {
+      font-weight: 500;
+      color: #64748b;
+      display: inline-block;
+      width: 100px;
+    }
+    
+    .info-value {
+      color: #1f2937;
+      font-weight: 400;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-confirmed { background: #dbeafe; color: #1e40af; }
+    .status-processing { background: #e9d5ff; color: #7e22ce; }
+    .status-shipped { background: #c7d2fe; color: #3730a3; }
+    .status-delivered { background: #d1fae5; color: #065f46; }
+    .status-cancelled { background: #fecaca; color: #991b1b; }
+    
+    .items-section {
+      margin: 25px 0;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #059669;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .items-table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      font-size: 13px;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .items-table th { 
+      background: #059669;
+      color: white;
+      font-weight: 600;
+      padding: 12px 10px;
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .items-table td { 
+      padding: 12px 10px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .total-section {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+    
+    .total-row.final {
+      border-top: 2px solid #e2e8f0;
+      margin-top: 8px;
+      padding-top: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #059669;
+    }
+    
+    .footer { 
+      text-align: center; 
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .no-print { 
+      text-align: center; 
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+    
+    .print-btn, .close-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    
+    .print-btn {
+      background: #059669;
+      color: white;
+    }
+    
+    .close-btn {
+      background: #64748b;
+      color: white;
+      margin-left: 10px;
+    }
+    
+    @media print {
+      body { margin: 0; background: white; }
+      .no-print { display: none; }
+      .invoice-container { box-shadow: none; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-container">
+    <div class="header">
+      <h1>RG BASKET INVOICE</h1>
+      <p>Fresh Groceries Delivered to Your Doorstep</p>
+    </div>
+
+    <div class="content">
+      <div class="grid-2">
+        <div class="info-card">
+          <div class="card-title">ORDER INFORMATION</div>
+          <div class="info-item"><span class="info-label">Order ID:</span><span class="info-value">${order._id.slice(-8).toUpperCase()}</span></div>
+          <div class="info-item"><span class="info-label">Date:</span><span class="info-value">${new Date(order.createdAt).toLocaleDateString()}</span></div>
+          <div class="info-item"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge status-${order.status}">${order.status}</span></span></div>
+          <div class="info-item"><span class="info-label">Payment:</span><span class="info-value">${order.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}</span></div>
+        </div>
+
+        <div class="info-card">
+          <div class="card-title">CUSTOMER INFORMATION</div>
+          <div class="info-item"><span class="info-label">Name:</span><span class="info-value">${order.userInfo?.name || order.shippingAddress?.fullName || 'Guest'}</span></div>
+          <div class="info-item"><span class="info-label">Phone:</span><span class="info-value">${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</span></div>
+        </div>
+      </div>
+
+      <div class="items-section">
+        <div class="section-title">ORDER ITEMS</div>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Weight</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${order.items.map(item => `
+              <tr>
+                <td><strong>${item.name}</strong></td>
+                <td>${item.weight} ${item.unit || ''}</td>
+                <td>${item.quantity}</td>
+                <td>₹${item.price}</td>
+                <td><strong>₹${(item.price * item.quantity).toFixed(2)}</strong></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="total-section">
+        <div class="total-row"><span>Subtotal:</span><span>₹${order.subtotal.toFixed(2)}</span></div>
+        <div class="total-row"><span>Shipping Fee:</span><span>₹${order.shippingFee.toFixed(2)}</span></div>
+        ${order.discountAmount > 0 ? `<div class="total-row" style="color: #059669;"><span>Discount:</span><span>-₹${order.discountAmount.toFixed(2)}</span></div>` : ''}
+        <div class="total-row final"><span>TOTAL AMOUNT:</span><span>₹${order.totalAmount.toFixed(2)}</span></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for shopping with RG Basket!</p>
+      <p>Generated on: ${new Date().toLocaleString()}</p>
+    </div>
+
+    <div class="no-print">
+      <button class="print-btn" onclick="window.print()">🖨️ Print Bill</button>
+      <button class="close-btn" onclick="window.close()">✕ Close</button>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    printWindow.document.write(billHtml);
+    printWindow.document.close();
+  };
+
   const handleStatusFilter = (status) => {
     setSelectedStatus(status);
   };
@@ -501,7 +805,18 @@ const MyOrders = () => {
                             ₹{order.totalAmount ? order.totalAmount.toFixed(2) : '0.00'}
                           </div>
                           {/* Action Buttons */}
-                          <div className="flex gap-2 mt-1 sm:mt-2">
+                          <div className="flex flex-wrap gap-2 mt-2 justify-start sm:justify-end">
+                            {/* Print Bill Button - Only show when order is delivered */}
+                            {order.status === 'delivered' && (
+                              <button
+                                onClick={() => printOrderBill(order)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 flex items-center gap-1"
+                              >
+                                <span>🖨️</span>
+                                <span>Print Bill</span>
+                              </button>
+                            )}
+
                             {/* Mark as Delivered Button - Only show for out for delivery (shipped) orders */}
                             {(order.status === 'shipped' || order.status === 'out for delivery') && (
                               <button

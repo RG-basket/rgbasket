@@ -7,7 +7,6 @@ import DesktopNav from "./DesktopNav";
 import MobileNav from "./MobileNav";
 import MobileDrawer from "./MobileDrawer";
 import AutoDetectLocation from "../Address/AutoDetectLocation";
-import SlotSelector from "../Address/SlotSelector";
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -41,12 +40,6 @@ const Navbar = ({ onLocationClick }) => {
   const closeDrawer = useCallback(() => {
     setIsDrawerOpen(false);
   }, []);
-
-  const handleSlotChange = useCallback((slot) => {
-    console.log("Selected slot:", slot);
-    // setSelectedSlot is already called in SlotSelector, no need to call again
-  }, []);
-
   const LogoSection = () => (
     <NavLink
       to="/"
@@ -80,11 +73,6 @@ const Navbar = ({ onLocationClick }) => {
             <div className="flex-1 max-w-lg min-w-0">
               <Search />
             </div>
-
-            <div className="flex-shrink-0">
-              <SlotSelector onSlotChange={handleSlotChange} />
-            </div>
-
             <div className="flex items-center gap-4 flex-shrink-0">
               <DesktopNav
                 isMobile={isMobile}
@@ -109,12 +97,6 @@ const Navbar = ({ onLocationClick }) => {
                 <AutoDetectLocation />
               </div>
             </div>
-
-            {/* ROW 2: SLOT SELECTOR (FIRST, CENTERED, FULL WIDTH) */}
-            <div className="w-full px-3 pb-2">
-              <SlotSelector onSlotChange={handleSlotChange} />
-            </div>
-
             {/* ROW 3: SEARCH BAR BELOW SLOT */}
             <div className="w-full px-3 pb-3">
               <Search mobile={true} />
