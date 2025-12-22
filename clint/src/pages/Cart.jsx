@@ -7,7 +7,8 @@ import {
   EmptyCart,
   CartItemsList,
   OrderSummary,
-  UnavailableItemsModal
+  UnavailableItemsModal,
+  ExclusivityModal
 
 } from "../components/Cart";
 import OfferSelectionModal from "../components/Cart/OfferSelectionModal";
@@ -88,6 +89,10 @@ const Cart = () => {
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [isOfferMinimized, setIsOfferMinimized] = useState(false);
   const [currentOffer, setCurrentOffer] = useState(null);
+  const [showExclusivityModal, setShowExclusivityModal] = useState(false);
+  const [exclusivityType, setExclusivityType] = useState(null); // 'promo' or 'gift'
+  const [pendingPromo, setPendingPromo] = useState(null);
+  const [pendingGift, setPendingGift] = useState(null);
   const [shownThresholds, setShownThresholds] = useState(() => {
 
     try {
@@ -608,7 +613,8 @@ const Cart = () => {
 
       // Modal/Bubble Management
       if (!selectedGift) {
-        if (!shownThresholds.includes(highestOffer.minOrderValue)) {
+        // NEW: Don't pop up the offer modal if a promo code is already applied
+        if (!shownThresholds.includes(highestOffer.minOrderValue) && !promoApplied) {
           setShowOfferModal(true);
           setIsOfferMinimized(false);
         } else if (!showOfferModal) {
@@ -637,6 +643,14 @@ const Cart = () => {
 
 
   const handleApplyGift = (giftText) => {
+    // Exclusivity Check: If promo is applied, ask to switch
+    if (promoApplied) {
+      setPendingGift(giftText);
+      setExclusivityType('gift');
+      setShowExclusivityModal(true);
+      return;
+    }
+
     setSelectedGift(giftText);
     setAppliedOfferThreshold(currentOffer.minOrderValue);
     setShowOfferModal(false);
@@ -646,6 +660,39 @@ const Cart = () => {
     const newShown = [...shownThresholds, currentOffer.minOrderValue];
     setShownThresholds(newShown);
     sessionStorage.setItem('shownOfferThresholds', JSON.stringify(newShown));
+    toast.success("Free gift selected!");
+  };
+
+
+  const confirmExclusivitySwitch = () => {
+    if (exclusivityType === 'promo') {
+      // Switch from Gift to Promo
+      setSelectedGift(null);
+      setAppliedOfferThreshold(0);
+      applyPromoCode(pendingPromo, false, true); // Added 'bypass' flag
+    } else {
+      // Switch from Promo to Gift
+      removePromoCode();
+      setSelectedGift(pendingGift);
+      setAppliedOfferThreshold(currentOffer.minOrderValue);
+      setShowOfferModal(false);
+      setIsOfferMinimized(false);
+
+      const newShown = [...shownThresholds, currentOffer.minOrderValue];
+      setShownThresholds(newShown);
+      sessionStorage.setItem('shownOfferThresholds', JSON.stringify(newShown));
+      toast.success("Free gift selected!");
+    }
+
+    setShowExclusivityModal(false);
+    setPendingPromo(null);
+    setPendingGift(null);
+  };
+
+  const removeGift = () => {
+    setSelectedGift(null);
+    setAppliedOfferThreshold(0);
+    toast.success("Free gift removed");
   };
 
 
@@ -672,8 +719,16 @@ const Cart = () => {
   }, [subtotal]);
 
 
-  const applyPromoCode = async (code, silent = false) => {
+  const applyPromoCode = async (code, silent = false, bypassExclusivity = false) => {
     try {
+      // Exclusivity Check: If gift is selected, ask to switch
+      if (selectedGift && !silent && !bypassExclusivity) {
+        setPendingPromo(code);
+        setExclusivityType('promo');
+        setShowExclusivityModal(true);
+        return;
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/promo/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -758,6 +813,13 @@ const Cart = () => {
           onClose={handleCloseOffer}
         />
       )}
+
+      <ExclusivityModal
+        isOpen={showExclusivityModal}
+        onClose={() => setShowExclusivityModal(false)}
+        onConfirm={confirmExclusivitySwitch}
+        type={exclusivityType}
+      />
 
       {isOfferMinimized && currentOffer && !selectedGift && (
         <OfferFloatingBubble
@@ -889,7 +951,7 @@ const Cart = () => {
           instruction={instruction}
           setInstruction={setInstruction}
           selectedGift={selectedGift}
-
+          removeGift={removeGift}
           // Promo Props
 
           applyPromo={applyPromoCode}

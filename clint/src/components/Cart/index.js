@@ -12,3 +12,4 @@ export { default as PaymentDeliverySection } from './PaymentDeliverySection';
 export { default as PricingSummary } from './PricingSummary';
 export { default as PlaceOrderButton } from './PlaceOrderButton';
 export { default as PromoCodeSection } from './PromoCodeSection';
+export { default as ExclusivityModal } from './ExclusivityModal';

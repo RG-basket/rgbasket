@@ -7,6 +7,7 @@ import PlaceOrderButton from './PlaceOrderButton';
 import OutOfStockWarning from './OutOfStockWarning';
 import DeliveryInstruction from './DeliveryInstruction';
 import PromoCodeSection from './PromoCodeSection';
+import { FaTimes } from 'react-icons/fa';
 
 const OrderSummary = ({
     user,
@@ -34,9 +35,9 @@ const OrderSummary = ({
     instruction,
     setInstruction,
     selectedGift,
+    removeGift,
     applyPromo,
     removePromo,
-
     promoCode,
     discountAmount
 }) => {
@@ -99,6 +100,13 @@ const OrderSummary = ({
                                         {selectedGift}
                                     </p>
                                 </div>
+                                <button
+                                    onClick={removeGift}
+                                    className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+                                    title="Remove Gift"
+                                >
+                                    <FaTimes size={14} />
+                                </button>
                             </div>
                         </div>
                     )}
