@@ -140,9 +140,9 @@ const Footer = () => {
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
           >
-            RG Basket is Odisha's homegrown farm-to-fork platform, delivering
+            <strong>RG Basket</strong> is Odisha's homegrown farm-to-fork platform, delivering
             fresh essentials directly from trusted local producers to households
-            across Cuttack and Bhubaneswar. We believe in transparency, quality,
+            across <strong>Cuttack</strong> and <strong>Bhubaneswar</strong>. We believe in transparency, quality,
             and community—cutting out middlemen to ensure fair prices for farmers
             and fresh, reliable products for you.
           </motion.p>
@@ -218,7 +218,7 @@ const Footer = () => {
           All Right Reserved. 🚀
         </motion.p>
 
-                {/* Social Media Icons */}
+        {/* Social Media Icons */}
         <motion.div
           className="flex justify-center gap-6 mt-4"
           initial={{ opacity: 0, y: 20 }}
@@ -232,11 +232,12 @@ const Footer = () => {
                 platform === "Instagram"
                   ? "https://www.instagram.com/rg.basket?igsh=MW5peWhqeXIybWdhNA=="
                   : platform === "Twitter"
-                  ? "hhttps://x.com/Rgbasket?t=7aE40eFefW7o51PgcFJk5Q&s=08"
-                  : platform === "Facebook"
-                  ? "https://facebook.com/rgbasket"
-                  : "https://youtube.com/@rgbasket?si=iPzE8I-Tm6ieZCLR"
+                    ? "https://x.com/Rgbasket?t=7aE40eFefW7o51PgcFJk5Q&s=08"
+                    : platform === "Facebook"
+                      ? "https://facebook.com/rgbasket"
+                      : "https://youtube.com/@rgbasket?si=iPzE8I-Tm6ieZCLR"
               }
+              aria-label={`Follow RG Basket on ${platform}`}
               className="w-10 h-10 bg-white/50 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-600 hover:text-[#005650] border border-white/20 shadow-lg"
               whileHover={{
                 scale: 1.2,

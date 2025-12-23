@@ -13,29 +13,25 @@ const Home = () => {
     return (
         <div className='mt-0'>
             {/* 🔍 HIDDEN SEO SECTION - USERS WON'T SEE */}
-            <div style={{ 
-                position: 'absolute', 
-                left: '-9999px', 
+            <div style={{
+                position: 'absolute',
+                left: '-9999px',
                 top: '0',
                 width: '1px',
                 height: '1px',
                 overflow: 'hidden'
             }}>
-                <h1>RGBasket - Smart Grocery Delivery App</h1>
-                <h2>RGBasket App Download</h2>
-                <h3>RGBasket Grocery Delivery Service</h3>
+                <h1>RGBasket - Best Online Grocery Store in Cuttack & Bhubaneswar</h1>
+                <h2>Order Fresh Vegetables and Fruits Online</h2>
+                <h3>Scheduled Grocery Delivery Slot System</h3>
                 <p>
-                    Welcome to RGBasket. RGBasket is your smart grocery delivery application. 
-                    With RGBasket, you can schedule fresh groceries delivered to your door. 
-                    RGBasket offers fruits, vegetables, dairy, and pantry items. 
-                    Download the RGBasket app for convenient grocery shopping. 
-                    RGBasket provides quality products at fair prices. 
-                    Experience RGBasket today for all your grocery needs.
+                    Experience the smartest way to shop with RGBasket (RG Basket). We deliver fresh, chemical-free groceries, organic vegetables, and farm-fresh fruits directly to your home in Cuttack and Bhubaneswar, Odisha.
+                    Our unique "no frozen, no stale" policy guarantees quality. Select from our morning, afternoon, or evening delivery slots to suit your schedule.
+                    Join the RGBasket community for the best prices and support local farmers today.
                 </p>
                 <p>
-                    RGBasket online grocery store. RGBasket delivery service. 
-                    RGBasket mobile application. RGBasket fresh produce. 
-                    RGBasket scheduled delivery. RGBasket customer support.
+                    RG Basket team provides reliable customer support and fast doorstep delivery. Shop pantry essentials, dairy products, and snacks on the RBasket mobile app.
+                    Trusted by thousands in Cuttack. High-quality produce sourced daily. Smart automated slot selection for easy checkout.
                 </p>
             </div>
             {/* 🔍 END HIDDEN SEO */}
