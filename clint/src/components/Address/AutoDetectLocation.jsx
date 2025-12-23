@@ -6,12 +6,14 @@ const AutoDetectLocation = () => {
   const [location, setLocation] = useState(null);
   const [isServiceable, setIsServiceable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isManualTriggered, setIsManualTriggered] = useState(false);
 
   const {
     coords,
     isGeolocationAvailable,
     isGeolocationEnabled,
     positionError,
+    getPosition, // Add this to trigger manually
   } = useGeolocated({
     positionOptions: {
       enableHighAccuracy: true,
@@ -19,14 +21,20 @@ const AutoDetectLocation = () => {
       maximumAge: 0,
     },
     userDecisionTimeout: 10000,
-    suppressLocationOnMount: false,
+    suppressLocationOnMount: true, // 🛑 CHANGED: Stop auto-requesting
   });
 
+  // Function to handle the manual click
+  const handleDetectClick = () => {
+    setIsManualTriggered(true);
+    getPosition();
+  };
+
   useEffect(() => {
-    if (coords && !location) {
+    if (coords && isManualTriggered) {
       reverseGeocode(coords);
     }
-  }, [coords, location]);
+  }, [coords, isManualTriggered]);
 
   const reverseGeocode = async ({ latitude, longitude }) => {
     setIsLoading(true);
@@ -59,6 +67,7 @@ const AutoDetectLocation = () => {
       console.error("Geocoding failed:", error);
     } finally {
       setIsLoading(false);
+      setIsManualTriggered(false);
     }
   };
 
@@ -67,31 +76,44 @@ const AutoDetectLocation = () => {
       {isLoading ? (
         <div className="flex items-center gap-1.5 text-blue-600">
           <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span>Detecting location…</span>
+          <span>Detecting...</span>
         </div>
       ) : location ? (
-        <>
+        <div
+          onClick={handleDetectClick}
+          className="cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors"
+        >
           <div className="whitespace-nowrap overflow-hidden text-ellipsis font-medium">
-            {location.area}, {location.district}, {location.state}, {location.pincode}
+            {location.area}, {location.pincode}
           </div>
           <div className={`font-semibold ${isServiceable ? "text-green-600" : "text-amber-600"}`}>
             {isServiceable ? (
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-green-600 rounded-full" />
-                Service Available
+                Serviceable
               </span>
             ) : (
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-amber-600 rounded-full" />
-                Service Coming Soon
+                Not Serviceable
               </span>
             )}
           </div>
-        </>
+        </div>
       ) : (
-        <div className="flex items-center gap-1.5 text-gray-500">
+        <button
+          onClick={handleDetectClick}
+          className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          title="Click to detect location"
+        >
           <span>📍</span>
-          <span>Detecting location…</span>
+          <span>Check Serviceability</span>
+        </button>
+      )}
+
+      {positionError && isManualTriggered && (
+        <div className="text-[10px] text-red-500 mt-1">
+          Permission denied or error.
         </div>
       )}
     </div>
