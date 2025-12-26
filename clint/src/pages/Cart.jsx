@@ -158,9 +158,13 @@ const Cart = () => {
   const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
   const totalSavings = totalMRP - subtotal;
 
-  const shippingFee = cartArray.length > 0 ? (subtotal > 300 ? 0 : 29) : 0;
+  // Calculate Net Total before shipping to determine if fee applies
+  // Convenience Fee (₹29) applies if (Subtotal - Discount) is strictly less than ₹299
+  const netValueForShipping = subtotal - discountAmount;
+  const shippingFee = (cartArray.length > 0 && netValueForShipping < 299) ? 29 : 0;
   const tax = 0;
-  // Dynamic Total
+
+  // Final Total Amount
   let totalAmount = subtotal + shippingFee + tax - discountAmount;
   if (totalAmount < 0) totalAmount = 0;
 

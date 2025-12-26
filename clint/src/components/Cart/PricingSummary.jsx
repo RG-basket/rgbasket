@@ -18,20 +18,23 @@ const PricingSummary = ({ subtotal, totalMRP, totalSavings, shippingFee, tax, to
                 </div>
             )}
 
-            {/* Promo Code Discount */}
+            {/* Promo Code Discount (Moved Above) */}
             {discountAmount > 0 && (
-                <div className="flex justify-between text-green-700 font-medium bg-green-50 p-1 rounded">
-                    <span>Promo Discount ({promoCode ? promoCode : 'Applied'})</span>
+                <div className="flex justify-between text-green-700 font-medium bg-green-50/50 p-1.5 rounded-lg border border-green-100 border-dashed">
+                    <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        Promo Discount ({promoCode ? promoCode : 'Applied'})
+                    </span>
                     <span>- {currencySymbol}{discountAmount.toFixed(2)} 🔥</span>
                 </div>
             )}
 
             <hr className="border-green-100 my-1 sm:my-2 border-dashed" />
 
-            {/* Subtotal */}
-            <div className="flex justify-between">
-                <span>Subtotal (Offer Price)</span>
-                <span className="font-semibold">{currencySymbol}{subtotal.toFixed(2)}</span>
+            {/* Subtotal - Now shows Net Items Total */}
+            <div className="flex justify-between font-medium">
+                <span>Items Subtotal</span>
+                <span className="font-bold text-gray-900">{currencySymbol}{(subtotal - discountAmount).toFixed(2)}</span>
             </div>
 
             {/* Convenience Fee */}
@@ -48,16 +51,16 @@ const PricingSummary = ({ subtotal, totalMRP, totalSavings, shippingFee, tax, to
             </div>
 
             {/* Tax */}
-            <div className="flex justify-between">
-                <span>Tax</span>
+            <div className="flex justify-between text-gray-400">
+                <span>GST & Taxes</span>
                 <span>{currencySymbol}{tax.toFixed(2)}</span>
             </div>
 
             <hr className="border-green-200 my-2 sm:my-3" />
 
             {/* Total Amount */}
-            <div className="flex justify-between font-bold text-gray-900 text-base sm:text-lg">
-                <span>Total Amount:</span>
+            <div className="flex justify-between font-black text-gray-900 text-base sm:text-xl">
+                <span>Order Total:</span>
                 <span className="text-green-700">{currencySymbol}{totalAmount.toFixed(2)}</span>
             </div>
         </div>
