@@ -27,7 +27,7 @@ const SlotManager = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ capacity: 20, cutoffHours: 1 });
+  const [editForm, setEditForm] = useState({ capacity: 20, cutoffHours: 0.0833 }); // 5 minutes
 
   // Preview State - Initialize with IST tomorrow
   const [previewDate, setPreviewDate] = useState(() => {

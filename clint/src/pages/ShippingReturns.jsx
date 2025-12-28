@@ -9,7 +9,7 @@ const ShippingReturns = () => {
     },
     {
       question: "What are your delivery timings?",
-      answer: "We offer three delivery slots daily: Morning (7:00 AM - 10:00 AM), Afternoon (12:00 PM - 2:00 PM), and Evening (5:00 PM - 8:00 PM). You can choose your preferred slot during checkout. Next-day delivery is available for orders placed before 8:00 PM."
+      answer: "We offer five delivery slots daily: Morning - First Half (7:00 AM - 8:30 AM), Morning - Second Half (8:30 AM - 10:00 AM), Noon (12:00 PM - 2:00 PM), Night - First Half (5:00 PM - 6:30 PM), and Night - Second Half (6:30 PM - 8:00 PM). You can choose your preferred slot during checkout. Next-day delivery is available for orders placed before 8:00 PM."
     },
     {
       question: "Is same-day delivery available?",

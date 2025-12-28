@@ -11,7 +11,7 @@ const SlotManagerDark = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [editingId, setEditingId] = useState(null);
-    const [editForm, setEditForm] = useState({ capacity: 20, cutoffHours: 1 });
+    const [editForm, setEditForm] = useState({ capacity: 20, cutoffHours: 0.0833 }); // 5 minutes
 
     useEffect(() => {
         fetchSlots();
@@ -26,7 +26,7 @@ const SlotManagerDark = () => {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
                 setSlots(data || []);
@@ -43,10 +43,10 @@ const SlotManagerDark = () => {
 
     const handleEdit = (slot) => {
         setEditingId(slot._id);
-        setEditForm({ 
-            capacity: slot.capacity, 
+        setEditForm({
+            capacity: slot.capacity,
             cutoffHours: slot.cutoffHours,
-            isActive: slot.isActive 
+            isActive: slot.isActive
         });
     };
 
@@ -81,7 +81,7 @@ const SlotManagerDark = () => {
 
     const handleCancelEdit = () => {
         setEditingId(null);
-        setEditForm({ capacity: 20, cutoffHours: 1 });
+        setEditForm({ capacity: 20, cutoffHours: 0.0833 }); // 5 minutes
     };
 
     const handleToggleActive = async (slotId, currentStatus) => {
@@ -212,11 +212,10 @@ const SlotManagerDark = () => {
                                     <div className="col-span-2 text-center">
                                         <button
                                             onClick={() => handleToggleActive(slot._id, slot.isActive)}
-                                            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                                                slot.isActive 
-                                                    ? 'bg-[#73daca] text-[#1a1b26]' 
+                                            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${slot.isActive
+                                                    ? 'bg-[#73daca] text-[#1a1b26]'
                                                     : 'bg-[#f7768e] text-[#1a1b26]'
-                                            }`}
+                                                }`}
                                         >
                                             {slot.isActive ? 'Active' : 'Inactive'}
                                         </button>

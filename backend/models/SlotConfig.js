@@ -4,7 +4,7 @@ const slotConfigSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
-        unique: true // e.g., "Morning", "Afternoon"
+        unique: true // e.g., "Morning - First Half", "Noon", "Night - Second Half"
     },
     startTime: {
         type: String, // HH:MM format, e.g., "07:00"
@@ -21,7 +21,7 @@ const slotConfigSchema = new mongoose.Schema({
     },
     cutoffHours: {
         type: Number,
-        default: 1, // Hours before start time to stop accepting orders
+        default: 0.0833, // Hours before start time to stop accepting orders (0.0833 = 5 minutes)
         required: true
     },
     isActive: {

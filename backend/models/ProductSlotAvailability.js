@@ -13,7 +13,7 @@ const productSlotAvailabilitySchema = new mongoose.Schema({
     },
     unavailableSlots: [{
         type: String,
-        // Slot names like 'Morning', 'Afternoon', 'Evening'
+        // Slot names like 'Morning - First Half', 'Morning - Second Half', 'Noon', 'Night - First Half', 'Night - Second Half'
         // Must match SlotConfig.name values
     }],
     reason: {

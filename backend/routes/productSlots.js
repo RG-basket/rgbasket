@@ -81,7 +81,7 @@ router.get('/:id/slot-availability', async (req, res) => {
                         capacity: slot.capacity,
                         booked: 0,
                         isAvailable: false,
-                        reason: `Booking closed - cutoff time passed (${slot.cutoffHours} hour before delivery)`
+                        reason: `Booking closed - cutoff time passed (${Math.round(slot.cutoffHours * 60)} min before delivery)`
                     };
                 }
             }

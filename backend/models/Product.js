@@ -105,7 +105,7 @@ const ProductSchema = new mongoose.Schema({
 
   availableSlots: [{
     type: String,
-    // e.g., ['Morning', 'Evening'] - restricts product to specific slots
+    // e.g., ['Morning - First Half', 'Noon', 'Night - Second Half'] - restricts product to specific slots
   }],
 
   slotRestrictions: [{

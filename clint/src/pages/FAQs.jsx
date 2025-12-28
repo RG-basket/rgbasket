@@ -41,7 +41,7 @@ const FAQs = () => {
         },
         {
           question: "What are your delivery time slots?",
-          answer: "We offer three slots daily: Morning (7-10 AM), Afternoon (12-2 PM), and Evening (5-8 PM). Next-day delivery is available for orders placed before 8 PM."
+          answer: "We offer five slots daily: Morning - First Half (7:00-8:30 AM), Morning - Second Half (8:30-10:00 AM), Noon (12:00-2:00 PM), Night - First Half (5:00-6:30 PM), and Night - Second Half (6:30-8:00 PM). Next-day delivery is available for orders placed before 8:00 PM."
         }
       ]
     },

@@ -40,9 +40,11 @@ const initializeSlots = async () => {
     await SlotConfig.collection.createIndex({ name: 1 }, { unique: true });
 
     const defaultSlots = [
-      { name: 'Morning', startTime: '07:00', endTime: '10:00', capacity: 200, cutoffHours: 1 },
-      { name: 'Afternoon', startTime: '12:00', endTime: '14:00', capacity: 200, cutoffHours: 1 },
-      { name: 'Evening', startTime: '17:00', endTime: '20:00', capacity: 200, cutoffHours: 1 }
+      { name: 'Morning - First Half', startTime: '07:00', endTime: '08:30', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
+      { name: 'Morning - Second Half', startTime: '08:30', endTime: '10:00', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
+      { name: 'Noon', startTime: '12:00', endTime: '14:00', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
+      { name: 'Night - First Half', startTime: '17:00', endTime: '18:30', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
+      { name: 'Night - Second Half', startTime: '18:30', endTime: '20:00', capacity: 200, cutoffHours: 0.0833 } // 5 minutes
     ];
 
     const operations = defaultSlots.map(slot => ({
@@ -159,7 +161,7 @@ const hasCutoffPassed = (slot, selectedDate, now) => {
   const slotTime = new Date(today);
   slotTime.setHours(hours, minutes, 0, 0);
 
-  // Calculate cutoff time (1 hour before)
+  // Calculate cutoff time (cutoffHours before slot start)
   const cutoffTime = new Date(slotTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
 
   // Check if current IST time is past cutoff
@@ -224,7 +226,7 @@ router.get('/availability', async (req, res) => {
         booked: orderCount,
         isAvailable: isAvailable,
         reason: cutoffPassed
-          ? `Booking closed - cutoff time passed (${slot.cutoffHours} hour before delivery)`
+          ? `Booking closed - cutoff time passed (${Math.round(slot.cutoffHours * 60)} min before delivery)`
           : (orderCount >= slot.capacity ? 'Slot full' : 'Available')
       };
     }));

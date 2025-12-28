@@ -247,7 +247,7 @@ router.post('/find-common-slots', async (req, res) => {
 
         // Standard slots and days
         const allDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const allSlots = ['Morning', 'Afternoon', 'Evening'];
+        const allSlots = ['Morning - First Half', 'Morning - Second Half', 'Noon', 'Night - First Half', 'Night - Second Half'];
 
         // Initialize availability map (assume all slots available initially)
         const availability = {};
