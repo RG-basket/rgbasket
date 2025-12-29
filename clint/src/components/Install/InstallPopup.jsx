@@ -97,7 +97,7 @@ const InstallPopup = () => {
                                 onClick={handleInstallClick}
                                 className="w-full bg-[#005531] hover:bg-[#004024] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
                             >
-                                <span>Install App</span>
+                                <span>Install Our Site </span>
                             </button>
 
                             <button
