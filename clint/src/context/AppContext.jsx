@@ -374,13 +374,12 @@ export const AppContextProvider = ({ children }) => {
         photo: user.photoURL,
       };
 
-      await axios.post(`${API_URL}/api/auth/google`, userData);
+      const response = await axios.post(`${API_URL}/api/auth/google`, userData);
+      const backendUser = response.data.user;
 
       const userProfile = {
-        name: user.displayName,
-        email: user.email,
-        photo: user.photoURL,
-        id: user.uid,
+        ...backendUser,
+        id: backendUser._id, // for consistency with existing code
       };
 
       setUser(userProfile);
@@ -436,6 +435,28 @@ export const AppContextProvider = ({ children }) => {
       localStorage.removeItem('isLoggedIn');
       toast.success("Logged out");
       navigate("/");
+    }
+  };
+
+  const updateUserProfile = async (userId, updatedData) => {
+    try {
+      // Use userId from argument, fallback to _id or id
+      const targetId = userId || user?._id || user?.id;
+      const response = await axios.put(`${API_URL}/api/users/${targetId}`, updatedData);
+      if (response.data.success) {
+        const updatedUser = {
+          ...user,
+          ...response.data.user,
+          id: response.data.user._id || user.id
+        };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        return { success: true, user: updatedUser };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      return { success: false, message: error.response?.data?.message || "Failed to update profile" };
     }
   };
 
@@ -735,6 +756,7 @@ export const AppContextProvider = ({ children }) => {
     setShowUserLogin,
     loginWithGoogle,
     logout,
+    updateUserProfile,
     requireAuth,
 
     // Products

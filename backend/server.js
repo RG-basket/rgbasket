@@ -176,8 +176,13 @@ app.put('/api/users/:userId', safeCache(900), async (req, res) => {
   try {
     const { name, email, phone, photo } = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      req.params.userId,
+    const userId = req.params.userId;
+    const query = mongoose.isValidObjectId(userId)
+      ? { _id: userId }
+      : { googleId: userId };
+
+    const user = await User.findOneAndUpdate(
+      query,
       { name, email, phone, photo },
       { new: true }
     ).select('-googleId');
@@ -206,7 +211,12 @@ app.put('/api/users/:userId', safeCache(900), async (req, res) => {
 // Get user details
 app.get('/api/users/:userId', safeCache(900), async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId).select('-googleId');
+    const userId = req.params.userId;
+    const query = mongoose.isValidObjectId(userId)
+      ? { _id: userId }
+      : { googleId: userId };
+
+    const user = await User.findOne(query).select('-googleId');
 
     if (!user) {
       return res.status(404).json({
