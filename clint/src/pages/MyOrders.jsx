@@ -10,6 +10,7 @@ const MyOrders = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showDeliveryConfirm, setShowDeliveryConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [orderToDeliver, setOrderToDeliver] = useState(null);
   const [orderToCancel, setOrderToCancel] = useState(null);
   const [updatingOrder, setUpdatingOrder] = useState(false);
@@ -229,6 +230,11 @@ const MyOrders = () => {
       setError('');
       setShowDeliveryConfirm(false);
       setOrderToDeliver(null);
+
+      // Show Google Review Popup after successful delivery confirmation
+      setTimeout(() => {
+        setShowReviewPopup(true);
+      }, 500);
 
     } catch (err) {
       setError('Failed to update order status. Please try again.');
@@ -1146,6 +1152,66 @@ const MyOrders = () => {
                     )}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Google Review Popup Modal */}
+      <AnimatePresence>
+        {showReviewPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-[60]"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 border border-gray-100 relative overflow-hidden"
+            >
+              {/* Decorative elements */}
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500"></div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-yellow-100 shadow-inner">
+                  <span className="text-3xl sm:text-4xl">⭐</span>
+                </div>
+
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                  Enjoy your order?
+                </h3>
+
+                <p className="text-gray-600 text-sm sm:text-base mb-6">
+                  We're so glad you received your groceries! Would you mind taking a moment to rate us on Google? It helps us serve you better.
+                </p>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      window.open('https://www.google.com/maps/place/Rg+basket/@20.4407632,85.9023337,17z/data=!4m8!3m7!1s0x3a190d3d6443bf9f:0xc369f29ef6c8baed!8m2!3d20.4407632!4d85.9023337!9m1!1b1!16s%2Fg%2F11yr2bt9mb?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D', '_blank');
+                      setShowReviewPopup(false);
+                    }}
+                    className="w-full bg-[#26544a] hover:bg-[#1e423a] text-white py-3 px-4 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                  >
+                    <span>Rate us on Google</span>
+                    <span>🌟</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowReviewPopup(false)}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl font-semibold transition-all duration-200"
+                  >
+                    Maybe later
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-gray-400 mt-4 uppercase tracking-widest font-medium">
+                  Team RG Basket
+                </p>
               </div>
             </motion.div>
           </motion.div>
