@@ -60,6 +60,19 @@ const ProductDetails = () => {
   const [thumbnail, setThumbnail] = useState('');
   const [productImages, setProductImages] = useState([]);
   const [selectedWeightIndex, setSelectedWeightIndex] = useState(0);
+
+  // Helper to get numerical weight for sorting/comparison
+  const getNumericalWeightValue = (w) => {
+    if (!w) return 0;
+    const val = parseFloat(w.weight) || 0;
+    const unit = w.unit?.toLowerCase() || '';
+    if (unit === 'kg' || unit === 'l') return val * 1000;
+    return val;
+  };
+
+  // Create a sorted version of weights while keeping track of original index
+  const weightOptions = (product?.weights || []).map((w, idx) => ({ ...w, originalIndex: idx }))
+    .sort((a, b) => getNumericalWeightValue(a) - getNumericalWeightValue(b));
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
@@ -72,7 +85,27 @@ const ProductDetails = () => {
   useEffect(() => {
     if (products && products.length > 0) {
       const found = getProductById(productId);
-      setProduct(found || null);
+      if (found) {
+        setProduct(found);
+
+        // Find smallest weight index for this product
+        const options = (found.weights || []).map((w, idx) => ({ ...w, originalIndex: idx }))
+          .sort((a, b) => {
+            const getVal = (w) => {
+              const v = parseFloat(w.weight) || 0;
+              const u = w.unit?.toLowerCase() || '';
+              if (u === 'kg' || u === 'l') return v * 1000;
+              return v;
+            };
+            return getVal(a) - getVal(b);
+          });
+
+        if (options.length > 0) {
+          setSelectedWeightIndex(options[0].originalIndex);
+        }
+      } else {
+        setProduct(null);
+      }
       setLoading(false);
     }
   }, [products, productId, getProductById]);
@@ -304,11 +337,11 @@ const ProductDetails = () => {
                   Select Variant
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {product.weights.map((w, i) => (
+                  {weightOptions.map((w) => (
                     <button
-                      key={i}
-                      onClick={() => setSelectedWeightIndex(i)}
-                      className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${selectedWeightIndex === i
+                      key={w.originalIndex}
+                      onClick={() => setSelectedWeightIndex(w.originalIndex)}
+                      className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${selectedWeightIndex === w.originalIndex
                         ? 'border-green-500 bg-green-50 text-green-700'
                         : 'border-gray-200 hover:border-green-200 text-gray-600'
                         }`}

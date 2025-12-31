@@ -23,10 +23,24 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
 
     if (!product || !product._id || !product.name) return null;
 
-    const [selectedWeightIndex, setSelectedWeightIndex] = useState(0);
     const [imageError, setImageError] = useState(false);
     const [slotAvailability, setSlotAvailability] = useState(isAvailableForSlot);
     const [slotUnavailabilityReason, setSlotUnavailabilityReason] = useState(unavailabilityReason);
+
+    // Helper to get numerical weight for sorting/comparison
+    const getNumericalWeightValue = (w) => {
+        if (!w) return 0;
+        const val = parseFloat(w.weight) || 0;
+        const unit = w.unit?.toLowerCase() || '';
+        if (unit === 'kg' || unit === 'l') return val * 1000;
+        return val;
+    };
+
+    // Create a sorted version of weights while keeping track of original index
+    const weightOptions = (product.weights || []).map((w, idx) => ({ ...w, originalIndex: idx }))
+        .sort((a, b) => getNumericalWeightValue(a) - getNumericalWeightValue(b));
+
+    const [selectedWeightIndex, setSelectedWeightIndex] = useState(() => weightOptions[0]?.originalIndex ?? 0);
 
     const weights = product.weights || [];
     const selectedWeight = weights[selectedWeightIndex] || {};
@@ -70,11 +84,12 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const baseUrl = import.meta.env.VITE_API_URL;
     const imageUrl = product.images?.[0] ? product.images[0] : null;
 
+    // ✅ Reset to smallest weight if product or weights change
     useEffect(() => {
-        if (weights.length > 0 && selectedWeightIndex >= weights.length) {
-            setSelectedWeightIndex(0);
+        if (weightOptions.length > 0) {
+            setSelectedWeightIndex(weightOptions[0].originalIndex);
         }
-    }, [weights.length, selectedWeightIndex]);
+    }, [product._id]);
 
     // Use weightIndex for cart key to match AppContext
     const cartKey = `${product._id}_${selectedWeightIndex}`;
@@ -175,8 +190,8 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                         onChange={(e) => setSelectedWeightIndex(Number(e.target.value))}
                         disabled={weights.length <= 1 || !isAvailable}
                     >
-                        {weights.map((w, idx) => (
-                            <option key={idx} value={idx}>
+                        {weightOptions.map((w) => (
+                            <option key={w.originalIndex} value={w.originalIndex}>
                                 {formatWeight(w)}
                             </option>
                         ))}
