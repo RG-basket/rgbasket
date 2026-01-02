@@ -3,8 +3,7 @@ import { Route, Routes, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppContext } from "./context/AppContext.jsx";
 import { AlertCircle, X } from "lucide-react";
-import { serviceablePincodes } from "./assets/assets.js";
-import { z } from "zod";
+
 
 import { Toaster } from "react-hot-toast";
 
@@ -50,14 +49,14 @@ import Footer from "./components/Layout/Footer.jsx";
 import Login from "./components/Auth/Login.jsx";
 import Profile from "./components/User/Profile.jsx";
 import CategoryStrip from "./components/Dashboard/CategoryStrip.jsx";
-import ServiceabilityModal from "./components/Servicibility/servic.jsx";
+
 import SlotManager from "./components/Admin/SlotManagerDark.jsx";
 import ProtectedRoute from "./components/Auth/ProtectedRoute.jsx";
 import LoginGuard from "./components/Auth/LoginGuard.jsx";
 import InstallPopup from "./components/Install/InstallPopup.jsx";
 import PhoneCollectionPopup from "./components/User/PhoneCollectionPopup.jsx";
 
-const PincodeSchema = z.string().regex(/^\d{6}$/);
+
 
 // Loading Fallback
 const PageLoader = () => (
@@ -90,18 +89,7 @@ const App = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
   const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup } = useAppContext();
-  const [showServiceabilityModal, setShowServiceabilityModal] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("userPincode");
-    const isValid = PincodeSchema.safeParse(saved).success;
-    const isServiced = serviceablePincodes.some(
-      (entry) => entry.pincode === saved
-    );
-    if (!isValid || !isServiced) {
-      setShowServiceabilityModal(true);
-    }
-  }, []);
   // Removed Escape key listener to strictly enforce "dismissible only via X button"
   // as per requirements.
 
@@ -114,7 +102,7 @@ const App = () => {
 
       {!isAdminPath && (
         <>
-          <Navbar onLocationClick={() => setShowServiceabilityModal(true)} />
+          <Navbar />
           <CategoryStrip />
         </>
       )}
@@ -134,11 +122,7 @@ const App = () => {
         </div>
       )}
 
-      {showServiceabilityModal && (
-        <ServiceabilityModal
-          onClose={() => setShowServiceabilityModal(false)}
-        />
-      )}
+
 
       {/* Order Limit Popup */}
       <AnimatePresence>
@@ -154,7 +138,7 @@ const App = () => {
               <motion.div
                 initial={{ width: "100%" }}
                 animate={{ width: "0%" }}
-                transition={{ duration: 3, ease: "linear" }}
+                transition={{ duration: 5, ease: "linear" }}
                 className="absolute bottom-0 left-0 h-1 bg-orange-400"
               />
 
@@ -285,11 +269,6 @@ const App = () => {
             {/* Influencer Route */}
             <Route path="/influencer/:routeName" element={<InfluencerDashboard />} />
 
-            <Route path="/admin/servicibility" element={
-              <ProtectedRoute>
-                <ServiceabilityModal />
-              </ProtectedRoute>
-            } />
           </Routes>
         </Suspense>
       </main>
