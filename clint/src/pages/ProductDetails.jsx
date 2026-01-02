@@ -182,7 +182,6 @@ const ProductDetails = () => {
   const handleAddToCart = () => {
     if (!isAvailable) return;
     addToCart(cartKey, 1);
-    toast.success('Added to cart');
   };
 
   // Handle Buy Now
@@ -377,6 +376,15 @@ const ProductDetails = () => {
               </div>
               <p className="text-sm text-gray-500">(Inclusive of all taxes)</p>
             </div>
+
+            {/* Order Limit Info */}
+            {product.maxOrderQuantity > 0 && (
+              <div className="flex items-center gap-2 text-sm font-medium text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg w-fit">
+                <AlertCircle className="w-4 h-4" />
+                <span>Limit: {product.maxOrderQuantity} {selectedWeight?.unit || 'pack(s)'} per order</span>
+              </div>
+            )}
+
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">

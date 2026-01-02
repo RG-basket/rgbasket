@@ -55,6 +55,8 @@ export const AppContextProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState({});
   const [recentItems, setRecentItems] = useState([]);
   const [cartCount, setCartCount] = useState(0);
+  const [limitPopup, setLimitPopup] = useState(null); // { productName, limit, unit }
+  const [limitTimeout, setLimitTimeout] = useState(null);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -680,13 +682,34 @@ export const AppContextProvider = ({ children }) => {
     }).filter(item => item.product);
   };
 
+  const triggerLimitPopup = (product, limit, unit) => {
+    if (limitTimeout) clearTimeout(limitTimeout);
+    setLimitPopup({ productName: product.name, limit, unit });
+    const timeout = setTimeout(() => setLimitPopup(null), 5000);
+    setLimitTimeout(timeout);
+  };
+
   const addToCart = (itemKey, quantity = 1) => {
+    const [productId] = itemKey.split('_');
+    const product = getProductById(productId);
+
+    if (!product) return;
+
+    const currentQty = cartItems[itemKey] || 0;
+    const newQty = currentQty + quantity;
+
+    if (product.maxOrderQuantity > 0 && newQty > product.maxOrderQuantity) {
+      const weight = product.weights?.[parseInt(itemKey.split('_')[1])];
+      triggerLimitPopup(product, product.maxOrderQuantity, weight?.unit || 'pack');
+      return;
+    }
+
     setCartItems(prev => {
       const newCart = {
         ...prev,
-        [itemKey]: (prev[itemKey] || 0) + quantity
+        [itemKey]: newQty
       };
-      // Save to localStorage
+
       localStorage.setItem('cartItems', JSON.stringify(newCart));
       return newCart;
     });
@@ -695,15 +718,22 @@ export const AppContextProvider = ({ children }) => {
   };
 
   const updateCartItem = (itemKey, quantity) => {
+    const [productId] = itemKey.split('_');
+    const product = getProductById(productId);
+
     if (quantity <= 0) {
       removeCartItem(itemKey);
     } else {
+      if (product && product.maxOrderQuantity > 0 && quantity > product.maxOrderQuantity) {
+        const weight = product.weights?.[parseInt(itemKey.split('_')[1])];
+        triggerLimitPopup(product, product.maxOrderQuantity, weight?.unit || 'pack');
+        return;
+      }
       setCartItems(prev => {
         const newCart = {
           ...prev,
           [itemKey]: quantity
         };
-        // Save to localStorage
         localStorage.setItem('cartItems', JSON.stringify(newCart));
         return newCart;
       });
@@ -714,7 +744,6 @@ export const AppContextProvider = ({ children }) => {
     setCartItems(prev => {
       const newCart = { ...prev };
       delete newCart[itemKey];
-      // Save to localStorage
       localStorage.setItem('cartItems', JSON.stringify(newCart));
       return newCart;
     });
@@ -792,6 +821,10 @@ export const AppContextProvider = ({ children }) => {
     setSearchQuery,
     searchTriggered,
     setSearchTriggered,
+
+    // Limit Popup
+    limitPopup,
+    setLimitPopup,
 
     // Enhanced Slot Management
     selectedSlot,

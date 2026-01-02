@@ -1,6 +1,8 @@
 import React, { useEffect, useState, Suspense, lazy } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAppContext } from "./context/AppContext.jsx";
+import { AlertCircle, X } from "lucide-react";
 import { serviceablePincodes } from "./assets/assets.js";
 import { z } from "zod";
 
@@ -87,7 +89,7 @@ const ScrollToTop = () => {
 const App = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
-  const { showUserLogin, setShowUserLogin } = useAppContext();
+  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup } = useAppContext();
   const [showServiceabilityModal, setShowServiceabilityModal] = useState(false);
 
   useEffect(() => {
@@ -137,6 +139,45 @@ const App = () => {
           onClose={() => setShowServiceabilityModal(false)}
         />
       )}
+
+      {/* Order Limit Popup */}
+      <AnimatePresence>
+        {limitPopup && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[10000] w-[90%] max-w-sm"
+          >
+            <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 p-4 flex items-center gap-4 overflow-hidden relative">
+              {/* Progress bar for 3s */}
+              <motion.div
+                initial={{ width: "100%" }}
+                animate={{ width: "0%" }}
+                transition={{ duration: 3, ease: "linear" }}
+                className="absolute bottom-0 left-0 h-1 bg-orange-400"
+              />
+
+              <div className="bg-orange-100 p-2 rounded-xl">
+                <AlertCircle className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-gray-900 line-clamp-1">{limitPopup.productName}</h4>
+                <p className="text-xs text-orange-600 font-medium">
+                  Maximum limit: {limitPopup.limit} {limitPopup.unit} per order
+                </p>
+              </div>
+              <button
+                onClick={() => setLimitPopup(null)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Toaster />
 

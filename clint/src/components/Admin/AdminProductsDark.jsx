@@ -47,16 +47,16 @@ const AdminProductsDark = () => {
     };
 
     const fetchCategories = async () => {
-    try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
-        if (response.ok) {
-            const data = await response.json();
-            setCategories(data.categories || []);
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+            if (response.ok) {
+                const data = await response.json();
+                setCategories(data.categories || []);
+            }
+        } catch (error) {
+            console.error('Error fetching categories:', error);
         }
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-    }
-};
+    };
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this product?')) return;
@@ -214,6 +214,16 @@ const AdminProductsDark = () => {
                     </div>
                 );
             }
+        },
+        {
+            key: 'maxOrderQuantity',
+            label: 'Order Limit',
+            sortable: true,
+            render: (limit) => (
+                <span className={`text-sm ${limit > 0 ? 'text-[#ff9e64]' : tw.textSecondary}`}>
+                    {limit > 0 ? `${limit} per order` : 'Unlimited'}
+                </span>
+            )
         },
         {
             key: 'actions',

@@ -253,7 +253,7 @@ router.patch('/products/bulk-update', authenticateAdmin, async (req, res) => {
     // Validate that only allowed fields are being updated
     const allowedFields = [
       'active', 'featured', 'stock', 'lowStockThreshold',
-      'weights', 'category', 'inStock'
+      'weights', 'category', 'inStock', 'maxOrderQuantity'
     ];
 
     const invalidFields = Object.keys(updateData).filter(

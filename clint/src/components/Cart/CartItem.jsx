@@ -89,7 +89,7 @@ const CartItem = ({ product, navigate, updateCartItem, removeCartItem, CURRENCY,
                                     : 'border-green-300 focus:ring-green-500'
                                     }`}
                             >
-                                {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
+                                {Array.from({ length: product.maxOrderQuantity > 0 ? product.maxOrderQuantity : 10 }, (_, i) => i + 1).map(num => (
                                     <option key={num} value={num}>{num}</option>
                                 ))}
                             </select>

@@ -22,6 +22,7 @@ const ProductFormDark = () => {
         weights: [{ weight: '', price: '', offerPrice: '', unit: 'kg' }],
         stock: 0,
         lowStockThreshold: 10,
+        maxOrderQuantity: 0,
         featured: false,
         active: true,
         requiresSlotSelection: false,
@@ -79,6 +80,7 @@ const ProductFormDark = () => {
                     weights: product.weights || [{ weight: '', price: '', offerPrice: '', unit: 'kg' }],
                     stock: product.stock,
                     lowStockThreshold: product.lowStockThreshold || 10,
+                    maxOrderQuantity: product.maxOrderQuantity || 0,
                     featured: product.featured,
                     active: product.active,
                     requiresSlotSelection: product.requiresSlotSelection || false,
@@ -184,6 +186,7 @@ const ProductFormDark = () => {
             formDataToSend.append('weights', JSON.stringify(formData.weights));
             formDataToSend.append('stock', formData.stock);
             formDataToSend.append('lowStockThreshold', formData.lowStockThreshold);
+            formDataToSend.append('maxOrderQuantity', formData.maxOrderQuantity);
             formDataToSend.append('featured', formData.featured);
             formDataToSend.append('active', formData.active);
             formDataToSend.append('requiresSlotSelection', formData.requiresSlotSelection);
@@ -407,6 +410,12 @@ const ProductFormDark = () => {
                                 label="Low Stock Threshold"
                                 value={formData.lowStockThreshold}
                                 onChange={(e) => handleInputChange('lowStockThreshold', parseInt(e.target.value) || 0)}
+                            />
+                            <AdminInputDark
+                                type="number"
+                                label="Max Order Quantity (0 for unlimited)"
+                                value={formData.maxOrderQuantity}
+                                onChange={(e) => handleInputChange('maxOrderQuantity', parseInt(e.target.value) || 0)}
                             />
                         </div>
                         <div className="flex gap-6">

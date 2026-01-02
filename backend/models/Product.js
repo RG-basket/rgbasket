@@ -69,6 +69,11 @@ const ProductSchema = new mongoose.Schema({
     default: 0
   },
 
+  maxOrderQuantity: {
+    type: Number,
+    default: 0 // 0 means no limit
+  },
+
   inStock: {
     type: Boolean,
     default: true
