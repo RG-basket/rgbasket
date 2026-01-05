@@ -206,7 +206,7 @@ const FAQs = () => {
           <div className="grid md:grid-cols-3 gap-6 text-center">
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">📞 Call Us</h3>
-              <p className="text-gray-700">+91-6370810878</p>
+              <p className="text-gray-700">+91-6370810878, 9556137807</p>
               <p className="text-sm text-gray-600">7:00 AM - 10:00 PM</p>
             </div>
             <div>

@@ -77,7 +77,7 @@ const InfluencerDashboard = () => {
 
         // Open WhatsApp
         const message = `Hello RG Basket Team! 👋\n\nI am requesting a withdrawal for my influencer account:\n\n👤 Name: ${stats.name}\n🎫 Code: ${stats.code}\n💰 Withdrawal Amount: ₹${currentAvailable}\n📈 Lifetime Earnings: ₹${stats.earnings}\n\nPlease process my withdrawal. Thank you!`;
-        const whatsappUrl = `https://wa.me/916370810878?text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `https://wa.me/919078771530?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     };
 

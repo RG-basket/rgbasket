@@ -71,7 +71,7 @@ const TermsOfService = () => {
       title: "Contact Information",
       content: `For questions about these Terms of Service, please contact us at:
       Email: legal@rgbasket.com
-      Phone: +91-6370810878
+      Phone: +91-6370810878, 9556137807
       Address: RG Basket, Bhubaneswar, Odisha, India`
     }
   ];
@@ -109,7 +109,7 @@ const TermsOfService = () => {
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-yellow-800">Important Notice</h3>
               <p className="text-yellow-700 mt-1">
-                By accessing or using RG Basket, you agree to be bound by these Terms of Service. 
+                By accessing or using RG Basket, you agree to be bound by these Terms of Service.
                 If you disagree with any part of these terms, you may not access our services.
               </p>
             </div>

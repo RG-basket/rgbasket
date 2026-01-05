@@ -74,7 +74,8 @@ const Footer = () => {
       title: "Contact Us",
       links: [
         { text: "Email: rgbasket.com@gmail.com", url: "mailto:rgbasket.com@gmail.com" },
-        { text: "Phone: +91-6370810878", url: "tel:+916370810878" },
+        { text: "Phone 1: +91-6370810878", url: "tel:+916370810878" },
+        { text: "Phone 2: +91-9556137807", url: "tel:+919556137807" },
         { text: "Address: Cuttack, Odisha", url: "#" },
       ],
     },
