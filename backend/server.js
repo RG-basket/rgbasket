@@ -138,6 +138,7 @@ app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
 app.use('/api/promo', promoCodeRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/feeds', require('./routes/feeds'));
 
 
 // Your existing routes
