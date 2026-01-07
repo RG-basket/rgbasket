@@ -37,7 +37,7 @@ const FAQs = () => {
         },
         {
           question: "Can I change my delivery address?",
-          answer: "Yes, you can change delivery address within 1 hour of order placement. After that, contact customer support. Address changes are subject to delivery area availability."
+          answer: "Yes, you can change your delivery address within 1 hour of order placement. After that, contact customer support. Address changes are subject to delivery area availability."
         },
         {
           question: "What are your delivery time slots?",

@@ -41,7 +41,7 @@ const ShippingReturns = () => {
     },
     {
       question: "What if I receive damaged or wrong items?",
-      answer: "If you receive damaged, spoiled, or incorrect items, please contact us immediately within 6 hours of delivery. Share photos of the issue, and we'll arrange a replacement or refund. Our quality team will investigate and resolve within 24 hours."
+      answer: "If you receive damaged, spoiled, or incorrect items, please contact us within 6 hours of delivery. Share photos of the issue, and we'll arrange a replacement or refund. Our quality team will investigate and resolve within 24 hours."
     }
   ];
 

@@ -216,7 +216,7 @@ const Footer = () => {
           >
             RG Basket
           </motion.a>{" "}
-          All Right Reserved. 🚀
+          All Rights Reserved. 🚀
         </motion.p>
 
         {/* Social Media Icons */}

@@ -30,7 +30,7 @@ const Home = () => {
                     Join the RGBasket community for the best prices and support local farmers today.
                 </p>
                 <p>
-                    RG Basket team provides reliable customer support and fast doorstep delivery. Shop pantry essentials, dairy products, and snacks on the RBasket mobile app.
+                    RG Basket team provides reliable customer support and fast doorstep delivery. Shop pantry essentials, dairy products, and snacks on the RGBasket mobile app.
                     Trusted by thousands in Cuttack. High-quality produce sourced daily. Smart automated slot selection for easy checkout.
                 </p>
             </div>
