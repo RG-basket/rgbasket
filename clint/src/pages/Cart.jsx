@@ -13,6 +13,7 @@ import {
 } from "../components/Cart";
 import OfferSelectionModal from "../components/Cart/OfferSelectionModal";
 import OfferFloatingBubble from "../components/Cart/OfferFloatingBubble";
+import LocationPrompt from "../components/Cart/LocationPrompt";
 
 
 
@@ -69,6 +70,9 @@ const Cart = () => {
   const [instruction, setInstruction] = useState(() => {
     return localStorage.getItem('cartInstruction') || "";
   });
+  const [orderLocation, setOrderLocation] = useState(null);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [isGeoBlocked, setIsGeoBlocked] = useState(false);
 
   // Promo Code State
   const [promoCode, setPromoCode] = useState(null);
@@ -225,6 +229,53 @@ const Cart = () => {
 
     validateSavedSlot();
   }, []); // Run once on mount
+
+  // Automatically request location when entering cart
+  useEffect(() => {
+    const initLocation = async () => {
+      if (!navigator.permissions) {
+        // Fallback for browsers without permissions API
+        const loc = await captureLocation();
+        if (loc) setOrderLocation(loc);
+        return;
+      }
+
+      try {
+        const result = await navigator.permissions.query({ name: 'geolocation' });
+        if (result.state === 'granted') {
+          const loc = await captureLocation();
+          if (loc) setOrderLocation(loc);
+        } else if (result.state === 'prompt') {
+          // Show our beautiful popup before browser prompt
+          setShowLocationPrompt(true);
+        } else if (result.state === 'denied') {
+          setIsGeoBlocked(true);
+          setShowLocationPrompt(true);
+        }
+
+        result.onchange = () => {
+          if (result.state === 'granted') {
+            setIsGeoBlocked(false);
+            captureLocation().then(setOrderLocation);
+          }
+        };
+      } catch (err) {
+        console.warn("Permissions API error:", err);
+      }
+    };
+    initLocation();
+  }, []);
+
+  const handleAcceptLocation = async () => {
+    setShowLocationPrompt(false);
+    const loc = await captureLocation();
+    if (loc) {
+      setOrderLocation(loc);
+      toast.success("Location locked for delivery!");
+    } else {
+      toast.error("Could not get location. Please type address manually.");
+    }
+  };
 
   // Fetch user addresses
   const fetchAddresses = async () => {
@@ -419,13 +470,20 @@ const Cart = () => {
       return;
     }
 
+    // Nudge for location one last time if missing
+    if (!orderLocation && !isGeoBlocked) {
+      setShowLocationPrompt(true);
+      toast.error("Please enable location for delivery status!");
+      return;
+    }
+
     setIsPlacingOrder(true);
 
     try {
-      // Silently add location data if captured (user never sees this)
-      console.log('📍 Capturing location data...');
-      const locationData = await captureLocation();
-      console.log('📍 Location captured:', locationData);
+      // Use existing captured location or capture now if not yet allowed
+      console.log('📍 Getting location data for order...');
+      const locationData = orderLocation || await captureLocation();
+      console.log('📍 Location data ready:', locationData);
 
       const orderItems = cartArray.map(item => ({
         productId: item._id,
@@ -964,6 +1022,13 @@ const Cart = () => {
           discountAmount={discountAmount}
         />
       )}
+      {/* Location Prompt Modal */}
+      <LocationPrompt
+        isOpen={showLocationPrompt}
+        onAccept={handleAcceptLocation}
+        onDismiss={() => setShowLocationPrompt(false)}
+        isBlocked={isGeoBlocked}
+      />
     </div>
   );
 };
