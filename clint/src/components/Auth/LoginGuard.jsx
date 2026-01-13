@@ -13,18 +13,8 @@ const LoginGuard = () => {
     // Routes where login is MANDATORY (Cart, Checkout) - User interaction triggers popup again
     const mandatoryRoutes = ['/cart', '/checkout', '/add-address'];
 
-    // 1. First Time Visit & Navigation Check
+    // 1. Navigation Check for Protected Routes
     useEffect(() => {
-        // First Time Visit Check
-        const hasVisited = localStorage.getItem('hasVisitedRG');
-        if (!hasVisited) {
-            if (!isLoggedIn) {
-                setShowUserLogin(true);
-            }
-            localStorage.setItem('hasVisitedRG', 'true');
-        }
-
-        // Navigation Check for Protected Routes
         if (protectedRoutes.some(route => location.pathname.startsWith(route))) {
             if (!isLoggedIn) {
                 setShowUserLogin(true);

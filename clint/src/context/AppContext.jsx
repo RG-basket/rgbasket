@@ -690,6 +690,9 @@ export const AppContextProvider = ({ children }) => {
   };
 
   const addToCart = (itemKey, quantity = 1) => {
+    // REQUIRE LOGIN TO ADD TO CART
+    if (!requireAuth()) return;
+
     const [productId] = itemKey.split('_');
     const product = getProductById(productId);
 
