@@ -17,7 +17,17 @@ const UserAddressSchema = new mongoose.Schema({
   },
   alternatePhone: {
     type: String,
-    default: ''
+    default: '',
+    validate: {
+      validator: function (v) {
+        // v is the value of alternatePhone being saved
+        // this refers to the document being saved
+        // If v is empty string or null, it's valid (optional field)
+        if (!v) return true;
+        return v !== this.phoneNumber;
+      },
+      message: 'Alternate phone number cannot be the same as primary phone number'
+    }
   },
   street: {
     type: String,
@@ -57,7 +67,7 @@ const UserAddressSchema = new mongoose.Schema({
 });
 
 // Ensure only one default address per user
-UserAddressSchema.pre('save', async function(next) {
+UserAddressSchema.pre('save', async function (next) {
   if (this.isDefault && this.user) {
     await this.constructor.updateMany(
       { user: this.user, _id: { $ne: this._id } },

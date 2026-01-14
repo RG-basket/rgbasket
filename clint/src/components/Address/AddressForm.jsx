@@ -40,7 +40,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
   const [pincodeStatus, setPincodeStatus] = useState(null);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [showBudgetPopup, setShowBudgetPopup] = useState(true);
-  
+
   // Phone validation state
   const [phoneValidation, setPhoneValidation] = useState({
     status: 'idle', // 'idle' | 'valid' | 'invalid' | 'checking'
@@ -129,13 +129,13 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
   };
 
   const popupVariants = {
-    hidden: { 
-      opacity: 0, 
+    hidden: {
+      opacity: 0,
       scale: 0.9,
       y: -20
     },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       scale: 1,
       y: 0,
       transition: {
@@ -144,8 +144,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
         damping: 20
       }
     },
-    exit: { 
-      opacity: 0, 
+    exit: {
+      opacity: 0,
       scale: 0.9,
       transition: { duration: 0.2 }
     }
@@ -170,7 +170,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
       }
 
       setIsDetectingLocation(true);
-      
+
       try {
         const position = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -181,7 +181,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
         });
 
         const { latitude, longitude } = position.coords;
-        
+
         // Reverse geocode to get address
         const response = await fetch(
           `${import.meta.env.VITE_API_URL}/api/geocode/reverse?lat=${latitude}&lon=${longitude}`
@@ -189,17 +189,17 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
 
         if (response.ok) {
           const data = await response.json();
-          
+
           if (data.success && data.location) {
             const { area, district, state, pincode } = data.location;
-            
+
             // Auto-fill landmark with detected location
             const landmarkText = `${area}, ${district}, ${state} ${pincode}`;
             setFormData(prev => ({
               ...prev,
               landmark: landmarkText
             }));
-            
+
             toast.success('Location detected automatically');
           }
         }
@@ -220,8 +220,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
     const { name, value, type, checked } = e.target;
 
     // Only allow numbers for phone and pincode fields
-    if ((name === 'phoneNumber' || name === 'confirmPhoneNumber' || 
-         name === 'alternatePhone' || name === 'pincode') && /\D/.test(value)) {
+    if ((name === 'phoneNumber' || name === 'confirmPhoneNumber' ||
+      name === 'alternatePhone' || name === 'pincode') && /\D/.test(value)) {
       return;
     }
 
@@ -230,7 +230,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     };
-    
+
     setFormData(newFormData);
 
     // Validate pincode in real-time
@@ -296,9 +296,9 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
     e.preventDefault();
 
     // Basic validation
-    if (!formData.fullName || !formData.phoneNumber || !formData.confirmPhoneNumber || 
-        !formData.street || !formData.locality || !formData.city || !formData.state || 
-        !formData.pincode) {
+    if (!formData.fullName || !formData.phoneNumber || !formData.confirmPhoneNumber ||
+      !formData.street || !formData.locality || !formData.city || !formData.state ||
+      !formData.pincode) {
       toast.error('Please fill all required fields');
       return;
     }
@@ -316,6 +316,11 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
 
     if (formData.alternatePhone && !/^\d{10}$/.test(formData.alternatePhone)) {
       toast.error('Please enter a valid 10-digit alternate phone number');
+      return;
+    }
+
+    if (formData.alternatePhone && formData.alternatePhone === formData.phoneNumber) {
+      toast.error('Alternate phone number cannot be the same as your primary number');
       return;
     }
 
@@ -382,7 +387,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
 
     } catch (error) {
       console.error('Error saving address:', error);
-      
+
       // Fallback to localStorage
       try {
         const userId = user?._id || user?.id || user?.user?.id;
@@ -439,7 +444,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
     formData.state &&
     formData.pincode &&
     pincodeStatus === 'valid' &&
-    phoneValidation.status === 'valid';
+    phoneValidation.status === 'valid' &&
+    (!formData.alternatePhone || formData.alternatePhone !== formData.phoneNumber);
 
   return (
     <>
@@ -481,16 +487,16 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                   <p className="text-lg font-medium text-gray-800 text-center">
                     Budget Constraints Notice
                   </p>
-                  
+
                   <div className="space-y-3">
                     <p className="text-gray-600">
                       <span className="font-semibold">Important:</span> Due to current budget limitations, we are unable to provide OTP-based phone verification at this time.
                     </p>
-                    
+
                     <p className="text-gray-600">
                       <span className="font-semibold">Please double-check:</span>
                     </p>
-                    
+
                     <ul className="list-disc pl-5 text-gray-600 space-y-1">
                       <li>Your phone number is entered correctly</li>
                       <li>Your delivery address is accurate and complete</li>
@@ -624,13 +630,12 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                         name="phoneNumber"
                         value={formData.phoneNumber}
                         onChange={handleChange}
-                        className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${
-                          phoneValidation.status === 'valid' 
-                            ? 'border-green-500' 
-                            : phoneValidation.status === 'invalid' 
-                              ? 'border-red-500' 
+                        className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${phoneValidation.status === 'valid'
+                            ? 'border-green-500'
+                            : phoneValidation.status === 'invalid'
+                              ? 'border-red-500'
                               : 'border-gray-200'
-                        }`}
+                          }`}
                         placeholder="10-digit mobile number"
                         maxLength="10"
                         required
@@ -644,36 +649,35 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                       <label className="block text-lg font-semibold text-gray-800">
                         Confirm Phone Number *
                       </label>
-                      
+
                       {/* Manual Verify Button - Shows when both fields have 10 digits but validation hasn't triggered */}
-                      {formData.phoneNumber.length === 10 && 
-                       formData.confirmPhoneNumber.length === 10 && 
-                       phoneValidation.status === 'idle' && (
-                        <motion.button
-                          type="button"
-                          onClick={handleManualVerify}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Verify Match
-                        </motion.button>
-                      )}
+                      {formData.phoneNumber.length === 10 &&
+                        formData.confirmPhoneNumber.length === 10 &&
+                        phoneValidation.status === 'idle' && (
+                          <motion.button
+                            type="button"
+                            onClick={handleManualVerify}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Verify Match
+                          </motion.button>
+                        )}
                     </div>
-                    
+
                     <motion.input
                       whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
                       type="tel"
                       name="confirmPhoneNumber"
                       value={formData.confirmPhoneNumber}
                       onChange={handleChange}
-                      className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${
-                        phoneValidation.status === 'valid' 
-                          ? 'border-green-500' 
-                          : phoneValidation.status === 'invalid' 
-                            ? 'border-red-500' 
+                      className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${phoneValidation.status === 'valid'
+                          ? 'border-green-500'
+                          : phoneValidation.status === 'invalid'
+                            ? 'border-red-500'
                             : 'border-gray-200'
-                      }`}
+                        }`}
                       placeholder="Re-enter your phone number"
                       maxLength="10"
                       required
@@ -686,11 +690,10 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
-                            phoneValidation.status === 'valid'
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${phoneValidation.status === 'valid'
                               ? 'text-green-700 bg-green-50/80 border-green-200'
                               : 'text-red-700 bg-red-50/80 border-red-200'
-                          }`}
+                            }`}
                         >
                           {phoneValidation.status === 'valid' ? (
                             <>
@@ -722,10 +725,28 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                       name="alternatePhone"
                       value={formData.alternatePhone}
                       onChange={handleChange}
-                      className="w-full border-2 border-gray-200 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200"
+                      className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${formData.alternatePhone && formData.alternatePhone === formData.phoneNumber
+                          ? 'border-red-500'
+                          : 'border-gray-200'
+                        }`}
                       placeholder="Optional alternate number"
                       maxLength="10"
                     />
+                    <AnimatePresence>
+                      {formData.alternatePhone && formData.alternatePhone === formData.phoneNumber && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="mt-2 text-red-600 text-sm font-medium flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          Alternate number cannot be same as primary number
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </motion.div>
 
