@@ -658,7 +658,7 @@ const AdminOrdersDark = () => {
       <p>Your fresh groceries are on the way</p>
       <div class="contact-info">
         <span>📧 rgbasket.com@gmail.com</span>
-        <span>📞 +91-6370810878, 9556137807</span>
+        <span>💬 WhatsApp: +91 9078771530</span>
       </div>
       <p style="margin-top: 10px;">Generated on: ${new Date().toLocaleString()}</p>
     </div>
