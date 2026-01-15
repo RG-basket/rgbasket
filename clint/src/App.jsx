@@ -22,6 +22,8 @@ const NotFound = lazy(() => import("./components/Fallbacks/NotFound.jsx"));
 const FAQs = lazy(() => import("./pages/FAQs.jsx"));
 const ShippingReturns = lazy(() => import("./pages/ShippingReturns.jsx"));
 const ProductSlotManager = lazy(() => import('./components/Admin/ProductSlotManagerDark.jsx'));
+const Complaint = lazy(() => import("./pages/Complaint.jsx"));
+const AdminComplaints = lazy(() => import("./components/Admin/AdminComplaintsDark.jsx"));
 
 const TermsOfService = lazy(() => import("./pages/TermsOfService.jsx"));
 
@@ -181,6 +183,7 @@ const App = () => {
             <Route path="/order-success" element={<Orderdone />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/contact-us" element={<ContactUs />} />
+            <Route path="/complaint" element={<Complaint />} />
             <Route path="*" element={<NotFound />} />
             <Route path="/faq" element={<FAQs />} />
             <Route path="/order" element={<ShippingReturns />} />
@@ -262,6 +265,11 @@ const App = () => {
             <Route path="/admin/offers" element={
               <ProtectedRoute>
                 <AdminOffers />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/complaints" element={
+              <ProtectedRoute>
+                <AdminComplaints />
               </ProtectedRoute>
             } />
 

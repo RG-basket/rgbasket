@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Package, ShoppingCart, Users, Settings,
     Calendar, MapPin, ChevronLeft, ChevronRight, LogOut,
-    Bell, Search, Menu, X, Tag, Image as ImageIcon
+    Bell, Search, Menu, X, Tag, Image as ImageIcon, AlertCircle
 } from 'lucide-react';
 import { FaGift } from 'react-icons/fa';
 
@@ -34,6 +34,7 @@ const AdminLayoutDark = ({ children }) => {
             ]
         },
         { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
+        { path: '/admin/complaints', icon: AlertCircle, label: 'Complaints' },
         { path: '/admin/users', icon: Users, label: 'Users' },
         { path: '/admin/offers', icon: FaGift, label: 'Gift Offers' },
         { path: '/admin/promocodes', icon: Tag, label: 'Promo Codes' },

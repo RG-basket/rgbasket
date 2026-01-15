@@ -91,14 +91,14 @@ try {
   console.log('⚠️ Redis service not available, continuing without cache');
 }
 
-// // Serve static files from uploads directory
-// app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-//   setHeaders: (res, path) => {
-//     res.setHeader('Access-Control-Allow-Origin', '*');
-//     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-//     res.setHeader('Cache-Control', 'public, max-age=31536000');
-//   }
-// }));
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads'), {
+  setHeaders: (res, path) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+  }
+}));
 
 // Safe cache fallback for Redis issues
 const safeCache = (duration) => {
@@ -138,6 +138,7 @@ app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
 app.use('/api/promo', promoCodeRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/feeds', require('./routes/feeds'));
 
 

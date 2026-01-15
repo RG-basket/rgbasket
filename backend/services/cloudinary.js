@@ -29,4 +29,12 @@ const storage = new CloudinaryStorage({
   },
 });
 
-module.exports = { cloudinary, storage };
+const complaintStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'rgbasket-complaints',
+    // Removed format and transformation to keep original full quality
+  },
+});
+
+module.exports = { cloudinary, storage, complaintStorage };

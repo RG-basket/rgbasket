@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { FiUser, FiClipboard, FiPhoneCall, FiLogOut } from "react-icons/fi";
+import { FiUser, FiClipboard, FiPhoneCall, FiLogOut, FiAlertCircle } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext.jsx";
 
@@ -20,6 +20,7 @@ const UserDropdown = ({ closeDrawer }) => {
   const menuItems = [
     { label: "Profile", icon: FiUser, path: "/profile" },
     { label: "My Orders", icon: FiClipboard, path: "/orders" },
+    { label: "Report Issue", icon: FiAlertCircle, path: "/complaint" },
     { label: "Contact us", icon: FiPhoneCall, path: "/contact-us" },
   ];
 
