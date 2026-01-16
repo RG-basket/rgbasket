@@ -89,7 +89,7 @@ const InstallPopup = () => {
                             Install RG Basket
                         </h2>
                         <p className="text-gray-500 text-center text-sm mb-6">
-                            Install our app for a faster, better experience and easy access to your orders!
+                            Install our Website for a faster, better experience and easy access to your orders!
                         </p>
 
                         <div className="flex flex-col gap-3">
