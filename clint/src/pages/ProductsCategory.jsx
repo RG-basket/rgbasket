@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useParams } from 'react-router-dom';
 import ProductCard from '../components/Products/ProductCard';
+import { ChevronDown, ArrowUpDown, ArrowDownAz, ArrowUpAz, ArrowDown01, ArrowUp01, TrendingUp } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -11,6 +12,8 @@ const ProductsCategory = () => {
   const [categories, setCategories] = useState([]);
   const [searchCategory, setSearchCategory] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('popular-desc');
+  const [isSortOpen, setIsSortOpen] = useState(false);
 
   // Fetch categories from backend
   useEffect(() => {
@@ -52,6 +55,35 @@ const ProductsCategory = () => {
     product => product.category?.toLowerCase() === category?.toLowerCase()
   );
 
+  // Sort products
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sortBy) {
+      case 'price-asc':
+        return (a.weights[0]?.offerPrice || 0) - (b.weights[0]?.offerPrice || 0);
+      case 'price-desc':
+        return (b.weights[0]?.offerPrice || 0) - (a.weights[0]?.offerPrice || 0);
+      case 'name-asc':
+        return a.name.localeCompare(b.name);
+      case 'name-desc':
+        return b.name.localeCompare(a.name);
+      case 'popular-desc':
+        return (b.meta?.purchases || 0) - (a.meta?.purchases || 0);
+      case 'popular-asc':
+        return (a.meta?.purchases || 0) - (b.meta?.purchases || 0);
+      default:
+        return 0;
+    }
+  });
+
+  const sortOptions = [
+    { id: 'popular-desc', label: 'Most Popular', icon: TrendingUp },
+    { id: 'price-asc', label: 'Price: Low to High', icon: ArrowUp01 },
+    { id: 'price-desc', label: 'Price: High to Low', icon: ArrowDown01 },
+    { id: 'name-asc', label: 'Name: A to Z', icon: ArrowDownAz },
+    { id: 'name-desc', label: 'Name: Z to A', icon: ArrowUpAz },
+    { id: 'popular-asc', label: 'Least Popular', icon: ArrowUpDown },
+  ];
+
   // Skeleton loader
   if (loading) {
     return (
@@ -83,21 +115,61 @@ const ProductsCategory = () => {
         <div className="mb-12">
           {searchCategory ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white rounded-xl border border-gray-200 flex items-center justify-center text-2xl">
-                  {searchCategory.emoji}
+              <div className="flex flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl border border-gray-200 flex items-center justify-center text-xl md:text-2xl shadow-sm shrink-0">
+                    {searchCategory.emoji}
+                  </div>
+                  <div>
+                    <h1 className="text-xl md:text-3xl font-bold text-gray-900 capitalize leading-tight">
+                      {searchCategory.name}
+                    </h1>
+                    <p className="hidden md:block text-gray-500 text-sm font-medium">
+                      {sortedProducts.length} items
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-4xl font-bold text-gray-900 capitalize">
-                    {searchCategory.name}
-                  </h1>
-                  <p className="text-gray-600 mt-2">
-                    {filteredProducts.length} product
-                    {filteredProducts.length !== 1 ? 's' : ''} available
-                  </p>
+
+                {/* Sort Dropdown - Compact & Right Aligned */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsSortOpen(!isSortOpen)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-emerald-500 transition-all text-sm group whitespace-nowrap"
+                  >
+                    <ArrowUpDown size={14} className="text-emerald-500" />
+                    <span className="font-medium text-gray-700 group-hover:text-emerald-600 truncate max-w-[100px] hidden sm:block">
+                      {sortOptions.find(opt => opt.id === sortBy)?.label}
+                    </span>
+                    <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isSortOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isSortOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setIsSortOpen(false)}
+                      ></div>
+                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-20 py-1 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                        {sortOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            onClick={() => {
+                              setSortBy(option.id);
+                              setIsSortOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center gap-2 hover:bg-emerald-50 transition-colors ${sortBy === option.id ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-600'
+                              }`}
+                          >
+                            <option.icon size={14} className={sortBy === option.id ? 'text-emerald-500' : 'text-gray-400'} />
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="w-24 h-1 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full"></div>
+              <div className="w-16 h-1 bg-gradient-to-r from-emerald-500 to-lime-500 rounded-full"></div>
             </div>
           ) : (
             <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
@@ -127,9 +199,9 @@ const ProductsCategory = () => {
         )}
 
         {/* Products Grid */}
-        {filteredProducts.length > 0 ? (
+        {sortedProducts.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {filteredProducts.map(product => (
+            {sortedProducts.map(product => (
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
@@ -154,7 +226,7 @@ const ProductsCategory = () => {
           </div>
         ) : null}
       </div>
-    </div>
+    </div >
   );
 };
 

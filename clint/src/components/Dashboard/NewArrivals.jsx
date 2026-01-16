@@ -11,7 +11,7 @@ const NewArrivals = () => {
   const [isShuffling, setIsShuffling] = useState(false);
   const { products: contextProducts } = useAppContext();
   const navigate = useNavigate();
-  
+
   const topRowRef = useRef(null);
   const bottomRowRef = useRef(null);
   const animationFrameRef = useRef(null);
@@ -39,20 +39,20 @@ const NewArrivals = () => {
   // Smooth shuffle products for both rows
   const shuffleProducts = useCallback(() => {
     if (allProducts.length === 0) return;
-    
+
     setIsShuffling(true);
-    
+
     // Smooth fade out
     setTimeout(() => {
       const shuffled = [...allProducts].sort(() => Math.random() - 0.5);
       const row1Products = shuffled.slice(0, 8);
       const row2Products = shuffled.slice(8, 16);
-      
+
       setDisplayProducts({
         row1: row1Products,
         row2: row2Products
       });
-      
+
       // Smooth fade in
       setTimeout(() => {
         setIsShuffling(false);
@@ -90,31 +90,31 @@ const NewArrivals = () => {
     if (topRowRef.current) {
       const container = topRowRef.current;
       container.scrollLeft += 0.5;
-      
+
       // Reset to start when reaching end (seamless loop)
       if (container.scrollLeft >= container.scrollWidth / 2) {
         container.scrollLeft = 0;
       }
     }
-    
+
     // Bottom row: scroll left to right
     if (bottomRowRef.current) {
       const container = bottomRowRef.current;
       container.scrollLeft -= 0.5;
-      
+
       // Reset to start when reaching beginning (seamless loop)
       if (container.scrollLeft <= 0) {
         container.scrollLeft = container.scrollWidth / 2;
       }
     }
-    
+
     animationFrameRef.current = requestAnimationFrame(animateScroll);
   }, [isPaused, isShuffling]);
 
   // Start horizontal scrolling animation
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(animateScroll);
-    
+
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -128,12 +128,12 @@ const NewArrivals = () => {
   // Handle user interaction - pause scrolling for 3 seconds
   const handleUserInteraction = useCallback(() => {
     setIsPaused(true);
-    
+
     // Clear existing timeout
     if (pauseTimeoutRef.current) {
       clearTimeout(pauseTimeoutRef.current);
     }
-    
+
     // Resume after 3 seconds
     pauseTimeoutRef.current = setTimeout(() => {
       setIsPaused(false);
@@ -148,14 +148,14 @@ const NewArrivals = () => {
 
     const topRow = topRowRef.current;
     const bottomRow = bottomRowRef.current;
-    
+
     const addListeners = (element) => {
       if (element) {
         // Only listen to events that indicate direct interaction with product rows
         element.addEventListener('mousedown', handleInteraction);
         element.addEventListener('touchstart', handleInteraction, { passive: true });
         element.addEventListener('wheel', handleInteraction, { passive: true });
-        
+
         // Horizontal scroll events on the product rows only
         element.addEventListener('scroll', (e) => {
           // Only pause if it's a horizontal scroll on the product rows
@@ -165,7 +165,7 @@ const NewArrivals = () => {
         }, { passive: true });
       }
     };
-    
+
     const removeListeners = (element) => {
       if (element) {
         element.removeEventListener('mousedown', handleInteraction);
@@ -174,13 +174,13 @@ const NewArrivals = () => {
         element.removeEventListener('scroll', handleInteraction);
       }
     };
-    
+
     // Add listeners after a small delay to ensure DOM is ready
     const timer = setTimeout(() => {
       if (topRow) addListeners(topRow);
       if (bottomRow) addListeners(bottomRow);
     }, 100);
-    
+
     return () => {
       clearTimeout(timer);
       if (topRow) removeListeners(topRow);
@@ -195,7 +195,7 @@ const NewArrivals = () => {
           <div className="text-center mb-8">
             <div className="h-7 bg-emerald-200 rounded w-48 mx-auto mb-3 animate-pulse"></div>
           </div>
-          
+
           {/* Two horizontal lines skeleton */}
           <div className="space-y-4">
             {/* Line 1 */}
@@ -231,30 +231,15 @@ const NewArrivals = () => {
   return (
     <section className="w-full bg-gradient-to-r from-emerald-50 via-lime-50 to-white py-8">
       <div className="container mx-auto px-4">
-        
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">New Arrivals</h2>
-          <p className="text-gray-600 text-sm">
-            Fresh picks • Auto-shuffles every 2 minutes • Touch products to pause
-          </p>
-        </div>
 
-        {/* Status Indicator */}
-        <div className="flex justify-center items-center gap-4 mb-6">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm border border-emerald-100">
-            <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-emerald-500'} ${!isPaused && !isShuffling ? 'animate-pulse' : ''}`}></div>
-            <span className="text-sm text-gray-700">
-              {isShuffling ? 'Shuffling products...' : isPaused ? 'Paused - resumes in 3s' : 'Auto-scrolling'}
-            </span>
-          </div>
-        </div>
+
+
 
         {/* Top Row - Scrolls right to left */}
-        <div 
+        <div
           ref={topRowRef}
           className="flex gap-4 mb-6 overflow-x-scroll scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-transparent hover:scrollbar-thumb-emerald-400 pb-4"
-          style={{ 
+          style={{
             cursor: 'grab',
             scrollBehavior: 'smooth'
           }}
@@ -264,17 +249,16 @@ const NewArrivals = () => {
         >
           {/* Original products */}
           {displayProducts.row1.map((product, index) => (
-            <div 
+            <div
               key={`top-original-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${
-                isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-              } hover:scale-105`}
+              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
               <div className="">
-                <ProductCard 
+                <ProductCard
                   product={product}
                   showBadge={true}
                   badgeText="New"
@@ -283,20 +267,19 @@ const NewArrivals = () => {
               </div>
             </div>
           ))}
-          
+
           {/* Duplicated products for seamless loop */}
           {displayProducts.row1.map((product, index) => (
-            <div 
+            <div
               key={`top-duplicate-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${
-                isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-              } hover:scale-105`}
+              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
               <div className="">
-                <ProductCard 
+                <ProductCard
                   product={product}
                   showBadge={true}
                   badgeText="New"
@@ -308,10 +291,10 @@ const NewArrivals = () => {
         </div>
 
         {/* Bottom Row - Scrolls left to right */}
-        <div 
+        <div
           ref={bottomRowRef}
           className="flex gap-4 overflow-x-scroll scrollbar-thin scrollbar-thumb-lime-300 scrollbar-track-transparent hover:scrollbar-thumb-lime-400 pb-4"
-          style={{ 
+          style={{
             cursor: 'grab',
             scrollBehavior: 'smooth'
           }}
@@ -321,17 +304,16 @@ const NewArrivals = () => {
         >
           {/* Original products */}
           {displayProducts.row2.map((product, index) => (
-            <div 
+            <div
               key={`bottom-original-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${
-                isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-              } hover:scale-105`}
+              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
               <div className="">
-                <ProductCard 
+                <ProductCard
                   product={product}
                   showBadge={true}
                   badgeText="Fresh"
@@ -340,20 +322,19 @@ const NewArrivals = () => {
               </div>
             </div>
           ))}
-          
+
           {/* Duplicated products for seamless loop */}
           {displayProducts.row2.map((product, index) => (
-            <div 
+            <div
               key={`bottom-duplicate-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${
-                isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-              } hover:scale-105`}
+              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}
               onTouchStart={handleUserInteraction}
             >
               <div className="">
-                <ProductCard 
+                <ProductCard
                   product={product}
                   showBadge={true}
                   badgeText="Fresh"
