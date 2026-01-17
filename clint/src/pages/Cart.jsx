@@ -60,8 +60,6 @@ const Cart = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [paymentOption, setPaymentOption] = useState("COD");
-  const [deliveryDate, setDeliveryDate] = useState("");
-  const [deliverySlot, setDeliverySlot] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [outOfStockItems, setOutOfStockItems] = useState([]);
@@ -175,60 +173,7 @@ const Cart = () => {
 
   // Sync Global -> Local
 
-  useEffect(() => {
-    if (selectedSlot) {
-      if (selectedSlot.date && selectedSlot.date !== deliveryDate) {
-        setDeliveryDate(selectedSlot.date);
-      }
-      if (selectedSlot.timeSlot && selectedSlot.timeSlot !== deliverySlot) {
-        setDeliverySlot(selectedSlot.timeSlot);
-      }
-    }
-  }, [selectedSlot]);
-
-  // Sync Local -> Global
-  useEffect(() => {
-    if (deliveryDate && deliverySlot) {
-      // Only update if different to avoid loops
-      if (selectedSlot?.date !== deliveryDate || selectedSlot?.timeSlot !== deliverySlot) {
-        setSelectedSlot({
-          date: deliveryDate,
-          timeSlot: deliverySlot,
-          slotId: selectedSlot?.slotId // Preserve ID if possible
-        });
-      }
-    }
-  }, [deliveryDate, deliverySlot]);
-
-  // Validate saved slot on Cart mount (important for midnight transitions)
-  useEffect(() => {
-    const validateSavedSlot = () => {
-      if (!selectedSlot || !selectedSlot.date) return;
-
-      // Parse slot date as IST
-      const parseISTDate = (dateString) => {
-        return new Date(dateString + 'T00:00:00+05:30');
-      };
-
-      const slotDate = parseISTDate(selectedSlot.date);
-      slotDate.setHours(0, 0, 0, 0);
-
-      const today = getISTDate();
-      today.setHours(0, 0, 0, 0);
-
-      // If slot date is in the past, clear it and set to tomorrow
-      if (slotDate < today) {
-        console.log('🔄 Saved slot expired, updating to tomorrow');
-        const tomorrow = getISTDate();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        setDeliveryDate(getISTDateString(tomorrow));
-        setDeliverySlot(''); // Clear slot to force re-selection
-        toast.info('Your saved delivery date has passed. Please select a new slot.');
-      }
-    };
-
-    validateSavedSlot();
-  }, []); // Run once on mount
+  // Sync Local -> Global logic removed. Using selectedSlot directly.
 
   // Automatically request location when entering cart
   useEffect(() => {
@@ -455,8 +400,8 @@ const Cart = () => {
       return;
     }
 
-    if (!deliveryDate || !deliverySlot) {
-      toast.error("Please select both delivery date and time slot.");
+    if (!selectedSlot?.date || !selectedSlot?.timeSlot) {
+      toast.error("Please select a delivery date and time slot.");
       return;
     }
 
@@ -500,7 +445,7 @@ const Cart = () => {
         userImage: user?.photo || ''
       }));
 
-      const slotName = deliverySlot.split(' (')[0];
+      const slotName = selectedSlot?.timeSlot?.split(' (')[0] || '';
 
       const orderData = {
         items: orderItems,
@@ -516,7 +461,7 @@ const Cart = () => {
           landmark: selectedAddress.landmark || ''
         },
         paymentMethod: paymentOption === "COD" ? "cash_on_delivery" : "online",
-        deliveryDate,
+        deliveryDate: selectedSlot.date,
         timeSlot: slotName,
         userId: user?.id || user?._id,
         userInfo: {
@@ -599,14 +544,7 @@ const Cart = () => {
     }
   }, [products, cartItems]);
 
-  useEffect(() => {
-    if (!deliveryDate) {
-      // Get tomorrow's date in IST
-      const tomorrow = getISTDate();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      setDeliveryDate(getISTDateString(tomorrow));
-    }
-  }, []);
+  // Removed redundant deliveryDate initialization. Global state handles this now.
 
   useEffect(() => {
     if (cartArray.length > 0) {
@@ -863,6 +801,7 @@ const Cart = () => {
         onRemove={removeAllUnavailableItems}
         items={Object.entries(unavailableItems).map(([key, reason]) => {
           const item = cartArray.find(i => i.cartKey === key);
+          // Fallback if item is not found in cartArray, though it should be there
           return item ? { ...item, reason } : { cartKey: key, name: 'Unknown Item', reason };
         })}
       />
@@ -994,10 +933,10 @@ const Cart = () => {
           setShowAddressForm={setShowAddressForm}
           paymentOption={paymentOption}
           setPaymentOption={setPaymentOption}
-          deliveryDate={deliveryDate}
-          setDeliveryDate={setDeliveryDate}
-          deliverySlot={deliverySlot}
-          setDeliverySlot={setDeliverySlot}
+          deliveryDate={selectedSlot?.date || ""}
+          setDeliveryDate={(date) => setSelectedSlot(prev => ({ ...prev, date }))}
+          deliverySlot={selectedSlot?.timeSlot || ""}
+          setDeliverySlot={(timeSlot) => setSelectedSlot(prev => ({ ...prev, timeSlot }))}
           subtotal={subtotal}
           totalMRP={totalMRP}
           totalSavings={totalSavings}

@@ -1,13 +1,123 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, CalendarClock, Trash2, X, Check, ArrowRight } from 'lucide-react';
+import { useAppContext } from '../../context/AppContext';
 
 const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
-  if (!isOpen) return null;
+  const { API_URL, setSelectedSlot, checkProductAvailability } = useAppContext();
 
-  // Convert items object to array if needed, or use as is if it's already an array
-  // The cart logic passes an object where keys are cartKeys and values are reasons/items
-  // We need to ensure we have the item details to display
-  const itemsList = Array.isArray(items) ? items : Object.values(items);
+  // 1. All Hooks Must Be at the Top
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeDate, setActiveDate] = useState(null);
+
+  // 2. Helpers and derived state
+  const formatTime = (timeStr) => {
+    if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) return "";
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      let h = parseInt(hours, 10);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      h = h ? h : 12;
+      return `${h}:${minutes} ${ampm}`;
+    } catch (err) {
+      console.warn("Error formatting time:", timeStr, err);
+      return timeStr || "";
+    }
+  };
+
+  const itemsList = items ? (Array.isArray(items) ? items : Object.values(items)) : [];
+
+  // 3. Effects
+  useEffect(() => {
+    const fetchNextSlots = async () => {
+      setLoadingSlots(true);
+      setError(null);
+      try {
+        // Use IST date logic consistent with Search.jsx
+        const IST_TIMEZONE = 'Asia/Kolkata';
+        const getISTDate = () => new Date(new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE }));
+
+        const today = getISTDate();
+        const datesToCheck = [];
+
+        // Generate Today and next 2 days (Total 3 days consistent with Navbar)
+        for (let i = 0; i < 3; i++) {
+          const d = new Date(today);
+          d.setDate(today.getDate() + i);
+
+          // Format manually to YYYY-MM-DD to avoid UTC conversion issues
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          datesToCheck.push(`${year}-${month}-${day}`);
+        }
+
+        // Set initial active date
+        if (!activeDate || !datesToCheck.includes(activeDate)) {
+          setActiveDate(datesToCheck[0]);
+        }
+
+        const allValidSlots = [];
+
+        // Fetch slots for each day
+        for (const dateStr of datesToCheck) {
+          const res = await fetch(`${API_URL}/api/slots/availability?date=${dateStr}`);
+          const data = await res.json();
+
+          if (Array.isArray(data)) {
+            const openSlots = data.filter(s => s.isAvailable);
+
+            // Filter compatible slots
+            const filteredSlots = await Promise.all(openSlots.map(async (slot) => {
+              const slotFullName = `${slot.name} (${slot.startTime} - ${slot.endTime})`;
+              const checks = await Promise.all(itemsList.map(async (item) => {
+                const pid = item.product?._id || item._id || item.productId;
+                if (!pid) return true;
+                const result = await checkProductAvailability(pid, dateStr, slotFullName);
+                return result.available;
+              }));
+              return checks.every(r => r) ? slot : null;
+            }));
+
+            const validDaySlots = filteredSlots
+              .filter(s => s !== null)
+              .map(s => ({
+                ...s,
+                date: dateStr
+              }));
+
+            allValidSlots.push(...validDaySlots);
+          }
+        }
+
+        setAvailableSlots(allValidSlots);
+      } catch (err) {
+        console.error("Error fetching slots", err);
+        setError("Could not load alternative slots.");
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchNextSlots();
+    }
+  }, [isOpen]);
+
+  const handleSelectSlot = (slot) => {
+    // Construct the slot object expected by AppContext
+    const newSlot = {
+      date: slot.date,
+      timeSlot: `${slot.name} (${formatTime(slot.startTime)} - ${formatTime(slot.endTime)})`,
+      slotId: slot._id
+    };
+
+    setSelectedSlot(newSlot);
+    onClose(); // Close modal, new validation will run naturally or user continues
+  };
 
   return (
     <AnimatePresence>
@@ -19,7 +129,7 @@ const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6"
           >
             {/* Modal Container */}
             <motion.div
@@ -27,78 +137,165 @@ const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
             >
-              {/* Header */}
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-orange-100 p-2 rounded-full">
-                    <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900">Items Unavailable</h3>
+              {/* Header - Warning Style */}
+              <div className="p-5 border-b border-amber-100 bg-amber-50 flex items-start gap-4">
+                <div className="bg-amber-100 p-2 rounded-xl text-amber-600 flex-shrink-0">
+                  <AlertTriangle size={24} />
                 </div>
-                <p className="text-gray-600 text-sm">
-                  The following items are not available in the selected delivery slot.
-                </p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900 leading-tight">
+                    These items are not available for your selected time.
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                    We recommend switching to an available slot below:
+                  </p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                >
+                  <X size={20} />
+                </button>
               </div>
 
-              {/* Items List */}
-              <div className="max-h-[60vh] overflow-y-auto p-6 space-y-4">
-                {itemsList.map((item, index) => (
-                  <div key={item.cartKey || index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    {/* Image */}
-                    <div className="w-16 h-16 flex-shrink-0 bg-white rounded-lg border border-gray-200 overflow-hidden">
-                      <img
-                        src={item.image || item.images?.[0] || 'https://placehold.co/100x100?text=No+Image'}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900 truncate">{item.name}</h4>
-                      <p className="text-sm text-gray-500">{item.weight}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs font-medium bg-white border border-gray-200 px-2 py-0.5 rounded text-gray-600">
-                          Qty: {item.quantity}
-                        </span>
-                        {item.reason && (
-                           <span className="text-xs text-orange-600 truncate">
-                             {item.reason}
-                           </span>
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto bg-gray-50/50">
+
+                {/* Slot Selector Section */}
+                <div className="p-5 pb-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CalendarClock size={16} className="text-blue-600" />
+                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+                      Available Alternative Slots
+                    </h4>
+                  </div>
+
+                  {loadingSlots ? (
+                    <div className="flex justify-center py-6"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div></div>
+                  ) : availableSlots.length > 0 ? (
+                    <div className="space-y-4">
+                      {/* Date Tabs */}
+                      <div className="flex bg-gray-100 p-1 rounded-xl">
+                        {[...new Set(availableSlots.map(s => s.date))].sort().map((dateStr, idx) => {
+                          const dateObj = new Date(dateStr);
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+                          let label = dateObj.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+                          if (dateStr === todayStr) label = "Today";
+                          else if (dateStr === tomorrowStr) label = "Tomorrow";
+
+                          const isActive = activeDate === dateStr;
+
+                          return (
+                            <button
+                              key={dateStr}
+                              onClick={() => setActiveDate(dateStr)}
+                              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${isActive
+                                ? 'bg-white text-blue-700 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Slots List for Active Date */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {availableSlots.filter(s => s.date === activeDate).length > 0 ? (
+                          availableSlots.filter(s => s.date === activeDate).map(slot => (
+                            <button
+                              key={slot._id}
+                              onClick={() => handleSelectSlot(slot)}
+                              className="w-full bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-200 p-3 rounded-xl text-left transition-all group shadow-sm flex items-center justify-between"
+                            >
+                              <div>
+                                <span className="block text-sm font-bold text-gray-800 group-hover:text-blue-700">
+                                  {slot.name}
+                                </span>
+                                <span className="block text-xs text-gray-500 font-medium">
+                                  {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                                </span>
+                              </div>
+                              <div className="bg-gray-50 group-hover:bg-blue-100 text-gray-400 group-hover:text-blue-600 p-1.5 rounded-lg transition-colors">
+                                <ArrowRight size={14} />
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="col-span-2 text-center py-4 text-gray-400 text-xs italic bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                            No slots available for this date.
+                          </div>
                         )}
                       </div>
                     </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic py-2">No alternative slots found.</p>
+                  )}
+                </div>
+
+                {/* Conflicting Items List */}
+                <div className="p-5 pt-2">
+                  <div className="flex items-center gap-2 mb-3 mt-4">
+                    <AlertTriangle size={16} className="text-amber-600" />
+                    <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
+                      Conflicting Items ({itemsList.length})
+                    </h4>
                   </div>
-                ))}
+
+                  <div className="space-y-2">
+                    {itemsList.map((item, index) => (
+                      <div key={item.cartKey || index} className="flex items-center gap-3 p-2 bg-white rounded-lg border border-gray-100 opacity-75">
+                        <div className="w-10 h-10 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden relative">
+                          <img
+                            src={item?.image || item?.images?.[0] || 'https://placehold.co/100x100?text=No+Image'}
+                            alt={item?.name || 'Item'}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 truncate text-xs">{item?.name || 'Unknown Item'}</h4>
+                          {item?.reason && (
+                            <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 inline-block mt-0.5">
+                              {item.reason}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Footer Actions */}
-              <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors duration-200"
-                >
-                  Cancel / Keep All
-                </button>
+              {/* Action Footer */}
+              <div className="p-5 border-t border-gray-100 bg-white flex flex-col gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-gray-200"></div>
+                  <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-medium">OR</span>
+                  <div className="flex-grow border-t border-gray-200"></div>
+                </div>
+
+                {/* Secondary Action: Remove Items */}
                 <button
                   onClick={onRemove}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 shadow-sm shadow-red-200 transition-all duration-200 flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 hover:border-red-200 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Remove Items
+                  <Trash2 size={16} />
+                  Keep Current Slot & Remove Items
                 </button>
               </div>
             </motion.div>
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence >
   );
 };
 

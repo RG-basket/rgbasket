@@ -71,6 +71,21 @@ export const AppContextProvider = ({ children }) => {
   const [categoriesCache, setCategoriesCache] = useState(null);
   const [slotsCache, setSlotsCache] = useState(null);
 
+  // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
+  const formatTime = (timeStr) => {
+    if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) return "";
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      let h = parseInt(hours, 10);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      h = h ? h : 12;
+      return `${h}:${minutes} ${ampm}`;
+    } catch (err) {
+      return timeStr || "";
+    }
+  };
+
   // Helper: Get day of week from date string
   const getDayOfWeek = (dateString) => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -119,120 +134,63 @@ export const AppContextProvider = ({ children }) => {
   // ===== SLOT AUTO-SELECTION =====
   const findNearestAvailableSlot = async () => {
     try {
-      // Get tomorrow's date in IST for availability check
-      const tomorrow = getISTDate();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowDate = getISTDateString(tomorrow);
+      const todayStr = getISTDateString();
+      const tomorrowStr = getISTDateString(new Date(getISTDate().getTime() + 86400000));
 
-      // Fetch slot availability for tomorrow
-      const response = await axios.get(`${API_URL}/api/slots/availability?date=${tomorrowDate}`);
+      const getSortedAvailable = (data) => {
+        if (!Array.isArray(data)) return [];
+        return data
+          .filter(s => s.isAvailable)
+          .sort((a, b) => {
+            const timeA = parseInt(a.startTime.replace(':', ''));
+            const timeB = parseInt(b.startTime.replace(':', ''));
+            return timeA - timeB;
+          });
+      };
 
-      if (Array.isArray(response.data)) {
-        const availableSlots = response.data.filter(slot => slot.isAvailable);
+      // 1. ALWAYS Try TODAY first
+      const resToday = await axios.get(`${API_URL}/api/slots/availability?date=${todayStr}`);
+      const availableToday = getSortedAvailable(resToday.data);
 
-        if (availableSlots.length > 0) {
-          // Return the first available slot (Morning slot)
-          const firstSlot = availableSlots[0];
-          return {
-            date: tomorrowDate,
-            timeSlot: `${firstSlot.name} (${firstSlot.startTime} - ${firstSlot.endTime})`,
-            slotId: firstSlot._id
-          };
-        }
+      if (availableToday.length > 0) {
+        const slot = availableToday[0];
+        console.log('📍 [SlotSelection] Found available slot today:', slot.name);
+        return {
+          date: todayStr,
+          timeSlot: `${slot.name} (${formatTime(slot.startTime)} - ${formatTime(slot.endTime)})`,
+          slotId: slot._id
+        };
       }
 
-      // Fallback: Create default slot if no API slots available
-      console.log('No available slots found, creating default slot');
+      // 2. Try TOMORROW if Today is fully booked or cut off
+      console.log('📍 [SlotSelection] No slots today, checking tomorrow...');
+      const resTom = await axios.get(`${API_URL}/api/slots/availability?date=${tomorrowStr}`);
+      const availableTom = getSortedAvailable(resTom.data);
+
+      if (availableTom.length > 0) {
+        const slot = availableTom[0];
+        return {
+          date: tomorrowStr,
+          timeSlot: `${slot.name} (${formatTime(slot.startTime)} - ${formatTime(slot.endTime)})`,
+          slotId: slot._id
+        };
+      }
+
+      // 3. Last Fallback: Hardcoded Default
       return {
-        date: tomorrowDate,
-        timeSlot: 'Morning (07:00 - 10:00)',
+        date: tomorrowStr,
+        timeSlot: 'Morning (7:00 AM - 10:00 AM)',
         slotId: 'default-morning-slot'
       };
 
     } catch (error) {
-      console.log('Slot API not available, using default slot:', error.message);
-      // Fallback: Create default slot using IST
-      const tomorrow = getISTDate();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowDate = getISTDateString(tomorrow);
-
+      console.error('📍 [SlotSelection] Error:', error.message);
+      const tomorrowStr = getISTDateString(new Date(getISTDate().getTime() + 86400000));
       return {
-        date: tomorrowDate,
-        timeSlot: 'Morning (07:00 - 10:00)',
+        date: tomorrowStr,
+        timeSlot: 'Morning (7:00 AM - 10:00 AM)',
         slotId: 'default-morning-slot'
       };
-    }
-  };
-
-  // Initialize slot on app load
-  useEffect(() => {
-    const initializeSlot = async () => {
-      // Only auto-select if no slot is already saved AND products are empty
-      const savedSlot = localStorage.getItem('selectedSlot');
-
-      if (!savedSlot && products.length === 0 && !slotInitialized) {
-        console.log('🔄 Initializing slot for first app load...');
-
-        try {
-          const nearestSlot = await findNearestAvailableSlot();
-          if (nearestSlot) {
-            // Directly set the slot without validation (since cart is empty)
-            setSelectedSlot(nearestSlot);
-            localStorage.setItem('selectedSlot', JSON.stringify(nearestSlot));
-
-            // Update day of week
-            if (nearestSlot.date) {
-              const day = getDayOfWeek(nearestSlot.date);
-              setSelectedDayOfWeek(day);
-            }
-
-            console.log('✅ Auto-selected slot:', nearestSlot.timeSlot);
-
-            // Immediately fetch products for this slot
-            await fetchProductsForSlot(nearestSlot);
-          }
-        } catch (error) {
-          console.error('Slot initialization failed:', error);
-        } finally {
-          setSlotInitialized(true);
-        }
-      } else if (savedSlot && !slotInitialized) {
-        // Slot already exists, just mark as initialized
-        setSlotInitialized(true);
-      }
-    };
-
-    initializeSlot();
-  }, [products.length, slotInitialized]);
-
-  // Helper function to fetch products for a specific slot
-  const fetchProductsForSlot = async (slot) => {
-    try {
-      setLoading(true);
-      let url = `${API_URL}/api/products`;
-
-      if (slot && slot.timeSlot) {
-        const slotName = slot.timeSlot.split(' (')[0];
-        url += `?slot=${slotName}`;
-
-        if (slot.date) {
-          const day = getDayOfWeek(slot.date);
-          url += `&dayOfWeek=${day}`;
-        }
-      }
-
-      const response = await axios.get(url);
-
-      if (response.data && (response.data.products || Array.isArray(response.data))) {
-        const productsData = response.data.products || response.data;
-        setProducts(productsData);
-        setLastUpdated(new Date());
-        console.log('✅ Products loaded for auto-selected slot:', productsData.length, 'products');
-      }
-    } catch (error) {
-      console.error('Error fetching products for slot:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -320,46 +278,64 @@ export const AppContextProvider = ({ children }) => {
 
   const loadSlotState = async () => {
     try {
-      const savedSlot = localStorage.getItem('selectedSlot');
-      if (savedSlot) {
-        const slot = JSON.parse(savedSlot);
+      const savedSlotStr = localStorage.getItem('selectedSlot');
+      const todayStr = getISTDateString();
 
-        // Validate the saved slot
-        const validation = await validateSavedSlot(slot);
+      // Case 1: No saved slot OR saved slot is in the past -> Full auto-select
+      if (!savedSlotStr || savedSlotStr === 'undefined' || savedSlotStr === 'null') {
+        console.log('📍 [loadSlotState] No valid saved slot. Auto-selecting nearest...');
+        const nearest = await findNearestAvailableSlot();
+        if (nearest) {
+          setSelectedSlot(nearest);
+          localStorage.setItem('selectedSlot', JSON.stringify(nearest));
+        }
+        return;
+      }
 
-        if (validation.valid) {
-          // Slot is still valid, use it
-          setSelectedSlot(slot);
+      let slot;
+      try {
+        slot = JSON.parse(savedSlotStr);
+      } catch (e) {
+        console.warn('📍 [loadSlotState] Corrupt slot in localStorage, resetting...');
+        const nearest = await findNearestAvailableSlot();
+        if (nearest) {
+          setSelectedSlot(nearest);
+          localStorage.setItem('selectedSlot', JSON.stringify(nearest));
+        }
+        return;
+      }
+      const validation = await validateSavedSlot(slot);
 
-          // Calculate day of week for saved slot
-          if (slot?.date) {
-            const dayOfWeek = getDayOfWeek(slot.date);
-            setSelectedDayOfWeek(dayOfWeek);
-          }
-        } else {
-          // Slot has expired, clear it and auto-select nearest available
-          console.log(`🔄 Saved slot expired: ${validation.reason}`);
-          localStorage.removeItem('selectedSlot');
+      // Case 2: Slot is valid but not for Today. 
+      // We check if Today has slots now to satisfy "always prefer today nearest".
+      if (validation.valid && slot.date !== todayStr) {
+        const nearest = await findNearestAvailableSlot();
+        if (nearest && nearest.date === todayStr) {
+          console.log('📍 [loadSlotState] Upgraded from future slot to Today.');
+          setSelectedSlot(nearest);
+          localStorage.setItem('selectedSlot', JSON.stringify(nearest));
+          return;
+        }
+      }
 
-          // Auto-select nearest available slot
-          const nearestSlot = await findNearestAvailableSlot();
-          if (nearestSlot) {
-            setSelectedSlot(nearestSlot);
-            localStorage.setItem('selectedSlot', JSON.stringify(nearestSlot));
-
-            if (nearestSlot.date) {
-              const dayOfWeek = getDayOfWeek(nearestSlot.date);
-              setSelectedDayOfWeek(dayOfWeek);
-            }
-
-            // Notify user about the slot change
-            toast.info(`Your previous slot expired. Auto-selected: ${nearestSlot.timeSlot}`);
-          }
+      // Case 3: Slot is valid and already Today (or Today is unavailable)
+      if (validation.valid) {
+        setSelectedSlot(slot);
+      } else {
+        // Case 4: Expired or invalid -> Re-select
+        console.log(`📍 [loadSlotState] Invalid/Expired (${validation.reason}). Re-selecting...`);
+        const nearest = await findNearestAvailableSlot();
+        if (nearest) {
+          setSelectedSlot(nearest);
+          localStorage.setItem('selectedSlot', JSON.stringify(nearest));
         }
       }
     } catch (error) {
-      console.error('Error loading slot state:', error);
-      localStorage.removeItem('selectedSlot');
+      console.error('📍 [loadSlotState] Critical Error:', error);
+      const nearest = await findNearestAvailableSlot();
+      if (nearest) setSelectedSlot(nearest);
+    } finally {
+      setSlotInitialized(true);
     }
   };
 
@@ -640,7 +616,10 @@ export const AppContextProvider = ({ children }) => {
     };
   };
 
-  const validateAndSetSlot = async (slot) => {
+  const validateAndSetSlot = async (slotOrFn) => {
+    // Support functional updates like setSelectedSlot(prev => ...)
+    const slot = typeof slotOrFn === 'function' ? slotOrFn(selectedSlot) : slotOrFn;
+
     if (!slot) {
       clearSlot();
       return;
@@ -655,7 +634,13 @@ export const AppContextProvider = ({ children }) => {
     }
 
     setSelectedSlot(slot);
-    localStorage.setItem('selectedSlot', JSON.stringify(slot));
+
+    // Safeguard: Ensure we don't store "undefined" string
+    if (slot) {
+      localStorage.setItem('selectedSlot', JSON.stringify(slot));
+    } else {
+      localStorage.removeItem('selectedSlot');
+    }
 
     // Update day of week
     if (slot.date) {
@@ -663,7 +648,10 @@ export const AppContextProvider = ({ children }) => {
       setSelectedDayOfWeek(day);
     }
 
-    toast.success(`Slot selected: ${slot.timeSlot}`);
+    // Only toast it if it's a "complete" slot and not a partial update from Cart
+    if (slot.date && slot.timeSlot) {
+      // toast.success(`Slot selected: ${slot.timeSlot}`); // Removed redundant toast
+    }
   };
 
   // ===== CART MANAGEMENT =====

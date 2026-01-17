@@ -169,10 +169,15 @@ const ScheduledDeliverySelector = ({
   };
 
   const formatTime = (timeString) => {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12;
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    if (!timeString || typeof timeString !== 'string' || !timeString.includes(':')) return "";
+    try {
+      const [hours, minutes] = timeString.split(':').map(Number);
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } catch (err) {
+      return timeString || "";
+    }
   };
 
   return (
@@ -196,8 +201,8 @@ const ScheduledDeliverySelector = ({
               whileTap={{ scale: 0.95 }}
               onClick={() => handleDateSelect(dateObj.date)}
               className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${selectedDate === dateObj.date
-                  ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+                ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
+                : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
                 } ${dateObj.isToday ? 'font-semibold' : ''}`}
             >
               <div className="text-sm font-medium">{dateObj.display.split(' ')[0]}</div>
@@ -239,10 +244,10 @@ const ScheduledDeliverySelector = ({
                   onClick={() => handleSlotSelect(slot)}
                   disabled={!slot.available}
                   className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${selectedSlot === slot.time
-                      ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
-                      : slot.available
-                        ? 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-                        : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                    ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
+                    : slot.available
+                      ? 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+                      : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
                     }`}
                 >
                   <div className="flex justify-between items-center">
