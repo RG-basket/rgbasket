@@ -17,6 +17,11 @@ const ProductSlotManagerDark = () => {
     const [categories, setCategories] = useState([]);
     const [saving, setSaving] = useState(false);
 
+    // NEW: Stage all changes to allow for bulk save
+    const [allPendingChanges, setAllPendingChanges] = useState({});
+    // Track which products have been fetched to avoid reloading and losing local changes
+    const [fetchedRestrictions, setFetchedRestrictions] = useState({});
+
     // Fetch data on component mount
     useEffect(() => {
         fetchProducts();
@@ -27,7 +32,18 @@ const ProductSlotManagerDark = () => {
     // Fetch restrictions when product is selected
     useEffect(() => {
         if (selectedProduct) {
-            fetchProductRestrictions(selectedProduct._id);
+            const productId = selectedProduct._id;
+            // If we already have pending changes for this product, use them
+            if (allPendingChanges[productId]) {
+                setRestrictions(allPendingChanges[productId]);
+            }
+            // Only fetch if we haven't fetched it yet this session (to preserve local changes)
+            else if (!fetchedRestrictions[productId]) {
+                fetchProductRestrictions(productId);
+            } else {
+                // If it was fetched before but has no pending changes, reset to empty or what we had
+                setRestrictions(fetchedRestrictions[productId] || []);
+            }
         }
     }, [selectedProduct]);
 
@@ -77,58 +93,101 @@ const ProductSlotManagerDark = () => {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/product-slot-availability/product/${productId}`);
             const data = await response.json();
             if (data.success) {
-                setRestrictions(data.restrictions || []);
+                const currentRestrictions = data.restrictions || [];
+                setRestrictions(currentRestrictions);
+                setFetchedRestrictions(prev => ({
+                    ...prev,
+                    [productId]: currentRestrictions
+                }));
             }
         } catch (error) {
             console.error('Error fetching restrictions:', error);
         }
     };
 
-    // Toggle slot availability
-    const toggleSlotAvailability = async (dayOfWeek, slotName) => {
+    // Toggle slot availability locally
+    const toggleSlotAvailability = (dayOfWeek, slotName) => {
         if (!selectedProduct) return;
+
+        const productId = selectedProduct._id;
+        const newRestrictions = [...restrictions];
+        const restrictionIndex = newRestrictions.findIndex(r => r.dayOfWeek === dayOfWeek);
+
+        if (restrictionIndex > -1) {
+            const restriction = { ...newRestrictions[restrictionIndex] };
+            const currentlyUnavailable = restriction.unavailableSlots.includes(slotName);
+
+            if (currentlyUnavailable) {
+                restriction.unavailableSlots = restriction.unavailableSlots.filter(s => s !== slotName);
+            } else {
+                restriction.unavailableSlots = [...restriction.unavailableSlots, slotName];
+            }
+            newRestrictions[restrictionIndex] = restriction;
+        } else {
+            newRestrictions.push({
+                productId,
+                dayOfWeek,
+                unavailableSlots: [slotName],
+                reason: 'Unavailable',
+                isActive: true
+            });
+        }
+
+        setRestrictions(newRestrictions);
+        setAllPendingChanges(prev => ({
+            ...prev,
+            [productId]: newRestrictions
+        }));
+    };
+
+    const handleSaveAll = async () => {
+        const productIds = Object.keys(allPendingChanges);
+        if (productIds.length === 0) return;
 
         setSaving(true);
         try {
-            const restriction = restrictions.find(r => r.dayOfWeek === dayOfWeek);
-            const currentlyUnavailable = restriction?.unavailableSlots?.includes(slotName) || false;
-
-            let unavailableSlots = [];
-            if (restriction) {
-                unavailableSlots = currentlyUnavailable
-                    ? restriction.unavailableSlots.filter(s => s !== slotName)
-                    : [...restriction.unavailableSlots, slotName];
-            } else {
-                unavailableSlots = [slotName];
-            }
+            const updates = productIds.map(productId => ({
+                productId,
+                restrictions: allPendingChanges[productId]
+            }));
 
             const token = localStorage.getItem('adminToken');
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/product-slot-availability`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/product-slot-availability/multi-bulk`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    productId: selectedProduct._id,
-                    dayOfWeek,
-                    unavailableSlots,
-                    reason: 'Unavailable'
-                })
+                body: JSON.stringify({ updates })
             });
 
             const data = await response.json();
             if (data.success) {
-                toast.success('Availability updated successfully');
-                fetchProductRestrictions(selectedProduct._id);
+                toast.success('All changes saved successfully');
+                // Update fetched restrictions to reflect new reality
+                setFetchedRestrictions(prev => ({
+                    ...prev,
+                    ...allPendingChanges
+                }));
+                setAllPendingChanges({});
             } else {
-                toast.error(data.message || 'Failed to update availability');
+                toast.error(data.message || 'Failed to save changes');
             }
         } catch (error) {
-            console.error('Error updating availability:', error);
-            toast.error('Failed to update availability');
+            console.error('Error saving all changes:', error);
+            toast.error('Failed to save changes');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDiscardChanges = () => {
+        if (confirm('Discard all unsaved changes?')) {
+            setAllPendingChanges({});
+            // Reset current view if a product is selected
+            if (selectedProduct) {
+                setRestrictions(fetchedRestrictions[selectedProduct._id] || []);
+            }
         }
     };
 
@@ -156,14 +215,24 @@ const ProductSlotManagerDark = () => {
                         <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Product Slot Availability</h1>
                         <p className={`text-sm ${tw.textSecondary}`}>Manage which products are available during specific delivery slots</p>
                     </div>
-                    {selectedProduct && (
-                        <AdminButtonDark
-                            variant="primary"
-                            icon={Save}
-                            isLoading={saving}
-                        >
-                            Saving Changes...
-                        </AdminButtonDark>
+                    {Object.keys(allPendingChanges).length > 0 && (
+                        <div className="flex items-center gap-2">
+                            <AdminButtonDark
+                                variant="outline"
+                                onClick={handleDiscardChanges}
+                                disabled={saving}
+                            >
+                                Discard
+                            </AdminButtonDark>
+                            <AdminButtonDark
+                                variant="primary"
+                                icon={Save}
+                                isLoading={saving}
+                                onClick={handleSaveAll}
+                            >
+                                {saving ? 'Saving...' : `Save ${Object.keys(allPendingChanges).length} Products`}
+                            </AdminButtonDark>
+                        </div>
                     )}
                 </div>
 
@@ -214,11 +283,10 @@ const ProductSlotManagerDark = () => {
                                     <button
                                         key={product._id}
                                         onClick={() => setSelectedProduct(product)}
-                                        className={`w-full p-4 text-left border-b ${tw.borderPrimary} transition-colors ${
-                                            selectedProduct?._id === product._id
+                                        className={`w-full p-4 text-left border-b ${tw.borderPrimary} transition-colors ${selectedProduct?._id === product._id
                                                 ? 'bg-[#7aa2f7] text-[#1a1b26]'
                                                 : `${tw.bgSecondary} ${tw.textPrimary} hover:bg-[#2a2e42]`
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className={`w-12 h-12 rounded-lg ${tw.bgInput} flex items-center justify-center overflow-hidden border ${tw.borderSecondary}`}>
@@ -229,7 +297,12 @@ const ProductSlotManagerDark = () => {
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-medium truncate">{product.name}</p>
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-medium truncate">{product.name}</p>
+                                                    {allPendingChanges[product._id] && (
+                                                        <span className="w-2 h-2 rounded-full bg-[#f7768e] shadow-[0_0_8px_#f7768e]" title="Unsaved changes" />
+                                                    )}
+                                                </div>
                                                 <p className={`text-xs ${selectedProduct?._id === product._id ? 'text-[#1a1b26]/80' : tw.textSecondary}`}>
                                                     {product.category}
                                                 </p>
@@ -290,11 +363,10 @@ const ProductSlotManagerDark = () => {
                                                             <button
                                                                 onClick={() => toggleSlotAvailability(day, slot.name)}
                                                                 disabled={saving}
-                                                                className={`w-full py-2 rounded-lg transition-all ${
-                                                                    isSlotUnavailable(day, slot.name)
+                                                                className={`w-full py-2 rounded-lg transition-all ${isSlotUnavailable(day, slot.name)
                                                                         ? 'bg-[#f7768e]/20 text-[#f7768e] hover:bg-[#f7768e]/30'
                                                                         : 'bg-[#9ece6a]/20 text-[#9ece6a] hover:bg-[#9ece6a]/30'
-                                                                } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                    } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                             >
                                                                 {isSlotUnavailable(day, slot.name) ? (
                                                                     <XCircle className="w-5 h-5 mx-auto" />

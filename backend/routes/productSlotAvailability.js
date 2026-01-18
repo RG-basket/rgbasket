@@ -233,6 +233,63 @@ router.post('/bulk', authenticateAdmin, async (req, res) => {
     }
 });
 
+// MULTI-BULK - Set restrictions for multiple products (Admin only)
+router.post('/multi-bulk', authenticateAdmin, async (req, res) => {
+    try {
+        const { updates } = req.body;
+        // updates: [{ productId, restrictions: [{ dayOfWeek, unavailableSlots, reason }] }]
+
+        if (!updates || !Array.isArray(updates)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid updates provided'
+            });
+        }
+
+        const allOperations = [];
+        for (const update of updates) {
+            const { productId, restrictions } = update;
+
+            const operations = restrictions.map(r => ({
+                updateOne: {
+                    filter: { productId, dayOfWeek: r.dayOfWeek },
+                    update: {
+                        $set: {
+                            unavailableSlots: r.unavailableSlots,
+                            reason: r.reason || 'Unavailable',
+                            isActive: true
+                        }
+                    },
+                    upsert: true
+                }
+            }));
+            allOperations.push(...operations);
+        }
+
+        if (allOperations.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No changes to save'
+            });
+        }
+
+        const result = await ProductSlotAvailability.bulkWrite(allOperations);
+
+        res.json({
+            success: true,
+            message: 'Multi-product restrictions updated successfully',
+            modifiedCount: result.modifiedCount,
+            upsertedCount: result.upsertedCount
+        });
+    } catch (error) {
+        console.error('Error in multi-bulk update:', error);
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Error in multi-bulk update'
+        });
+    }
+});
+
 // Find common available slots for a list of products
 router.post('/find-common-slots', async (req, res) => {
     try {
