@@ -1,7 +1,10 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import ProductCard from '../Products/ProductCard';
+
+// Memoize ProductCard to prevent unnecessary re-renders
+const MemoizedProductCard = React.memo(ProductCard);
 
 const NewArrivals = () => {
   const [allProducts, setAllProducts] = useState([]);
@@ -258,7 +261,7 @@ const NewArrivals = () => {
               onTouchStart={handleUserInteraction}
             >
               <div className="">
-                <ProductCard
+                <MemoizedProductCard
                   product={product}
                   showBadge={true}
                   badgeText="New"

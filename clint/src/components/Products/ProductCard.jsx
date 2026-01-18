@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAppContext } from '/src/context/AppContext.jsx';
 import { useNavigate } from "react-router-dom";
 import { FaShoppingCart } from "react-icons/fa";
+
+// Global cache for slot availability to prevent redundant API calls
+const slotAvailabilityCache = new Map();
+const CACHE_DURATION = 60000; // 1 minute cache
 
 const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = true, unavailabilityReason = '' }) => {
     const {
@@ -26,6 +30,30 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const [imageError, setImageError] = useState(false);
     const [slotAvailability, setSlotAvailability] = useState(isAvailableForSlot);
     const [slotUnavailabilityReason, setSlotUnavailabilityReason] = useState(unavailabilityReason);
+    const checkTimeoutRef = useRef(null);
+    const [isImageVisible, setIsImageVisible] = useState(false);
+    const imageContainerRef = useRef(null);
+
+    // Lazy load images using Intersection Observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setIsImageVisible(true);
+                        observer.disconnect();
+                    }
+                });
+            },
+            { rootMargin: '50px' } // Start loading 50px before entering viewport
+        );
+
+        if (imageContainerRef.current) {
+            observer.observe(imageContainerRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
 
     // Helper to get numerical weight for sorting/comparison
     const getNumericalWeightValue = (w) => {
@@ -45,16 +73,41 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const weights = product.weights || [];
     const selectedWeight = weights[selectedWeightIndex] || {};
 
-    // ✅ Check slot availability when selectedSlot changes
+    // ✅ Optimized slot availability check with caching and debouncing
     useEffect(() => {
+        // Clear any pending checks
+        if (checkTimeoutRef.current) {
+            clearTimeout(checkTimeoutRef.current);
+        }
+
         const checkSlotAvailability = async () => {
             if (product && selectedSlot && selectedSlot.date && selectedSlot.timeSlot) {
                 try {
+                    // Create cache key
+                    const cacheKey = `${product._id}_${selectedSlot.date}_${selectedSlot.timeSlot}`;
+
+                    // Check cache first
+                    const cached = slotAvailabilityCache.get(cacheKey);
+                    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+                        setSlotAvailability(cached.available);
+                        setSlotUnavailabilityReason(cached.reason || '');
+                        return;
+                    }
+
+                    // Make API call
                     const availability = await checkProductAvailability(
                         product._id,
                         selectedSlot.date,
                         selectedSlot.timeSlot
                     );
+
+                    // Update cache
+                    slotAvailabilityCache.set(cacheKey, {
+                        available: availability.available,
+                        reason: availability.reason,
+                        timestamp: Date.now()
+                    });
+
                     setSlotAvailability(availability.available);
                     setSlotUnavailabilityReason(availability.reason);
                 } catch (error) {
@@ -68,8 +121,15 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
             }
         };
 
-        checkSlotAvailability();
-    }, [product, selectedSlot, checkProductAvailability]);
+        // Debounce the check by 100ms to batch multiple cards loading together
+        checkTimeoutRef.current = setTimeout(checkSlotAvailability, 100);
+
+        return () => {
+            if (checkTimeoutRef.current) {
+                clearTimeout(checkTimeoutRef.current);
+            }
+        };
+    }, [product?._id, selectedSlot?.date, selectedSlot?.timeSlot]);
 
     // ✅ REAL-TIME: Get stock status from context
     const stockStatus = getProductStockStatus ? getProductStockStatus(product._id, selectedWeightIndex) : {
@@ -155,17 +215,22 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
 
             {/* Image Container */}
             <div
+                ref={imageContainerRef}
                 className="group cursor-pointer flex items-center justify-center mb-2 relative"
                 onClick={handleCardClick}
             >
                 <div className="w-full h-24 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
-                    <img
-                        src={imageError ? "https://placehold.co/400x400?text=No+Image" : imageUrl}
-                        alt={product.name}
-                        onError={handleImageError}
-                        className={`w-full h-full object-contain transition-transform duration-300 group-hover:scale-110 ${!isAvailable ? 'opacity-60' : ''}`}
-                        loading="lazy"
-                    />
+                    {isImageVisible ? (
+                        <img
+                            src={imageError ? "https://placehold.co/400x400?text=No+Image" : imageUrl}
+                            alt={product.name}
+                            onError={handleImageError}
+                            className={`w-full h-full object-contain transition-transform duration-300 group-hover:scale-110 ${!isAvailable ? 'opacity-60' : ''}`}
+                            loading="lazy"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gray-100 animate-pulse" />
+                    )}
                 </div>
             </div>
 

@@ -66,6 +66,7 @@ export const AppContextProvider = ({ children }) => {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState(null);
   const [slotInitialized, setSlotInitialized] = useState(false);
+  const [userManuallySelectedSlot, setUserManuallySelectedSlot] = useState(false); // Track manual selection
 
   // Cache State
   const [categoriesCache, setCategoriesCache] = useState(null);
@@ -280,7 +281,11 @@ export const AppContextProvider = ({ children }) => {
   const loadSlotState = async () => {
     try {
       const savedSlotStr = localStorage.getItem('selectedSlot');
+      const manualSelectionFlag = localStorage.getItem('userManuallySelectedSlot') === 'true';
       const todayStr = getISTDateString();
+
+      // Set the manual selection flag from localStorage
+      setUserManuallySelectedSlot(manualSelectionFlag);
 
       // Case 1: No saved slot OR saved slot is in the past -> Full auto-select
       if (!savedSlotStr || savedSlotStr === 'undefined' || savedSlotStr === 'null') {
@@ -289,6 +294,9 @@ export const AppContextProvider = ({ children }) => {
         if (nearest) {
           setSelectedSlot(nearest);
           localStorage.setItem('selectedSlot', JSON.stringify(nearest));
+          // This is auto-selection, not manual
+          setUserManuallySelectedSlot(false);
+          localStorage.setItem('userManuallySelectedSlot', 'false');
         }
         return;
       }
@@ -302,14 +310,16 @@ export const AppContextProvider = ({ children }) => {
         if (nearest) {
           setSelectedSlot(nearest);
           localStorage.setItem('selectedSlot', JSON.stringify(nearest));
+          setUserManuallySelectedSlot(false);
+          localStorage.setItem('userManuallySelectedSlot', 'false');
         }
         return;
       }
       const validation = await validateSavedSlot(slot);
 
       // Case 2: Slot is valid but not for Today. 
-      // We check if Today has slots now to satisfy "always prefer today nearest".
-      if (validation.valid && slot.date !== todayStr) {
+      // ONLY auto-upgrade if user has NOT manually selected a slot
+      if (validation.valid && slot.date !== todayStr && !manualSelectionFlag) {
         const nearest = await findNearestAvailableSlot();
         if (nearest && nearest.date === todayStr) {
           console.log('📍 [loadSlotState] Upgraded from future slot to Today.');
@@ -319,9 +329,12 @@ export const AppContextProvider = ({ children }) => {
         }
       }
 
-      // Case 3: Slot is valid and already Today (or Today is unavailable)
+      // Case 3: Slot is valid and already Today (or Today is unavailable, or user manually selected)
       if (validation.valid) {
         setSelectedSlot(slot);
+        if (manualSelectionFlag) {
+          console.log('📍 [loadSlotState] Respecting user manual slot selection');
+        }
       } else {
         // Case 4: Expired or invalid -> Re-select
         console.log(`📍 [loadSlotState] Invalid/Expired (${validation.reason}). Re-selecting...`);
@@ -329,6 +342,9 @@ export const AppContextProvider = ({ children }) => {
         if (nearest) {
           setSelectedSlot(nearest);
           localStorage.setItem('selectedSlot', JSON.stringify(nearest));
+          // Reset manual flag since slot expired
+          setUserManuallySelectedSlot(false);
+          localStorage.setItem('userManuallySelectedSlot', 'false');
         }
       }
     } catch (error) {
@@ -633,7 +649,7 @@ export const AppContextProvider = ({ children }) => {
     };
   };
 
-  const validateAndSetSlot = async (slotOrFn) => {
+  const validateAndSetSlot = async (slotOrFn, manualSelection = false) => {
     // Support functional updates like setSelectedSlot(prev => ...)
     const slot = typeof slotOrFn === 'function' ? slotOrFn(selectedSlot) : slotOrFn;
 
@@ -651,6 +667,13 @@ export const AppContextProvider = ({ children }) => {
     }
 
     setSelectedSlot(slot);
+
+    // Set manual selection flag if this was a user action
+    if (manualSelection) {
+      setUserManuallySelectedSlot(true);
+      localStorage.setItem('userManuallySelectedSlot', 'true');
+      console.log('📍 [validateAndSetSlot] User manually selected slot - auto-upgrade disabled');
+    }
 
     // Safeguard: Ensure we don't store "undefined" string
     if (slot) {
@@ -837,6 +860,7 @@ export const AppContextProvider = ({ children }) => {
     // Enhanced Slot Management
     selectedSlot,
     setSelectedSlot: validateAndSetSlot, // Enhanced setter
+    validateAndSetSlot, // Export directly for manual selection flag
     selectedDayOfWeek,
     clearSlot,
     isSlotSelected,

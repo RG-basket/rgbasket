@@ -4,7 +4,7 @@ import { AlertTriangle, CalendarClock, Trash2, X, Check, ArrowRight } from 'luci
 import { useAppContext } from '../../context/AppContext';
 
 const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
-  const { API_URL, setSelectedSlot, checkProductAvailability } = useAppContext();
+  const { API_URL, validateAndSetSlot, checkProductAvailability } = useAppContext();
 
   // 1. All Hooks Must Be at the Top
   const [availableSlots, setAvailableSlots] = useState([]);
@@ -115,7 +115,8 @@ const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
       slotId: slot._id
     };
 
-    setSelectedSlot(newSlot);
+    // Pass manualSelection=true to prevent auto-upgrade to today's slot
+    validateAndSetSlot(newSlot, true);
     onClose(); // Close modal, new validation will run naturally or user continues
   };
 

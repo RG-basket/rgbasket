@@ -22,6 +22,21 @@ const getISTDateString = (date = null) => {
   return `${year}-${month}-${day}`;
 };
 
+// Format time to 12hr AM/PM (Matches AppContext logic)
+const formatTime = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) return "";
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    let h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    h = h ? h : 12;
+    return `${h}:${minutes} ${ampm}`;
+  } catch (err) {
+    return timeStr || "";
+  }
+};
+
 const ScheduledDeliverySelector = ({
   selectedDate,
   setSelectedDate,
@@ -104,7 +119,8 @@ const ScheduledDeliverySelector = ({
       // Transform API data
       const transformedSlots = data.map(slot => ({
         id: slot._id,
-        time: `${slot.name} (${slot.startTime} - ${slot.endTime})`,
+        // CRITICAL: Format strictly matching AppContext for ID matching
+        time: `${slot.name} (${formatTime(slot.startTime)} - ${formatTime(slot.endTime)})`,
         name: slot.name,
         startTime: slot.startTime,
         endTime: slot.endTime,
@@ -166,18 +182,6 @@ const ScheduledDeliverySelector = ({
   // Format time for better display
   const formatTimeDisplay = (slot) => {
     return `${slot.name} (${formatTime(slot.startTime)} - ${formatTime(slot.endTime)})`;
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString || typeof timeString !== 'string' || !timeString.includes(':')) return "";
-    try {
-      const [hours, minutes] = timeString.split(':').map(Number);
-      const period = hours >= 12 ? 'PM' : 'AM';
-      const displayHours = hours % 12 || 12;
-      return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
-    } catch (err) {
-      return timeString || "";
-    }
   };
 
   return (

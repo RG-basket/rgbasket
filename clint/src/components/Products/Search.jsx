@@ -24,7 +24,7 @@ const getISTDateString = (date = null) => {
 };
 
 export default function Search({ mobile = false }) {
-  const { products, selectedSlot, setSelectedSlot, API_URL } = useAppContext();
+  const { products, selectedSlot, validateAndSetSlot, API_URL } = useAppContext();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [isFocused, setIsFocused] = useState(false);
@@ -195,7 +195,8 @@ export default function Search({ mobile = false }) {
       slotId: slot._id
     };
 
-    setSelectedSlot(newSlot);
+    // Pass manualSelection=true to prevent auto-upgrade to today's slot
+    validateAndSetSlot(newSlot, true);
     setIsSlotPickerOpen(false);
     toast.success(`Slot updated to ${slot.name}`);
   };

@@ -1,14 +1,20 @@
-import React, { useRef } from "react";
+import React, { useRef, useMemo } from "react";
 import ProductCard from "../Products/ProductCard.jsx";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { Link } from "react-router-dom";
 
+// Memoize ProductCard to prevent unnecessary re-renders
+const MemoizedProductCard = React.memo(ProductCard);
 
 const BestSeller = () => {
   const { products } = useAppContext();
   const scrollContainerRef = useRef(null);
 
-  const inStockProducts = products.filter((product) => product.inStock).slice(0, 8);
+  // Memoize the filtered products to avoid recalculating on every render
+  const inStockProducts = useMemo(() =>
+    products.filter((product) => product.inStock).slice(0, 8),
+    [products]
+  );
 
   return (
     <div className="mt-5 px-4 mb-0">
@@ -35,7 +41,7 @@ const BestSeller = () => {
           {inStockProducts.length > 0 ? (
             inStockProducts.map((product) => (
               <div key={product._id} className="flex-none w-48">
-                <ProductCard product={product} />
+                <MemoizedProductCard product={product} />
               </div>
             ))
           ) : (
