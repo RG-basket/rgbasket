@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { serviceablePincodes, cityLookup, assets } from "../assets/assets";
+import { cityLookup, assets } from "../assets/assets";
+import { useAppContext } from "../context/AppContext";
 
 // Reusable Input Field
 const InputField = ({ type, placeholder, name, value, handleChange }) => (
@@ -19,6 +20,7 @@ const InputField = ({ type, placeholder, name, value, handleChange }) => (
 
 const AddAddress = () => {
   const navigate = useNavigate();
+  const { serviceAreas } = useAppContext();
 
   const [form, setForm] = useState({
     name: "",
@@ -44,13 +46,15 @@ const AddAddress = () => {
     // Auto-fill from pincode
     if (name === "pincode") {
       if (value.length === 6) {
-        const match = serviceablePincodes.find((p) => p.pincode === value);
+        const match = serviceAreas.find((p) => p.pincode === value);
         if (match) {
+          // If the area name is set, we can try to guess city/state
+          // For now, let's assume we can parse it from name or keep simple
           setForm((prev) => ({
             ...prev,
-            city: match.city,
-            state: match.state || "",
-            country: match.country || "India",
+            city: match.name.split(',')[1]?.trim() || "Cuttack", // Fallback or dynamic
+            state: "Odisha",
+            country: "India",
           }));
           setPincodeStatus(true);
         } else {

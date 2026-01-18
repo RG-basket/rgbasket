@@ -124,6 +124,7 @@ const productSlotAvailabilityRoutes = require('./routes/productSlotAvailability'
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const bannerRoutes = require('./routes/banners');
 const offerRoutes = require('./routes/offerRoutes');
+const serviceAreaRoutes = require('./routes/serviceAreas');
 
 
 // Use routes
@@ -138,6 +139,7 @@ app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
 app.use('/api/promo', promoCodeRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/service-areas', serviceAreaRoutes);
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/feeds', require('./routes/feeds'));
 

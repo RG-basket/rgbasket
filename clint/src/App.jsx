@@ -41,6 +41,7 @@ const AdminCategories = lazy(() => import("./components/Admin/AdminCategoriesDar
 const AdminPromoCodes = lazy(() => import("./components/Admin/AdminPromoCodesDark.jsx"));
 const AdminBanners = lazy(() => import("./components/Admin/AdminBanners.jsx"));
 const AdminOffers = lazy(() => import("./components/Admin/AdminOffersDark.jsx"));
+const AdminServiceAreas = lazy(() => import("./components/Admin/AdminServiceAreasDark.jsx"));
 
 
 const InfluencerDashboard = lazy(() => import("./pages/InfluencerDashboard.jsx"));
@@ -245,6 +246,11 @@ const App = () => {
             <Route path="/admin/product-slots" element={
               <ProtectedRoute>
                 <ProductSlotManager />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/servicibility" element={
+              <ProtectedRoute>
+                <AdminServiceAreas />
               </ProtectedRoute>
             } />
             <Route path="/admin/slots" element={

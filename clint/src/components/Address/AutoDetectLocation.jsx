@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useGeolocated } from "react-geolocated";
-import { serviceablePincodes } from "../../assets/assets";
+import { useAppContext } from "../../context/AppContext";
 
 const AutoDetectLocation = () => {
+  const { serviceAreas } = useAppContext();
   const [location, setLocation] = useState(null);
   const [isServiceable, setIsServiceable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,7 +57,7 @@ const AutoDetectLocation = () => {
 
           setLocation(detectedLocation);
 
-          const match = serviceablePincodes.find(
+          const match = serviceAreas.find(
             (entry) => entry.pincode === detectedLocation.pincode
           );
 

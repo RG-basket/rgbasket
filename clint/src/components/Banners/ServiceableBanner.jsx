@@ -1,8 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { serviceablePincodes } from "../../assets/assets";
+import { useAppContext } from "../../context/AppContext";
 
 const ServiceableBanner = () => {
+  const { serviceAreas } = useAppContext();
   // animation variants
   const containerVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -46,7 +47,7 @@ const ServiceableBanner = () => {
         className="flex flex-wrap justify-center gap-2"
         variants={containerVariants}
       >
-        {serviceablePincodes.map(({ pincode, area }, index) => (
+        {serviceAreas.map((entry, index) => (
           <motion.div
             key={index}
             className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium border border-green-300 transition-transform duration-200 hover:-translate-y-1 hover:shadow"
@@ -54,7 +55,7 @@ const ServiceableBanner = () => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            {area} ({pincode})
+            {entry.name} ({entry.pincode})
           </motion.div>
         ))}
       </motion.div>

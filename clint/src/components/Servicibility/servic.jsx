@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
-import { serviceablePincodes } from '../../assets/assets.js';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppContext } from '../../context/AppContext.jsx';
 
 const PincodeSchema = z.string().regex(/^\d{6}$/, {
   message: 'Please enter a valid 6-digit pincode.',
@@ -82,6 +82,7 @@ const listItemVariants = {
 };
 
 export default function ServiceabilityModal({ onClose }) {
+  const { serviceAreas } = useAppContext();
   const [pincode, setPincode] = useState('');
   const [placeholder, setPlaceholder] = useState('');
   const [status, setStatus] = useState(null);
@@ -94,7 +95,7 @@ export default function ServiceabilityModal({ onClose }) {
     const currentPath = window.location.pathname;
     const allowedPaths = ['/', '/home', '/products', '/category'];
     const isAllowedPath = allowedPaths.some(path => currentPath === path || currentPath.startsWith('/products/'));
-    
+
     if (!isAllowedPath) {
       onClose();
       return;
@@ -102,15 +103,15 @@ export default function ServiceabilityModal({ onClose }) {
 
     const saved = localStorage.getItem('userPincode');
     if (saved && PincodeSchema.safeParse(saved).success) {
-      const isServiced = serviceablePincodes.some(entry => entry.pincode === saved);
+      const isServiced = serviceAreas.some(entry => entry.pincode === saved);
       if (isServiced) {
         onClose();
         return;
       }
     }
-    
+
     setShouldShowModal(true);
-  }, [onClose]);
+  }, [onClose, serviceAreas]);
 
   useEffect(() => {
     const saved = localStorage.getItem('userPincode');
@@ -121,10 +122,10 @@ export default function ServiceabilityModal({ onClose }) {
 
   const checkServiceability = async () => {
     setIsChecking(true);
-    
+
     // Add a small delay for better UX
     await new Promise(resolve => setTimeout(resolve, 800));
-    
+
     const result = PincodeSchema.safeParse(pincode);
     if (!result.success) {
       setStatus('invalid');
@@ -133,7 +134,7 @@ export default function ServiceabilityModal({ onClose }) {
       return;
     }
 
-    const matches = serviceablePincodes.filter(entry => entry.pincode === pincode);
+    const matches = serviceAreas.filter(entry => entry.pincode === pincode);
     if (matches.length > 0) {
       localStorage.setItem('userPincode', pincode);
       setMatchedAreas(matches);
@@ -161,14 +162,14 @@ export default function ServiceabilityModal({ onClose }) {
   }
 
   return (
-    <motion.div 
+    <motion.div
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
     >
-      <motion.div 
+      <motion.div
         className="bg-gradient-to-br from-white to-gray-50/80 border-2 border-[#005531]/20 rounded-2xl p-8 w-full max-w-md text-center shadow-2xl relative overflow-hidden"
         variants={modalVariants}
         initial="hidden"
@@ -177,7 +178,7 @@ export default function ServiceabilityModal({ onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Background decorative elements */}
-        <motion.div 
+        <motion.div
           className="absolute -top-20 -right-20 w-40 h-40 bg-[#005531]/5 rounded-full"
           animate={{
             scale: [1, 1.2, 1],
@@ -189,7 +190,7 @@ export default function ServiceabilityModal({ onClose }) {
             ease: "linear"
           }}
         />
-        <motion.div 
+        <motion.div
           className="absolute -bottom-16 -left-16 w-32 h-32 bg-[#005531]/5 rounded-full"
           animate={{
             scale: [1, 1.3, 1],
@@ -291,7 +292,7 @@ export default function ServiceabilityModal({ onClose }) {
         {/* Results Section */}
         <AnimatePresence>
           {status === 'serving' && matchedAreas.length > 0 && (
-            <motion.div 
+            <motion.div
               className="mt-6 p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl"
               variants={resultVariants}
               initial="hidden"
@@ -314,34 +315,13 @@ export default function ServiceabilityModal({ onClose }) {
               <h3 className="text-green-800 font-bold text-lg mb-3">We're serving your area! 🎉</h3>
               <div className="text-left text-gray-700 space-y-2">
                 <p><strong>📍 Pincode:</strong> {pincode}</p>
-                <p><strong>🏙️ City:</strong> {matchedAreas[0].city}</p>
-                <p><strong>📦 Serviceable Areas:</strong></p>
-                <ul className="space-y-1 ml-4">
-                  {matchedAreas.map((entry, index) => (
-                    <motion.li 
-                      key={index}
-                      custom={index}
-                      variants={listItemVariants}
-                      initial="hidden"
-                      animate="visible"
-                      className="flex items-center gap-2"
-                    >
-                      <motion.span
-                        animate={{ rotate: [0, 360] }}
-                        transition={{ duration: 0.5, delay: index * 0.1 }}
-                      >
-                        🚚
-                      </motion.span>
-                      {entry.area}
-                    </motion.li>
-                  ))}
-                </ul>
+                <p><strong>🏙️ Location:</strong> {matchedAreas[0].name}</p>
               </div>
             </motion.div>
           )}
 
           {status === 'not-serving' && (
-            <motion.div 
+            <motion.div
               className="mt-6 p-6 bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl"
               variants={resultVariants}
               initial="hidden"
@@ -349,7 +329,7 @@ export default function ServiceabilityModal({ onClose }) {
               exit="hidden"
             >
               <motion.div
-                animate={{ 
+                animate={{
                   scale: [1, 1.1, 1],
                   rotate: [0, -5, 5, 0]
                 }}
@@ -363,7 +343,7 @@ export default function ServiceabilityModal({ onClose }) {
           )}
 
           {status === 'invalid' && (
-            <motion.div 
+            <motion.div
               className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl"
               variants={resultVariants}
               initial="hidden"
@@ -384,13 +364,13 @@ export default function ServiceabilityModal({ onClose }) {
         </AnimatePresence>
 
         {/* Sample Serviceable Pincodes */}
-        <motion.div 
+        <motion.div
           className="mt-8 text-left"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          <motion.p 
+          <motion.p
             className="font-semibold text-gray-700 mb-3 flex items-center gap-2"
             whileHover={{ x: 5 }}
           >
@@ -403,15 +383,15 @@ export default function ServiceabilityModal({ onClose }) {
             Currently Serving These Areas:
           </motion.p>
           <div className="space-y-2 max-h-32 overflow-y-auto">
-            {serviceablePincodes.slice(0, 5).map((entry, index) => (
-              <motion.div 
+            {serviceAreas.slice(0, 5).map((entry, index) => (
+              <motion.div
                 key={index}
                 className="flex items-center gap-3 p-2 bg-white/50 rounded-lg border border-gray-200/50"
                 custom={index}
                 variants={listItemVariants}
                 initial="hidden"
                 animate="visible"
-                whileHover={{ 
+                whileHover={{
                   scale: 1.02,
                   backgroundColor: "rgba(0, 85, 49, 0.05)"
                 }}
@@ -420,7 +400,7 @@ export default function ServiceabilityModal({ onClose }) {
                   {entry.pincode}
                 </span>
                 <span className="text-sm text-gray-600">
-                  {entry.area}, {entry.city}
+                  {entry.name}
                 </span>
               </motion.div>
             ))}

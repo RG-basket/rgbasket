@@ -2,26 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import debounce from 'lodash/debounce';
-
-// Serviceable pincodes for Cuttack
-const serviceablePincodes = [
-  { pincode: "753001", city: "Cuttack", area: "Buxi Bazaar" },
-  { pincode: "753002", city: "Cuttack", area: "Chandinchowk" },
-  { pincode: "753003", city: "Cuttack", area: "Chhatra Bazar" },
-  { pincode: "753004", city: "Cuttack", area: "College Square" },
-  { pincode: "753005", city: "Cuttack", area: "Barabati Stadium" },
-  { pincode: "753006", city: "Cuttack", area: "Jobra" },
-  { pincode: "753007", city: "Cuttack", area: "Tulasipur" },
-  { pincode: "753008", city: "Cuttack", area: "Bidanasi" },
-  { pincode: "753009", city: "Cuttack", area: "Rajabagicha" },
-  { pincode: "753010", city: "Cuttack", area: "Sikharpur" },
-  { pincode: "753011", city: "Cuttack", area: "Bhanpur" },
-  { pincode: "753012", city: "Cuttack", area: "A D Market" },
-  { pincode: "753013", city: "Cuttack", area: "Omp Square" },
-  { pincode: "753014", city: "Cuttack", area: "Avinab Bidanasi" }
-];
+import { useAppContext } from '../../context/AppContext';
 
 const AddressForm = ({ user, onAddressSaved, onCancel }) => {
+  const { serviceAreas } = useAppContext();
   const [formData, setFormData] = useState({
     fullName: '',
     phoneNumber: '',
@@ -236,18 +220,15 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
     // Validate pincode in real-time
     if (name === 'pincode') {
       if (value.length === 6) {
-        const isValidPincode = serviceablePincodes.some(p => p.pincode === value);
-        if (isValidPincode) {
+        const match = serviceAreas.find(p => p.pincode === value);
+        if (match) {
           setPincodeStatus('valid');
           // Auto-fill city and state for valid pincodes
-          const pincodeInfo = serviceablePincodes.find(p => p.pincode === value);
-          if (pincodeInfo) {
-            setFormData(prev => ({
-              ...prev,
-              city: pincodeInfo.city,
-              state: "Odisha"
-            }));
-          }
+          setFormData(prev => ({
+            ...prev,
+            city: match.name.split(',')[1]?.trim() || "Cuttack",
+            state: "Odisha"
+          }));
         } else {
           setPincodeStatus('invalid');
           setFormData(prev => ({
@@ -631,10 +612,10 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                         value={formData.phoneNumber}
                         onChange={handleChange}
                         className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${phoneValidation.status === 'valid'
-                            ? 'border-green-500'
-                            : phoneValidation.status === 'invalid'
-                              ? 'border-red-500'
-                              : 'border-gray-200'
+                          ? 'border-green-500'
+                          : phoneValidation.status === 'invalid'
+                            ? 'border-red-500'
+                            : 'border-gray-200'
                           }`}
                         placeholder="10-digit mobile number"
                         maxLength="10"
@@ -673,10 +654,10 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                       value={formData.confirmPhoneNumber}
                       onChange={handleChange}
                       className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${phoneValidation.status === 'valid'
-                          ? 'border-green-500'
-                          : phoneValidation.status === 'invalid'
-                            ? 'border-red-500'
-                            : 'border-gray-200'
+                        ? 'border-green-500'
+                        : phoneValidation.status === 'invalid'
+                          ? 'border-red-500'
+                          : 'border-gray-200'
                         }`}
                       placeholder="Re-enter your phone number"
                       maxLength="10"
@@ -691,8 +672,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${phoneValidation.status === 'valid'
-                              ? 'text-green-700 bg-green-50/80 border-green-200'
-                              : 'text-red-700 bg-red-50/80 border-red-200'
+                            ? 'text-green-700 bg-green-50/80 border-green-200'
+                            : 'text-red-700 bg-red-50/80 border-red-200'
                             }`}
                         >
                           {phoneValidation.status === 'valid' ? (
@@ -726,8 +707,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                       value={formData.alternatePhone}
                       onChange={handleChange}
                       className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${formData.alternatePhone && formData.alternatePhone === formData.phoneNumber
-                          ? 'border-red-500'
-                          : 'border-gray-200'
+                        ? 'border-red-500'
+                        : 'border-gray-200'
                         }`}
                       placeholder="Optional alternate number"
                       maxLength="10"

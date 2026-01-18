@@ -70,6 +70,7 @@ export const AppContextProvider = ({ children }) => {
   // Cache State
   const [categoriesCache, setCategoriesCache] = useState(null);
   const [slotsCache, setSlotsCache] = useState(null);
+  const [serviceAreas, setServiceAreas] = useState([]);
 
   // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
   const formatTime = (timeStr) => {
@@ -510,6 +511,22 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
+  // ===== SERVICE AREAS =====
+  const fetchServiceAreas = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/service-areas`);
+      if (response.data.success) {
+        setServiceAreas(response.data.serviceAreas || []);
+      }
+    } catch (error) {
+      console.error('Error fetching service areas:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchServiceAreas();
+  }, []);
+
   // ===== SLOT MANAGEMENT =====
   const clearSlot = () => {
     setSelectedSlot(null);
@@ -829,7 +846,11 @@ export const AppContextProvider = ({ children }) => {
     // Constants
     CURRENCY,
     API_URL,
-    POLLING_INTERVAL
+    POLLING_INTERVAL,
+
+    // Service Areas
+    serviceAreas,
+    fetchServiceAreas
   };
 
   return (
