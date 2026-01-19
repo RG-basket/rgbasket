@@ -801,8 +801,12 @@ const MyOrders = () => {
                                   <img src={getProductImage(item)} className="w-14 h-14 rounded-xl object-cover border border-gray-50" onError={(e) => e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjRjBGMEYwIi8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlByb2R1Y3Q8L3RleHQ+Cjwvc3ZnPg=='} />
                                   <div className="flex-1 min-w-0">
                                     <h5 className="text-[13px] font-bold text-gray-800 truncate">{item.name}</h5>
-                                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">{item.weight} • {item.quantity} Qty</p>
-                                    <p className="text-xs font-black text-emerald-600 mt-1">₹{item.price?.toFixed(2)}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">{item.quantity} × {item.weight}{item.unit || ''}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <p className="text-[10px] text-gray-500 font-medium">₹{item.price?.toFixed(2)} × {item.quantity}</p>
+                                      <span className="text-[10px] text-gray-300">=</span>
+                                      <p className="text-xs font-black text-emerald-600">₹{(item.price * item.quantity)?.toFixed(2)}</p>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -812,16 +816,27 @@ const MyOrders = () => {
                               <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-3">
                                 <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4">Payment Summary</h4>
                                 <div className="flex justify-between text-xs font-bold text-gray-500">
-                                  <span>Subtotal</span>
+                                  <span>Items ({order.items?.length})</span>
                                   <span>₹{order.subtotal?.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs font-bold text-gray-500">
                                   <span>Delivery Fee</span>
-                                  <span className="text-emerald-500">₹{order.shippingFee?.toFixed(2)}</span>
+                                  <span>+ ₹{order.shippingFee?.toFixed(2)}</span>
                                 </div>
-                                <div className="pt-3 border-t border-dashed border-gray-100 flex justify-between items-center font-black text-gray-900">
-                                  <span className="text-sm">Paid via {order.paymentMethod?.replace(/_/g, ' ')}</span>
-                                  <span className="text-lg text-emerald-700">₹{order.totalAmount?.toFixed(2)}</span>
+                                {order.discountAmount > 0 && (
+                                  <div className="flex justify-between text-xs font-bold text-green-600">
+                                    <span>Discount</span>
+                                    <span>- ₹{order.discountAmount?.toFixed(2)}</span>
+                                  </div>
+                                )}
+                                <div className="pt-3 border-t-2 border-gray-200 space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-black text-gray-900">Total Amount</span>
+                                    <span className="text-lg font-black text-emerald-700">₹{order.totalAmount?.toFixed(2)}</span>
+                                  </div>
+                                  <div className="bg-gray-50 px-3 py-2 rounded-lg">
+                                    <p className="text-[10px] text-gray-500 font-medium">Paid via {order.paymentMethod?.replace(/_/g, ' ')}</p>
+                                  </div>
                                 </div>
                               </div>
 
