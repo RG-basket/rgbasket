@@ -1,12 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin } from 'lucide-react';
+import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
 import AdminTableDark from './SharedDark/AdminTableDark';
 import AdminModalDark from './SharedDark/AdminModalDark';
 import { tw } from '../../config/tokyoNightTheme';
+
+const statusIcons = {
+  pending: Clock,
+  confirmed: Package,
+  processing: Package,
+  shipped: Truck,
+  delivered: CheckCircle,
+  cancelled: XCircle
+};
+
+// Helper function to recalculate totals for any order
+const recalculateOrderTotals = (order) => {
+  if (!order || !order.items) return order;
+
+  // Calculate subtotal from items
+  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  // Get discount amount (if any)
+  const discountAmount = order.discountAmount || 0;
+
+  // Calculate net value for shipping (subtotal - discount)
+  const netValueForShipping = subtotal - discountAmount;
+
+  // Shipping fee: ₹29 if net value < ₹299, otherwise ₹0
+  const shippingFee = (order.items.length > 0 && netValueForShipping < 299) ? 29 : 0;
+
+  // Tax (usually 0)
+  const tax = order.tax || 0;
+
+  // Final total: subtotal + shipping + tax - discount
+  let totalAmount = subtotal + shippingFee + tax - discountAmount;
+  if (totalAmount < 0) totalAmount = 0;
+
+  return {
+    ...order,
+    subtotal,
+    shippingFee,
+    tax,
+    discountAmount,
+    totalAmount
+  };
+};
+
+// Function to get product image URL safely
+const getProductImage = (item) => {
+  if (item.image) {
+    if (item.image.startsWith('http') || item.image.startsWith('data:')) {
+      return item.image;
+    }
+    // It's a relative path, prepend API URL
+    // Handle potential leading slash in item.image to avoid double slashes if VITE_API_URL has one (though usually it handles it)
+    // But safer to strip leading slash from image and ensure slash after url
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const cleanPath = item.image.startsWith('/') ? item.image.slice(1) : item.image;
+    return `${baseUrl}/${cleanPath}`;
+  }
+  return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjRjBGMEYwIi8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlByb2R1Y3Q8L3RleHQ+Cjwvc3ZnPg==';
+};
 
 const AdminOrdersDark = () => {
   const [orders, setOrders] = useState([]);
@@ -22,6 +80,11 @@ const AdminOrdersDark = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
+
+  // Product Search State
+  const [products, setProducts] = useState([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductResults, setShowProductResults] = useState(false);
   const navigate = useNavigate();
 
   const statusColors = {
@@ -33,25 +96,9 @@ const AdminOrdersDark = () => {
     cancelled: 'bg-[#f7768e]/20 text-[#f7768e] border-[#f7768e]/30'
   };
 
-  const statusIcons = {
-    pending: Clock,
-    confirmed: Package,
-    processing: Package,
-    shipped: Truck,
-    delivered: CheckCircle,
-    cancelled: XCircle
-  };
 
-  // Function to get product image URL safely
-  const getProductImage = (item) => {
-    if (item.image) {
-      if (item.image.startsWith('http')) {
-        return item.image;
-      }
-      return item.image;
-    }
-    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjRjBGMEYwIi8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlByb2R1Y3Q8L3RleHQ+Cjwvc3ZnPg==';
-  };
+
+
 
   const fetchOrders = async () => {
     try {
@@ -70,8 +117,10 @@ const AdminOrdersDark = () => {
 
       const data = await response.json();
       if (data.success) {
-        setOrders(data.orders || []);
-        toast.success(`Loaded ${data.orders?.length || 0} orders`);
+        // Recalculate totals for all fetched orders immediately
+        const processedOrders = (data.orders || []).map(recalculateOrderTotals);
+        setOrders(processedOrders);
+        toast.success(`Loaded ${processedOrders.length} orders`);
       } else {
         throw new Error(data.message || 'Failed to fetch orders');
       }
@@ -116,43 +165,35 @@ const AdminOrdersDark = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      if (products.length > 0) return; // Already fetched
+
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/products`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products for search');
+    }
+  };
+
   const handleEditOrder = (order) => {
     setEditingOrder(JSON.parse(JSON.stringify(order)));
     setShowEditModal(true);
+    fetchProducts(); // Load products when edit modal opens
   };
 
   const handleSaveEditedOrder = async () => {
     try {
       const token = localStorage.getItem('adminToken');
 
-      // Calculate subtotal from items
-      const subtotal = editingOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-      // Get discount amount (if any)
-      const discountAmount = editingOrder.discountAmount || 0;
-
-      // Calculate net value for shipping (subtotal - discount)
-      const netValueForShipping = subtotal - discountAmount;
-
-      // Shipping fee: ₹29 if net value < ₹299, otherwise ₹0
-      const shippingFee = (editingOrder.items.length > 0 && netValueForShipping < 299) ? 29 : 0;
-
-      // Tax (usually 0)
-      const tax = editingOrder.tax || 0;
-
-      // Final total: subtotal + shipping + tax - discount
-      let totalAmount = subtotal + shippingFee + tax - discountAmount;
-      if (totalAmount < 0) totalAmount = 0;
-
-      const updatedOrder = {
-        ...editingOrder,
-        subtotal,
-        shippingFee,
-        tax,
-        discountAmount,
-        totalAmount,
-        items: editingOrder.items
-      };
+      const updatedOrder = recalculateOrderTotals(editingOrder);
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/admin/orders/${editingOrder._id}`, {
         method: 'PUT',
@@ -209,6 +250,33 @@ const AdminOrdersDark = () => {
     }));
   };
 
+  const handleAddItem = (product) => {
+    // Default to first weight variant
+    const variant = product.weights && product.weights.length > 0 ? product.weights[0] : {};
+
+    // Create new item object matching the order item structure
+    const newItem = {
+      product: product._id, // Keep for frontend consistency if needed
+      productId: product._id, // REQUIRED: This is what the backend expects for validation
+      name: product.name,
+      image: product.image,
+      description: Array.isArray(product.description) ? product.description.join(' ') : (product.description || ''),
+      weight: variant.weight || product.weight || '',
+      unit: variant.unit || product.unit || '',
+      quantity: 1,
+      price: variant.offerPrice > 0 ? variant.offerPrice : (variant.price || 0)
+    };
+
+    setEditingOrder(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+
+    toast.success('Item added to order');
+    setProductSearch(''); // Clear search
+    setShowProductResults(false);
+  };
+
   const handleUpdateItemPrice = (index, newPrice) => {
     if (newPrice < 0) {
       toast.error('Price cannot be negative');
@@ -236,7 +304,9 @@ const AdminOrdersDark = () => {
     if (!selectedOrder) return;
 
     const printWindow = window.open('', '_blank');
-    const order = selectedOrder;
+
+    // Recalculate order totals to ensure correct values in print
+    const order = recalculateOrderTotals(selectedOrder);
 
     const billHtml = `
 <!DOCTYPE html>
@@ -733,28 +803,10 @@ const AdminOrdersDark = () => {
 
   const getCurrentOrderTotals = () => {
     if (!editingOrder) return { subtotal: 0, shippingFee: 0, discountAmount: 0, totalAmount: 0 };
-
-    // Calculate subtotal from items
-    const subtotal = editingOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-    // Get discount amount (if any)
-    const discountAmount = editingOrder.discountAmount || 0;
-
-    // Calculate net value for shipping (subtotal - discount)
-    const netValueForShipping = subtotal - discountAmount;
-
-    // Shipping fee: ₹29 if net value < ₹299, otherwise ₹0
-    const shippingFee = (editingOrder.items.length > 0 && netValueForShipping < 299) ? 29 : 0;
-
-    // Tax (usually 0)
-    const tax = editingOrder.tax || 0;
-
-    // Final total: subtotal + shipping + tax - discount
-    let totalAmount = subtotal + shippingFee + tax - discountAmount;
-    if (totalAmount < 0) totalAmount = 0;
-
-    return { subtotal, shippingFee, discountAmount, tax, totalAmount };
+    return recalculateOrderTotals(editingOrder);
   };
+
+
 
   // Status counts for quick filters
   const statusCounts = {
@@ -809,7 +861,10 @@ const AdminOrdersDark = () => {
       key: 'totalAmount',
       label: 'Amount',
       sortable: true,
-      render: (amount) => <span className={`font-medium ${tw.textPrimary}`}>₹{amount?.toFixed(2)}</span>
+      render: (amount, order) => {
+        const calculatedOrder = recalculateOrderTotals(order);
+        return <span className={`font-medium ${tw.textPrimary}`}>₹{calculatedOrder.totalAmount?.toFixed(2)}</span>;
+      }
     },
     {
       key: 'status',
@@ -1061,183 +1116,213 @@ const AdminOrdersDark = () => {
             </div>
           }
         >
-          {selectedOrder && (
-            <div className="space-y-6">
-              {/* Order Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {selectedOrder && (() => {
+            // Recalculate totals for display (in case old orders have wrong totals)
+            const displayOrder = recalculateOrderTotals(selectedOrder);
+            const hasWrongTotal = Math.abs(displayOrder.totalAmount - selectedOrder.totalAmount) > 0.01;
+
+            return (
+              <div className="space-y-6">
+                {/* Warning if totals don't match */}
+                {hasWrongTotal && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                    <p className="text-yellow-500 text-sm font-medium">
+                      ⚠️ This order has incorrect totals in the database.
+                      Saved: ₹{selectedOrder.totalAmount?.toFixed(2)} |
+                      Correct: ₹{displayOrder.totalAmount?.toFixed(2)}
+                      <br />
+                      <span className="text-xs">Click "Edit" and "Save Changes" to fix this order.</span>
+                    </p>
+                  </div>
+                )}
+                {/* Order Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
+                    <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Order Information</h3>
+                    <div className="space-y-2 text-sm">
+                      <p><span className={tw.textSecondary}>Order ID:</span> <span className={tw.textPrimary}>{selectedOrder._id}</span></p>
+                      <p><span className={tw.textSecondary}>Order Date:</span> <span className={tw.textPrimary}>{new Date(selectedOrder.createdAt).toLocaleString()}</span></p>
+                      <p><span className={tw.textSecondary}>Status:</span> <span className={`px-2 py-1 rounded-full text-xs ${statusColors[selectedOrder.status]}`}>{selectedOrder.status}</span></p>
+                      <p><span className={tw.textSecondary}>Payment:</span> <span className={tw.textPrimary}>{selectedOrder.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}</span></p>
+                    </div>
+                  </div>
+
+                  <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
+                    <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Customer Information</h3>
+                    <div className="space-y-2 text-sm">
+                      <p><span className={tw.textSecondary}>Name:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.name || selectedOrder.shippingAddress?.fullName || 'Guest'}</span></p>
+                      <p><span className={tw.textSecondary}>Email:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.email || 'N/A'}</span></p>
+                      <p><span className={tw.textSecondary}>Phone:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.phone || selectedOrder.shippingAddress?.phoneNumber || 'N/A'}</span></p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Information */}
                 <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
-                  <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Order Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><span className={tw.textSecondary}>Order ID:</span> <span className={tw.textPrimary}>{selectedOrder._id}</span></p>
-                    <p><span className={tw.textSecondary}>Order Date:</span> <span className={tw.textPrimary}>{new Date(selectedOrder.createdAt).toLocaleString()}</span></p>
-                    <p><span className={tw.textSecondary}>Status:</span> <span className={`px-2 py-1 rounded-full text-xs ${statusColors[selectedOrder.status]}`}>{selectedOrder.status}</span></p>
-                    <p><span className={tw.textSecondary}>Payment:</span> <span className={tw.textPrimary}>{selectedOrder.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}</span></p>
-                  </div>
-                </div>
-
-                <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
-                  <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Customer Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><span className={tw.textSecondary}>Name:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.name || selectedOrder.shippingAddress?.fullName || 'Guest'}</span></p>
-                    <p><span className={tw.textSecondary}>Email:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.email || 'N/A'}</span></p>
-                    <p><span className={tw.textSecondary}>Phone:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.phone || selectedOrder.shippingAddress?.phoneNumber || 'N/A'}</span></p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Delivery Information */}
-              <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
-                <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Delivery Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p><span className={tw.textSecondary}>Delivery Date:</span> <span className={tw.textPrimary}>{new Date(selectedOrder.deliveryDate).toLocaleDateString()}</span></p>
-                    <p><span className={tw.textSecondary}>Time Slot:</span> <span className={tw.textPrimary}>{selectedOrder.timeSlot}</span></p>
-                  </div>
-                  <div>
-                    <p className={tw.textSecondary}>Delivery Address:</p>
-                    <p className={tw.textPrimary}>{selectedOrder.shippingAddress.street}</p>
-                    <p className={tw.textPrimary}>{selectedOrder.shippingAddress.locality}</p>
-                    <p className={tw.textPrimary}>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.pincode}</p>
-                    <p className={tw.textPrimary}>📞 {selectedOrder.shippingAddress.phoneNumber}</p>
-                    {selectedOrder.shippingAddress.alternatePhone && (
-                      <p className={tw.textPrimary}>📞 {selectedOrder.shippingAddress.alternatePhone} (Alt)</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Delivery Instruction */}
-              {selectedOrder.instruction && (
-                <div className={`p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10`}>
-                  <h3 className={`font-medium text-yellow-500 mb-2 flex items-center gap-2`}>
-                    <span>📝</span> Delivery Instruction
-                  </h3>
-                  <p className={`text-sm ${tw.textPrimary} italic`}>
-                    "{selectedOrder.instruction}"
-                  </p>
-                </div>
-              )}
-
-              {/* Free Gift Offer */}
-              {selectedOrder.selectedGift && (
-                <div className={`p-4 rounded-lg border border-[#9ece6a]/30 bg-[#9ece6a]/10`}>
-                  <h3 className={`font-medium text-[#9ece6a] mb-2 flex items-center gap-2`}>
-                    <span>🎁</span> Free Gift Offer
-                  </h3>
-                  <p className={`text-sm font-bold ${tw.textPrimary}`}>
-                    "{selectedOrder.selectedGift}"
-                  </p>
-                </div>
-              )}
-
-
-              {/* Geolocation Information */}
-              {selectedOrder.location && (selectedOrder.location.coordinates || (selectedOrder.location.lat && selectedOrder.location.lng)) && (
-                <div className={`p-4 rounded-lg border border-[#7aa2f7]/30 bg-[#7aa2f7]/10`}>
-                  <h3 className={`font-medium text-[#7aa2f7] mb-3 flex items-center gap-2`}>
-                    <span>📍</span>
-                    Delivery Location (GPS)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Delivery Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className={tw.textSecondary}>Coordinates:</p>
-                      <p className={`font-mono text-[#7aa2f7] font-medium`}>
-                        {selectedOrder.location.coordinates
-                          ? `${selectedOrder.location.coordinates.latitude.toFixed(6)}, ${selectedOrder.location.coordinates.longitude.toFixed(6)}`
-                          : `${selectedOrder.location.lat.toFixed(6)}, ${selectedOrder.location.lng.toFixed(6)}`
-                        }
-                      </p>
+                      <p><span className={tw.textSecondary}>Delivery Date:</span> <span className={tw.textPrimary}>{new Date(selectedOrder.deliveryDate).toLocaleDateString()}</span></p>
+                      <p><span className={tw.textSecondary}>Time Slot:</span> <span className={tw.textPrimary}>{selectedOrder.timeSlot}</span></p>
                     </div>
                     <div>
-                      <p className={tw.textSecondary}>Accuracy:</p>
-                      <p className={`font-medium ${tw.textPrimary}`}>
-                        {selectedOrder.location.accuracy ? Math.round(selectedOrder.location.accuracy) + 'm' : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className={tw.textSecondary}>Captured:</p>
-                      <p className={`font-medium ${tw.textPrimary}`}>
-                        {selectedOrder.location.timestamp ? new Date(selectedOrder.location.timestamp).toLocaleString() : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <a
-                      href={`https://www.google.com/maps?q=${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.latitude : selectedOrder.location.lat},${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.longitude : selectedOrder.location.lng}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 bg-[#7aa2f7] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#658cdf] transition-colors"
-                    >
-                      🗺️ View on Google Maps
-                    </a>
-                  </div>
-                </div>
-              )}
-
-
-              {/* Order Items */}
-              <div>
-                <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Order Items ({selectedOrder.items.length})</h3>
-                <div className={`rounded-lg border ${tw.borderPrimary} overflow-hidden`}>
-                  <table className="w-full">
-                    <thead className={tw.bgInput}>
-                      <tr>
-                        <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Product</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Weight</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Qty</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Price</th>
-                        <th className={`px-4 py-3 text-right text-xs font-medium ${tw.textSecondary}`}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${tw.borderSecondary}`}>
-                      {selectedOrder.items.map((item, index) => (
-                        <tr key={index}>
-                          <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={getProductImage(item)}
-                                alt={item.name}
-                                className="w-10 h-10 rounded object-cover border border-gray-600"
-                                onError={(e) => {
-                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjRjBGMEYwIi8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlByb2R1Y3Q8L3RleHQ+Cjwvc3ZnPg==';
-                                }}
-                              />
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                <p className={`text-xs ${tw.textSecondary}`}>{item.description}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.weight} {item.unit}</td>
-                          <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.quantity}</td>
-                          <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>₹{item.price}</td>
-                          <td className={`px-4 py-3 text-sm font-medium text-right ${tw.textPrimary}`}>
-                            ₹{(item.price * item.quantity).toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className={tw.bgInput}>
-                      <tr>
-                        <td colSpan="4" className={`px-4 py-3 text-sm font-bold text-right ${tw.textPrimary}`}>Total Amount</td>
-                        <td className={`px-4 py-3 text-sm font-bold text-right text-[#7aa2f7]`}>
-                          ₹{selectedOrder.totalAmount?.toFixed(2)}
-                        </td>
-                      </tr>
-                      {selectedOrder.discountAmount > 0 && (
-                        <tr>
-                          <td colSpan="4" className={`px-4 py-2 text-sm text-right text-green-400`}>Discount ({selectedOrder.promoCode})</td>
-                          <td className={`px-4 py-2 text-sm text-right text-green-400`}>
-                            -₹{selectedOrder.discountAmount?.toFixed(2)}
-                          </td>
-                        </tr>
+                      <p className={tw.textSecondary}>Delivery Address:</p>
+                      <p className={tw.textPrimary}>{selectedOrder.shippingAddress.street}</p>
+                      <p className={tw.textPrimary}>{selectedOrder.shippingAddress.locality}</p>
+                      <p className={tw.textPrimary}>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.pincode}</p>
+                      <p className={tw.textPrimary}>📞 {selectedOrder.shippingAddress.phoneNumber}</p>
+                      {selectedOrder.shippingAddress.alternatePhone && (
+                        <p className={tw.textPrimary}>📞 {selectedOrder.shippingAddress.alternatePhone} (Alt)</p>
                       )}
-                    </tfoot>
-                  </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Instruction */}
+                {selectedOrder.instruction && (
+                  <div className={`p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10`}>
+                    <h3 className={`font-medium text-yellow-500 mb-2 flex items-center gap-2`}>
+                      <span>📝</span> Delivery Instruction
+                    </h3>
+                    <p className={`text-sm ${tw.textPrimary} italic`}>
+                      "{selectedOrder.instruction}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Free Gift Offer */}
+                {selectedOrder.selectedGift && (
+                  <div className={`p-4 rounded-lg border border-[#9ece6a]/30 bg-[#9ece6a]/10`}>
+                    <h3 className={`font-medium text-[#9ece6a] mb-2 flex items-center gap-2`}>
+                      <span>🎁</span> Free Gift Offer
+                    </h3>
+                    <p className={`text-sm font-bold ${tw.textPrimary}`}>
+                      "{selectedOrder.selectedGift}"
+                    </p>
+                  </div>
+                )}
+
+
+                {/* Geolocation Information */}
+                {selectedOrder.location && (selectedOrder.location.coordinates || (selectedOrder.location.lat && selectedOrder.location.lng)) && (
+                  <div className={`p-4 rounded-lg border border-[#7aa2f7]/30 bg-[#7aa2f7]/10`}>
+                    <h3 className={`font-medium text-[#7aa2f7] mb-3 flex items-center gap-2`}>
+                      <span>📍</span>
+                      Delivery Location (GPS)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className={tw.textSecondary}>Coordinates:</p>
+                        <p className={`font-mono text-[#7aa2f7] font-medium`}>
+                          {selectedOrder.location.coordinates
+                            ? `${selectedOrder.location.coordinates.latitude.toFixed(6)}, ${selectedOrder.location.coordinates.longitude.toFixed(6)}`
+                            : `${selectedOrder.location.lat.toFixed(6)}, ${selectedOrder.location.lng.toFixed(6)}`
+                          }
+                        </p>
+                      </div>
+                      <div>
+                        <p className={tw.textSecondary}>Accuracy:</p>
+                        <p className={`font-medium ${tw.textPrimary}`}>
+                          {selectedOrder.location.accuracy ? Math.round(selectedOrder.location.accuracy) + 'm' : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className={tw.textSecondary}>Captured:</p>
+                        <p className={`font-medium ${tw.textPrimary}`}>
+                          {selectedOrder.location.timestamp ? new Date(selectedOrder.location.timestamp).toLocaleString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <a
+                        href={`https://www.google.com/maps?q=${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.latitude : selectedOrder.location.lat},${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.longitude : selectedOrder.location.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-[#7aa2f7] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#658cdf] transition-colors"
+                      >
+                        🗺️ View on Google Maps
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+
+                {/* Order Items */}
+                <div>
+                  <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Order Items ({selectedOrder.items.length})</h3>
+                  <div className={`rounded-lg border ${tw.borderPrimary} overflow-hidden`}>
+                    <table className="w-full">
+                      <thead className={tw.bgInput}>
+                        <tr>
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Product</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Weight</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Qty</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Price</th>
+                          <th className={`px-4 py-3 text-right text-xs font-medium ${tw.textSecondary}`}>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${tw.borderSecondary}`}>
+                        {selectedOrder.items.map((item, index) => (
+                          <tr key={index}>
+                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={getProductImage(item)}
+                                  alt={item.name}
+                                  className="w-10 h-10 rounded object-cover border border-gray-600"
+                                  onError={(e) => {
+                                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjRjBGMEYwIi8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlByb2R1Y3Q8L3RleHQ+Cjwvc3ZnPg==';
+                                  }}
+                                />
+                                <div>
+                                  <p className="font-medium">{item.name}</p>
+                                  <p className={`text-xs ${tw.textSecondary}`}>{item.description}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.weight} {item.unit}</td>
+                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.quantity}</td>
+                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>₹{item.price}</td>
+                            <td className={`px-4 py-3 text-sm font-medium text-right ${tw.textPrimary}`}>
+                              ₹{(item.price * item.quantity).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className={tw.bgInput}>
+                        <tr>
+                          <td colSpan="4" className={`px-4 py-2 text-sm text-right ${tw.textSecondary}`}>Subtotal</td>
+                          <td className={`px-4 py-2 text-sm text-right ${tw.textPrimary}`}>
+                            ₹{displayOrder.subtotal?.toFixed(2)}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colSpan="4" className={`px-4 py-2 text-sm text-right ${tw.textSecondary}`}>Delivery Fee</td>
+                          <td className={`px-4 py-2 text-sm text-right ${tw.textPrimary}`}>
+                            + ₹{displayOrder.shippingFee?.toFixed(2)}
+                          </td>
+                        </tr>
+                        {displayOrder.discountAmount > 0 && (
+                          <tr>
+                            <td colSpan="4" className={`px-4 py-2 text-sm text-right text-green-400`}>Discount ({displayOrder.promoCode})</td>
+                            <td className={`px-4 py-2 text-sm text-right text-green-400`}>
+                              - ₹{displayOrder.discountAmount?.toFixed(2)}
+                            </td>
+                          </tr>
+                        )}
+                        <tr className="border-t-2 border-gray-600">
+                          <td colSpan="4" className={`px-4 py-3 text-sm font-bold text-right ${tw.textPrimary}`}>Total Amount</td>
+                          <td className={`px-4 py-3 text-sm font-bold text-right text-[#7aa2f7]`}>
+                            ₹{displayOrder.totalAmount?.toFixed(2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </AdminModalDark>
 
         {/* Edit Order Modal */}
@@ -1287,6 +1372,80 @@ const AdminOrdersDark = () => {
 
               <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
                 <h3 className={`font-medium ${tw.textPrimary} mb-4`}>Order Items</h3>
+
+                {/* Add Items Section */}
+                <div className={`mb-6 relative`}>
+                  <label className={`block text-xs ${tw.textSecondary} mb-2`}>Add Products to Order</label>
+                  <div className="relative">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${tw.textSecondary}`} />
+                        <input
+                          type="text"
+                          placeholder="Search products to add..."
+                          value={productSearch}
+                          onChange={(e) => {
+                            setProductSearch(e.target.value);
+                            setShowProductResults(true);
+                          }}
+                          onFocus={() => setShowProductResults(true)}
+                          className={`w-full pl-10 pr-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Search Results Dropdown */}
+                    {showProductResults && productSearch && (
+                      <div className={`absolute z-20 w-full mt-1 max-h-60 overflow-y-auto ${tw.bgSecondary} border ${tw.borderPrimary} rounded-lg shadow-xl`}>
+                        {products
+                          .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                          .map(product => {
+                            const variant = product.weights?.[0] || {};
+                            const price = variant.offerPrice || variant.price || 0;
+                            return (
+                              <div
+                                key={product._id}
+                                className={`p-3 hover:bg-[#7aa2f7]/10 cursor-pointer border-b ${tw.borderPrimary} last:border-0 flex items-center justify-between group`}
+                                onClick={() => handleAddItem(product)}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded overflow-hidden bg-gray-800 flex-shrink-0 border ${tw.borderPrimary}`}>
+                                    {product.image ? (
+                                      <img src={product.image} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <Package className="w-5 h-5 m-auto text-gray-500" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className={`text-sm font-medium ${tw.textPrimary} group-hover:text-[#7aa2f7] transition-colors`}>{product.name}</p>
+                                    <p className={`text-xs ${tw.textSecondary}`}>
+                                      {variant.weight} {variant.unit} • ₹{price}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-[#7aa2f7] p-1.5 rounded-full bg-[#7aa2f7]/10 hover:bg-[#7aa2f7] hover:text-white transition-all">
+                                  <Plus className="w-4 h-4" />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        {products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                          <div className={`p-4 text-center text-sm ${tw.textSecondary}`}>
+                            No products found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Backdrop to close results */}
+                    {showProductResults && (
+                      <div
+                        className="fixed inset-0 z-10 bg-transparent"
+                        onClick={() => setShowProductResults(false)}
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   {editingOrder.items.map((item, index) => (
                     <div key={index} className={`flex items-center gap-4 p-4 border ${tw.borderPrimary} rounded-lg`}>
