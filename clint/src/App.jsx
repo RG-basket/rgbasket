@@ -169,7 +169,7 @@ const App = () => {
       <Toaster />
 
       {/* Main content - Remove padding for admin routes */}
-      <main className={`flex-grow ${isAdminPath ? 'p-0' : 'px-4 md:px-4 lg:px-16'}`}>
+      <main className={`flex-grow ${isAdminPath ? 'p-0' : 'px-4 md:px-4 lg:px-16 pb-24 md:pb-0'}`}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public Routes */}
@@ -285,9 +285,11 @@ const App = () => {
 
           </Routes>
         </Suspense>
+        {/* Spacer to prevent content from being hidden behind MobileNav */}
+        <div className="h-15 md:hidden" />
       </main>
 
-      {!isAdminPath && <Footer />}
+      {location.pathname === "/" && <Footer />}
     </div>
   );
 };
