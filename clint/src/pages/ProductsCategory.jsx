@@ -7,7 +7,7 @@ import { ChevronDown, ArrowUpDown, ArrowDownAz, ArrowUpAz, ArrowDown01, ArrowUp0
 const API_BASE = import.meta.env.VITE_API_URL;
 
 const ProductsCategory = () => {
-  const { products, selectedSlot } = useAppContext();
+  const { products, selectedSlot, loading: globalLoading } = useAppContext();
   const { category } = useParams();
   const [categories, setCategories] = useState([]);
   const [searchCategory, setSearchCategory] = useState(null);
@@ -85,7 +85,7 @@ const ProductsCategory = () => {
   ];
 
   // Skeleton loader
-  if (loading) {
+  if (loading || globalLoading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 px-4 md:px-8 lg:px-16">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -111,56 +111,54 @@ const ProductsCategory = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-10 px-4 md:px-8 lg:px-16 pb-12">
       <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
-        <div className="mb-12">
+        {/* Compact Glassmorphism Header */}
+        <div className="mb-6">
           {searchCategory ? (
-            <div className="space-y-4">
-              <div className="flex flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl border border-gray-200 flex items-center justify-center text-xl md:text-2xl shadow-sm shrink-0">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-10 h-10 bg-white rounded-xl border border-gray-100 flex items-center justify-center text-xl shadow-sm shrink-0">
                     {searchCategory.emoji}
                   </div>
-                  <div>
-                    <h1 className="text-xl md:text-3xl font-bold text-gray-900 capitalize leading-tight">
+                  <div className="min-w-0">
+                    <h1 className="text-lg font-bold text-gray-900 truncate flex items-center gap-2 capitalize">
                       {searchCategory.name}
+                      <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded-md">{sortedProducts.length}</span>
                     </h1>
-                    <p className="hidden md:block text-gray-500 text-sm font-medium">
-                      {sortedProducts.length} items
-                    </p>
+                    {/* Inline Slot Pill for Desktop */}
+                    {selectedSlot && selectedSlot.date && (
+                      <div className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 mt-0.5">
+                        <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <span>Delivering: {selectedSlot.timeSlot} • {new Date(selectedSlot.date).toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Sort Dropdown - Compact & Right Aligned */}
+                {/* Sort Dropdown */}
                 <div className="relative">
                   <button
                     onClick={() => setIsSortOpen(!isSortOpen)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-emerald-500 transition-all text-sm group whitespace-nowrap"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-emerald-500 transition-all text-[11px] font-bold group"
                   >
-                    <ArrowUpDown size={14} className="text-emerald-500" />
-                    <span className="font-medium text-gray-700 group-hover:text-emerald-600 truncate max-w-[100px] hidden sm:block">
+                    <ArrowUpDown size={12} className="text-emerald-500" />
+                    <span className="text-gray-600 group-hover:text-emerald-600 hidden sm:inline">
                       {sortOptions.find(opt => opt.id === sortBy)?.label}
                     </span>
-                    <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isSortOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={12} className={`text-gray-400 transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {isSortOpen && (
                     <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setIsSortOpen(false)}
-                      ></div>
-                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-20 py-1 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                      <div className="fixed inset-0 z-40" onClick={() => setIsSortOpen(false)}></div>
+                      <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 py-1.5 overflow-hidden">
                         {sortOptions.map((option) => (
                           <button
                             key={option.id}
-                            onClick={() => {
-                              setSortBy(option.id);
-                              setIsSortOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-xs font-medium flex items-center gap-2 hover:bg-emerald-50 transition-colors ${sortBy === option.id ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-600'
-                              }`}
+                            onClick={() => { setSortBy(option.id); setIsSortOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-[11px] font-bold flex items-center gap-3 transition-colors ${sortBy === option.id ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 hover:bg-gray-50'}`}
                           >
-                            <option.icon size={14} className={sortBy === option.id ? 'text-emerald-500' : 'text-gray-400'} />
+                            <option.icon size={14} />
                             {option.label}
                           </button>
                         ))}
@@ -169,34 +167,32 @@ const ProductsCategory = () => {
                   )}
                 </div>
               </div>
-              <div className="w-16 h-1 bg-gradient-to-r from-emerald-500 to-lime-500 rounded-full"></div>
+
+              {/* Mobile Slot Pill / Desktop Detailed Sub-banner */}
+              {selectedSlot && selectedSlot.date && (
+                <div className="flex items-center justify-between px-3 py-2 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 bg-emerald-100 rounded-lg text-emerald-600">
+                      <TrendingUp size={12} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-emerald-800 leading-none">
+                        Active Slot: {selectedSlot.timeSlot} • {new Date(selectedSlot.date).toLocaleDateString()}
+                      </p>
+                      <p className="text-[9px] text-emerald-600 font-medium mt-1">Available items filtered for this schedule</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">
-                🔍
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-3">
-                Category Not Found
-              </h1>
-              <p className="text-gray-600 max-w-md mx-auto">
-                The category "{category}" doesn't exist in our collection.
-              </p>
+            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+              <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">🔍</div>
+              <h1 className="text-xl font-bold text-gray-900 mb-1">Category Not Found</h1>
+              <p className="text-gray-500 text-xs">The requested collection doesn't exist.</p>
             </div>
           )}
         </div>
-
-        {/* Slot Availability Message */}
-        {searchCategory && selectedSlot && selectedSlot.date && selectedSlot.timeSlot && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-            <p className="text-green-800 font-medium">
-              Showing availability for <span className="font-bold">{selectedSlot.timeSlot}</span> delivery on <span className="font-bold">{new Date(selectedSlot.date).toLocaleDateString()}</span>
-            </p>
-            <p className="text-green-600 text-sm mt-1">
-              Products marked as unavailable cannot be ordered for this slot.
-            </p>
-          </div>
-        )}
 
         {/* Products Grid */}
         {sortedProducts.length > 0 ? (
@@ -205,7 +201,7 @@ const ProductsCategory = () => {
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
-        ) : searchCategory ? (
+        ) : (searchCategory && !globalLoading) ? (
           <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-300">
             <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">
               📦
