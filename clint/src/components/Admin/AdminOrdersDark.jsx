@@ -124,14 +124,32 @@ const AdminOrdersDark = () => {
   const handleSaveEditedOrder = async () => {
     try {
       const token = localStorage.getItem('adminToken');
+
+      // Calculate subtotal from items
       const subtotal = editingOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const shippingFee = editingOrder.shippingFee || 29;
+
+      // Get discount amount (if any)
+      const discountAmount = editingOrder.discountAmount || 0;
+
+      // Calculate net value for shipping (subtotal - discount)
+      const netValueForShipping = subtotal - discountAmount;
+
+      // Shipping fee: ₹29 if net value < ₹299, otherwise ₹0
+      const shippingFee = (editingOrder.items.length > 0 && netValueForShipping < 299) ? 29 : 0;
+
+      // Tax (usually 0)
       const tax = editingOrder.tax || 0;
-      const totalAmount = subtotal + shippingFee + tax;
+
+      // Final total: subtotal + shipping + tax - discount
+      let totalAmount = subtotal + shippingFee + tax - discountAmount;
+      if (totalAmount < 0) totalAmount = 0;
 
       const updatedOrder = {
         ...editingOrder,
         subtotal,
+        shippingFee,
+        tax,
+        discountAmount,
         totalAmount,
         items: editingOrder.items
       };
@@ -714,12 +732,28 @@ const AdminOrdersDark = () => {
   };
 
   const getCurrentOrderTotals = () => {
-    if (!editingOrder) return { subtotal: 0, totalAmount: 0 };
+    if (!editingOrder) return { subtotal: 0, shippingFee: 0, discountAmount: 0, totalAmount: 0 };
+
+    // Calculate subtotal from items
     const subtotal = editingOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const shippingFee = editingOrder.shippingFee || 29;
+
+    // Get discount amount (if any)
+    const discountAmount = editingOrder.discountAmount || 0;
+
+    // Calculate net value for shipping (subtotal - discount)
+    const netValueForShipping = subtotal - discountAmount;
+
+    // Shipping fee: ₹29 if net value < ₹299, otherwise ₹0
+    const shippingFee = (editingOrder.items.length > 0 && netValueForShipping < 299) ? 29 : 0;
+
+    // Tax (usually 0)
     const tax = editingOrder.tax || 0;
-    const totalAmount = subtotal + shippingFee + tax;
-    return { subtotal, totalAmount };
+
+    // Final total: subtotal + shipping + tax - discount
+    let totalAmount = subtotal + shippingFee + tax - discountAmount;
+    if (totalAmount < 0) totalAmount = 0;
+
+    return { subtotal, shippingFee, discountAmount, tax, totalAmount };
   };
 
   // Status counts for quick filters
@@ -1313,20 +1347,29 @@ const AdminOrdersDark = () => {
                 <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Updated Pricing Summary</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className={tw.textSecondary}>Subtotal:</span>
+                    <span className={tw.textSecondary}>Items ({editingOrder.items.length})</span>
                     <span className={tw.textPrimary}>₹{getCurrentOrderTotals().subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className={tw.textSecondary}>Shipping Fee:</span>
-                    <span className={tw.textPrimary}>₹{editingOrder.shippingFee.toFixed(2)}</span>
+                    <span className={tw.textSecondary}>Delivery Fee</span>
+                    <span className={tw.textPrimary}>+ ₹{getCurrentOrderTotals().shippingFee.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className={tw.textSecondary}>Tax:</span>
-                    <span className={tw.textPrimary}>₹{editingOrder.tax.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2 font-bold text-lg">
-                    <span className={tw.textPrimary}>Total Amount:</span>
+                  {getCurrentOrderTotals().discountAmount > 0 && (
+                    <div className="flex justify-between text-green-400">
+                      <span>Discount {editingOrder.promoCode ? `(${editingOrder.promoCode})` : ''}</span>
+                      <span>- ₹{getCurrentOrderTotals().discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t-2 border-gray-600 pt-2 mt-2 font-bold text-lg">
+                    <span className={tw.textPrimary}>Total Amount</span>
                     <span className="text-[#7aa2f7]">₹{getCurrentOrderTotals().totalAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="bg-gray-800/50 px-3 py-2 rounded-lg mt-2">
+                    <p className="text-xs text-gray-400">
+                      {getCurrentOrderTotals().shippingFee === 0
+                        ? '✓ Free delivery (order ≥ ₹299 after discount)'
+                        : '₹29 delivery fee (order < ₹299 after discount)'}
+                    </p>
                   </div>
                 </div>
               </div>
