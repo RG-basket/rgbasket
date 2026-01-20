@@ -45,8 +45,8 @@ const OrderSummary = ({
         <div className="w-full lg:max-w-md bg-green-50 border border-green-200 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 h-fit sticky top-20 lg:top-24">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Order Summary</h2>
 
-            {/* User Information */}
-            <UserInfo user={user} />
+            {/* User Information - Hidden as per request */}
+            {/* <UserInfo user={user} /> */}
 
             {/* Address Section */}
             <AddressSection

@@ -24,8 +24,41 @@
   background: #565f89;
 }
 
+/* Custom Scrollbar Light */
+.custom-scrollbar-light::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  /* slate-300 - more subtle */
+  border-radius: 10px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  /* slate-400 */
+}
+
 /* Global Dark Theme Utilities */
-.bg-tokyo-primary { background-color: #1a1b26; }
-.bg-tokyo-secondary { background-color: #24283b; }
-.text-tokyo-primary { color: #c0caf5; }
-.text-tokyo-secondary { color: #a9b1d6; }
+.bg-tokyo-primary {
+  background-color: #1a1b26;
+}
+
+.bg-tokyo-secondary {
+  background-color: #24283b;
+}
+
+.text-tokyo-primary {
+  color: #c0caf5;
+}
+
+.text-tokyo-secondary {
+  color: #a9b1d6;
+}

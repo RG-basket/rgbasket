@@ -11,19 +11,22 @@ const CartItemsList = ({ cartArray, navigate, updateCartItem, removeCartItem, CU
                 <p className="text-center">Action</p>
             </div>
 
-            {cartArray.map((product, index) => (
-                <CartItem
-                    key={index}
-                    product={product}
-                    navigate={navigate}
-                    updateCartItem={updateCartItem}
-                    removeCartItem={removeCartItem}
-                    CURRENCY={CURRENCY}
-                    getProductImage={getProductImage}
-                    isUnavailable={unavailableItems && !!unavailableItems[product.cartKey]}
-                    unavailabilityReason={unavailableItems && unavailableItems[product.cartKey]}
-                />
-            ))}
+            {/* Scrollable Items Container */}
+            <div className="max-h-[400px] overflow-y-auto pr-1 sm:pr-2 space-y-3 custom-scrollbar-light">
+                {cartArray.map((product, index) => (
+                    <CartItem
+                        key={index}
+                        product={product}
+                        navigate={navigate}
+                        updateCartItem={updateCartItem}
+                        removeCartItem={removeCartItem}
+                        CURRENCY={CURRENCY}
+                        getProductImage={getProductImage}
+                        isUnavailable={unavailableItems && !!unavailableItems[product.cartKey]}
+                        unavailabilityReason={unavailableItems && unavailableItems[product.cartKey]}
+                    />
+                ))}
+            </div>
         </div>
     );
 };

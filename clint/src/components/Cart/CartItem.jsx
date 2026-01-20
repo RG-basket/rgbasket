@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trash2 } from 'lucide-react';
 import { assets } from '../../assets/assets';
 
 const CartItem = ({ product, navigate, updateCartItem, removeCartItem, CURRENCY, getProductImage, isUnavailable, unavailabilityReason }) => {
@@ -98,17 +99,32 @@ const CartItem = ({ product, navigate, updateCartItem, removeCartItem, CURRENCY,
                 </div>
             </div>
 
-            {/* Subtotal */}
-            <div className="flex justify-between sm:justify-center items-center w-full sm:w-auto">
-                <span className="sm:hidden text-xs font-medium text-gray-700">Subtotal:</span>
-                <p className={`font-semibold text-sm sm:text-base ${hasIssue ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+            {/* Mobile Footer: Subtotal & Remove (Combined Row) */}
+            <div className="flex sm:hidden items-center justify-between w-full pt-2 mt-2 border-t border-dashed border-gray-100">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500">Subtotal:</span>
+                    <p className={`font-semibold text-sm ${hasIssue ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {CURRENCY}{(product.offerPrice * product.quantity).toFixed(2)}
+                    </p>
+                </div>
+                <button
+                    onClick={() => removeCartItem(product.cartKey)}
+                    className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-full transition-colors"
+                    aria-label="Remove"
+                >
+                    <Trash2 size={15} />
+                </button>
+            </div>
+
+            {/* Desktop Only: Subtotal */}
+            <div className="hidden sm:flex justify-center items-center w-auto">
+                <p className={`font-semibold text-base ${hasIssue ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                     {CURRENCY}{(product.offerPrice * product.quantity).toFixed(2)}
                 </p>
             </div>
 
-            {/* Action Button */}
-            <div className="flex justify-between sm:justify-center items-center w-full sm:w-auto">
-                <span className="sm:hidden text-xs font-medium text-gray-700">Remove:</span>
+            {/* Desktop Only: Action Button */}
+            <div className="hidden sm:flex justify-center items-center w-auto">
                 <button
                     onClick={() => removeCartItem(product.cartKey)}
                     className="cursor-pointer p-2 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center min-h-[44px] min-w-[44px]"
@@ -116,7 +132,7 @@ const CartItem = ({ product, navigate, updateCartItem, removeCartItem, CURRENCY,
                     <img
                         src={assets.remove_icon}
                         alt="remove"
-                        className="w-4 h-4 sm:w-5 sm:h-5"
+                        className="w-5 h-5"
                     />
                 </button>
             </div>

@@ -46,6 +46,7 @@ const ScheduledDeliverySelector = ({
   const [availableDates, setAvailableDates] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isSlotsExpanded, setIsSlotsExpanded] = useState(false);
 
   // Generate available dates (next 3 days) - USING IST
   useEffect(() => {
@@ -170,7 +171,12 @@ const ScheduledDeliverySelector = ({
   };
 
   const handleDateSelect = (date) => {
-    setSelectedDate(date);
+    if (date === selectedDate) {
+      setIsSlotsExpanded(!isSlotsExpanded);
+    } else {
+      setSelectedDate(date);
+      setIsSlotsExpanded(true);
+    }
   };
 
   const handleSlotSelect = (slot) => {
@@ -179,13 +185,44 @@ const ScheduledDeliverySelector = ({
     }
   };
 
+  // Auto-expand logic if user stares at it for 3 seconds
+  // This helps users discover the functionality without manual tap if they are confused
+  const containerRef = React.useRef(null);
+
+  useEffect(() => {
+    let timer;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isSlotsExpanded) {
+          // If in view and not expanded, wait 2 seconds then expand
+          timer = setTimeout(() => {
+            setIsSlotsExpanded(true);
+          }, 2000);
+        } else {
+          // If scrolled out of view, cancel the timer
+          clearTimeout(timer);
+        }
+      },
+      { threshold: 0.5 } // Trigger when 50% visible
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [isSlotsExpanded]); // Re-subscribe if expansion state changes (to avoid re-triggering if already open)
+
   // Format time for better display
   const formatTimeDisplay = (slot) => {
     return `${slot.name} (${formatTime(slot.startTime)} - ${formatTime(slot.endTime)})`;
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={containerRef}>
       {/* Header */}
       <div className="flex items-center space-x-3">
         <Calendar className="w-6 h-6 text-green-600" />
@@ -222,11 +259,15 @@ const ScheduledDeliverySelector = ({
       {/* Time Slot Selection */}
       {selectedDate && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          initial={false}
+          animate={{
+            height: isSlotsExpanded ? 'auto' : 0,
+            opacity: isSlotsExpanded ? 1 : 0
+          }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="overflow-hidden"
         >
-          <div className="flex items-center space-x-3 mb-3">
+          <div className="flex items-center space-x-3 mb-3 pt-2">
             <Clock className="w-5 h-5 text-green-600" />
             <label className="block text-sm font-medium text-gray-700">
               Select Time Slot {loading && "(Checking...)"}
@@ -245,7 +286,10 @@ const ScheduledDeliverySelector = ({
                   key={slot.id}
                   whileHover={{ scale: slot.available ? 1.02 : 1 }}
                   whileTap={{ scale: slot.available ? 0.98 : 1 }}
-                  onClick={() => handleSlotSelect(slot)}
+                  onClick={() => {
+                    handleSlotSelect(slot);
+                    setIsSlotsExpanded(false); // Collapse after selection (optional, but clean)
+                  }}
                   disabled={!slot.available}
                   className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${selectedSlot === slot.time
                     ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
