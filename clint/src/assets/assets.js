@@ -1,4 +1,4 @@
-import logo from "./logo.svg";
+import logo from "./favicon.svg";
 import search_icon from "./search_icon.svg";
 import remove_icon from "./remove_icon.svg";
 import arrow_right_icon_colored from "./arrow_right_icon_colored.svg";
@@ -202,22 +202,22 @@ export const features = [
 ];
 
 export const serviceablePincodes =
-[
-  { pincode: "753001", city: "Cuttack", area: "Buxi Bazaar" },
-  { pincode: "753002", city: "Cuttack", area: "Chandinchowk" },
-  { pincode: "753003", city: "Cuttack", area: "Chhatra Bazar" },
-  { pincode: "753004", city: "Cuttack", area: "College Square" },
-  { pincode: "753005", city: "Cuttack", area: "Barabati Stadium" },
-  { pincode: "753006", city: "Cuttack", area: "Jobra" },
-  { pincode: "753007", city: "Cuttack", area: "Tulasipur" },
-  { pincode: "753008", city: "Cuttack", area: "Bidanasi" },
-  { pincode: "753009", city: "Cuttack", area: "Rajabagicha" },
-  { pincode: "753010", city: "Cuttack", area: "Sikharpur" },
-  { pincode: "753011", city: "Cuttack", area: "Bhanpur" },
-  { pincode: "753012", city: "Cuttack", area: "A D Market" },
-  { pincode: "753013", city: "Cuttack", area: "Omp Square" },
-  { pincode: "753014", city: "Cuttack", area: "Avinab Bidanasi" }
-];
+  [
+    { pincode: "753001", city: "Cuttack", area: "Buxi Bazaar" },
+    { pincode: "753002", city: "Cuttack", area: "Chandinchowk" },
+    { pincode: "753003", city: "Cuttack", area: "Chhatra Bazar" },
+    { pincode: "753004", city: "Cuttack", area: "College Square" },
+    { pincode: "753005", city: "Cuttack", area: "Barabati Stadium" },
+    { pincode: "753006", city: "Cuttack", area: "Jobra" },
+    { pincode: "753007", city: "Cuttack", area: "Tulasipur" },
+    { pincode: "753008", city: "Cuttack", area: "Bidanasi" },
+    { pincode: "753009", city: "Cuttack", area: "Rajabagicha" },
+    { pincode: "753010", city: "Cuttack", area: "Sikharpur" },
+    { pincode: "753011", city: "Cuttack", area: "Bhanpur" },
+    { pincode: "753012", city: "Cuttack", area: "A D Market" },
+    { pincode: "753013", city: "Cuttack", area: "Omp Square" },
+    { pincode: "753014", city: "Cuttack", area: "Avinab Bidanasi" }
+  ];
 
 export const cityLookup = {
   Cuttack: { state: "Odisha", country: "India" },

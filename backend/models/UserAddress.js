@@ -58,6 +58,27 @@ const UserAddressSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      index: '2dsphere'
+    },
+    accuracy: Number,
+    capturedAt: Date
+  },
+  savedByAdmin: {
+    type: Boolean,
+    default: false
+  },
+  adminNote: {
+    type: String,
+    default: ''
+  },
   isDefault: {
     type: Boolean,
     default: false

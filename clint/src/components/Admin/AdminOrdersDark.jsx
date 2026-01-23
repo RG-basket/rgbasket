@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
 import AdminTableDark from './SharedDark/AdminTableDark';
+import LocationCaptureModal from './SharedDark/LocationCaptureModal';
 import AdminModalDark from './SharedDark/AdminModalDark';
 import { tw } from '../../config/tokyoNightTheme';
 
@@ -57,8 +58,6 @@ const getProductImage = (item) => {
       return item.image;
     }
     // It's a relative path, prepend API URL
-    // Handle potential leading slash in item.image to avoid double slashes if VITE_API_URL has one (though usually it handles it)
-    // But safer to strip leading slash from image and ensure slash after url
     const baseUrl = import.meta.env.VITE_API_URL || '';
     const cleanPath = item.image.startsWith('/') ? item.image.slice(1) : item.image;
     return `${baseUrl}/${cleanPath}`;
@@ -78,8 +77,10 @@ const AdminOrdersDark = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [deliveryDateFilter, setDeliveryDateFilter] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false); // For viewing existing location
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [showCaptureModal, setShowCaptureModal] = useState(false); // For capturing new location
+  const [captureOrder, setCaptureOrder] = useState(null);
 
   // Product Search State
   const [products, setProducts] = useState([]);
@@ -95,6 +96,47 @@ const AdminOrdersDark = () => {
     delivered: 'bg-[#9ece6a]/20 text-[#9ece6a] border-[#9ece6a]/30',
     cancelled: 'bg-[#f7768e]/20 text-[#f7768e] border-[#f7768e]/30'
   };
+
+  const handleSaveLocation = async (data) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/addresses/admin/capture`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('Location captured available for next order!');
+        setShowCaptureModal(false);
+        if (selectedOrder && selectedOrder._id === data.orderId) {
+          setSelectedOrder(prev => ({
+            ...prev,
+            location: result.address.location ? {
+              coordinates: {
+                latitude: result.address.location.coordinates[1],
+                longitude: result.address.location.coordinates[0]
+              },
+              timestamp: new Date()
+            } : prev.location
+          }));
+        }
+        fetchOrders(); // Refresh order list to show the new Location button
+      } else {
+        toast.error(result.message || 'Failed to save location');
+      }
+    } catch (error) {
+      console.error('Error saving location:', error);
+      toast.error('Error saving location');
+    }
+  };
+
+  // ... rest of code ...
+
 
 
 
@@ -917,22 +959,25 @@ const AdminOrdersDark = () => {
           >
             Edit
           </AdminButtonDark>
-          {/* Location Button - Only show if order has location data */}
-          {order.location && order.location.coordinates && (
-            <AdminButtonDark
-              variant="ghost"
-              size="sm"
-              icon={MapPin}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedLocation(order.location);
-                setShowLocationModal(true);
-              }}
-              title="View Delivery Location"
-            >
-              Location
-            </AdminButtonDark>
-          )}
+          {/* Location Button - Show if order has valid coordinates */}
+          {order.location && (
+            (order.location.coordinates?.latitude && order.location.coordinates?.longitude) ||
+            (order.location.lat && order.location.lng)
+          ) && (
+              <AdminButtonDark
+                variant="ghost"
+                size="sm"
+                icon={MapPin}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedLocation(order.location);
+                  setShowLocationModal(true);
+                }}
+                title="View Delivery Location"
+              >
+                Location
+              </AdminButtonDark>
+            )}
         </div>
       )
     }
@@ -1174,6 +1219,21 @@ const AdminOrdersDark = () => {
                       {selectedOrder.shippingAddress.alternatePhone && (
                         <p className={tw.textPrimary}>📞 {selectedOrder.shippingAddress.alternatePhone} (Alt)</p>
                       )}
+
+                      <div className="mt-4 pt-3 border-t border-gray-700">
+                        <AdminButtonDark
+                          size="sm"
+                          variant="outline"
+                          icon={MapPin}
+                          className="w-full justify-center"
+                          onClick={() => {
+                            setCaptureOrder(selectedOrder);
+                            setShowCaptureModal(true);
+                          }}
+                        >
+                          Capture Location
+                        </AdminButtonDark>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1536,7 +1596,6 @@ const AdminOrdersDark = () => {
           </AdminModalDark>
         )}
 
-        {/* Location Modal */}
         <AdminModalDark
           isOpen={showLocationModal}
           onClose={() => {
@@ -1545,20 +1604,20 @@ const AdminOrdersDark = () => {
           }}
           title="📍 Delivery Location"
         >
-          {selectedLocation && selectedLocation.coordinates && (
+          {selectedLocation && (
             <div className="space-y-6">
               {/* Coordinates */}
               <div className={`p-4 rounded-lg ${tw.bgCard} border ${tw.borderPrimary}`}>
                 <h3 className={`text-sm font-semibold ${tw.textSecondary} mb-2`}>GPS Coordinates</h3>
                 <div className="flex items-center gap-2">
                   <code className={`text-lg font-mono ${tw.textPrimary} bg-[#1a1b26] px-3 py-2 rounded`}>
-                    {selectedLocation.coordinates.latitude.toFixed(6)}, {selectedLocation.coordinates.longitude.toFixed(6)}
+                    {(selectedLocation.coordinates?.latitude || selectedLocation.lat)?.toFixed(6)}, {(selectedLocation.coordinates?.longitude || selectedLocation.lng)?.toFixed(6)}
                   </code>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${selectedLocation.coordinates.latitude}, ${selectedLocation.coordinates.longitude}`
-                      );
+                      const lat = selectedLocation.coordinates?.latitude || selectedLocation.lat;
+                      const lng = selectedLocation.coordinates?.longitude || selectedLocation.lng;
+                      navigator.clipboard.writeText(`${lat}, ${lng}`);
                       toast.success('Coordinates copied!');
                     }}
                     className="px-3 py-2 bg-[#7aa2f7] text-white rounded hover:bg-[#7aa2f7]/80 text-sm"
@@ -1587,7 +1646,7 @@ const AdminOrdersDark = () => {
               {/* Google Maps Button */}
               <div className="flex justify-center">
                 <a
-                  href={`https://www.google.com/maps?q=${selectedLocation.coordinates.latitude},${selectedLocation.coordinates.longitude}`}
+                  href={`https://www.google.com/maps?q=${selectedLocation.coordinates?.latitude || selectedLocation.lat},${selectedLocation.coordinates?.longitude || selectedLocation.lng}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 bg-[#9ece6a] hover:bg-[#9ece6a]/80 text-[#1a1b26] font-semibold px-6 py-3 rounded-lg transition-colors"
@@ -1596,24 +1655,17 @@ const AdminOrdersDark = () => {
                   View on Google Maps
                 </a>
               </div>
-              {/* Map Preview (Optional) */}
-              <div className={`p-4 rounded-lg ${tw.bgCard} border ${tw.borderPrimary}`}>
-                <h3 className={`text-sm font-semibold ${tw.textSecondary} mb-3`}>Map Preview</h3>
-                <iframe
-                  width="100%"
-                  height="300"
-                  frameBorder="0"
-                  style={{ border: 0, borderRadius: '8px' }}
-                  src={`https://www.google.com/maps/embed/v1/place?key=YOUR_GOOGLE_MAPS_API_KEY&q=${selectedLocation.coordinates.latitude},${selectedLocation.coordinates.longitude}&zoom=15`}
-                  allowFullScreen
-                ></iframe>
-                <p className="text-xs text-gray-500 mt-2">
-                  Note: Replace YOUR_GOOGLE_MAPS_API_KEY with your actual Google Maps API key for map preview
-                </p>
-              </div>
             </div>
           )}
         </AdminModalDark>
+
+        {/* Capture Location Modal */}
+        <LocationCaptureModal
+          isOpen={showCaptureModal}
+          onClose={() => setShowCaptureModal(false)}
+          order={captureOrder}
+          onSave={handleSaveLocation}
+        />
       </div>
     </AdminLayoutDark>
   );
