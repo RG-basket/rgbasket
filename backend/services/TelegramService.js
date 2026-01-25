@@ -10,42 +10,53 @@ class TelegramService {
 
         try {
             const itemsText = order.items
-                .map(item => `  • ${item.name} (${item.weight}${item.unit}) x${item.quantity}`)
-                .join('\n');
+                .map((item, index) => {
+                    const lineTotal = item.quantity * item.price;
+                    return `<b>${index + 1}. ${item.name}</b>\n   ├ Variant: ${item.weight}${item.unit}\n   ├ Price: ₹${item.price} x ${item.quantity}\n   └ Total: <b>₹${lineTotal}</b>`;
+                })
+                .join('\n\n');
+
+            const totalItemsCount = order.items.reduce((acc, item) => acc + item.quantity, 0);
 
             const message = `
-<b>📦 NEW ORDER PLACED!</b>
-----------------------------
+<b>🛍️ NEW ORDER RECEIVED!</b>
+------------------------------------
 🆔 <b>Order ID:</b> #${order._id.toString().slice(-6).toUpperCase()}
 👤 <b>Customer:</b> ${order.userInfo?.name || 'Guest'}
-📞 <b>Phone:</b> ${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}
+📞 <b>Phone:</b> <code>${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</code>
 
-<b>🛒 Items:</b>
+<b>🛒 ORDERED ITEMS (${totalItemsCount}):</b>
+------------------------------------
 ${itemsText}
 
+------------------------------------
 💰 <b>Subtotal:</b> ₹${order.subtotal}
 🚚 <b>Shipping:</b> ₹${order.shippingFee}
 🏷️ <b>Discount:</b> -₹${order.discountAmount}
-✨ <b>Total Amount:</b> ₹${order.totalAmount}
+✨ <b>Final Amount:</b> <b>₹${order.totalAmount}</b>
 
 🎁 <b>Free Gift:</b> ${order.selectedGift || 'None'}
+💳 <b>Payment:</b> ${order.paymentMethod?.replace(/_/g, ' ').toUpperCase() || 'N/A'}
 
-📅 <b>Delivery Date:</b> ${new Date(order.deliveryDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
-⏰ <b>Time Slot:</b> ${order.timeSlot}
+📅 <b>Delivery:</b> ${new Date(order.deliveryDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
+⏰ <b>Slot:</b> ${order.timeSlot}
 
-📍 <b>Address:</b>
+📍 <b>DELIVERY ADDRESS:</b>
+------------------------------------
+${order.shippingAddress.fullName}
 ${order.shippingAddress.street}, ${order.shippingAddress.locality}
-${order.shippingAddress.city}, ${order.shippingAddress.pincode}
-${order.shippingAddress.landmark ? `Landmark: ${order.shippingAddress.landmark}` : ''}
+${order.shippingAddress.city} - ${order.shippingAddress.pincode}
+${order.shippingAddress.landmark ? `<b>Landmark:</b> ${order.shippingAddress.landmark}` : ''}
 
-📝 <b>Instruction:</b> ${order.instruction || 'None'}
+📝 <b>Note:</b> ${order.instruction || 'None'}
 
-📍 <b>GPS Location:</b>
+📍 <b>GPS LOCATION:</b>
 ${order.location?.coordinates
-                    ? `<a href="https://www.google.com/maps?q=${order.location.coordinates.latitude},${order.location.coordinates.longitude}">View on Google Maps</a>`
+                    ? `<a href="https://www.google.com/maps?q=${order.location.coordinates.latitude},${order.location.coordinates.longitude}">📍 View on Google Maps</a>`
                     : 'Not captured'}
-----------------------------
-✅ <b>Status:</b> ${order.status.toUpperCase()}
+
+------------------------------------
+✅ <b>STATUS:</b> #NEW_ORDER
       `.trim();
 
             const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
