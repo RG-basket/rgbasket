@@ -81,6 +81,12 @@ const AdminOrdersDark = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showCaptureModal, setShowCaptureModal] = useState(false); // For capturing new location
   const [captureOrder, setCaptureOrder] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [serverStatusCounts, setServerStatusCounts] = useState({
+    all: 0, pending: 0, confirmed: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0
+  });
 
   // Product Search State
   const [products, setProducts] = useState([]);
@@ -142,11 +148,11 @@ const AdminOrdersDark = () => {
 
 
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (pageNumber = 1) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/admin/orders`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/admin/orders?page=${pageNumber}&limit=10&search=${searchTerm}&status=${filterStatus}&date=${dateFilter}&deliveryDate=${deliveryDateFilter}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -159,10 +165,16 @@ const AdminOrdersDark = () => {
 
       const data = await response.json();
       if (data.success) {
-        // Recalculate totals for all fetched orders immediately
         const processedOrders = (data.orders || []).map(recalculateOrderTotals);
         setOrders(processedOrders);
-        toast.success(`Loaded ${processedOrders.length} orders`);
+
+        if (data.statusCounts) {
+          setServerStatusCounts(data.statusCounts);
+        }
+
+        setTotalPages(data.pagination?.pages || 0);
+        setTotalOrders(data.pagination?.total || 0);
+        setPage(pageNumber);
       } else {
         throw new Error(data.message || 'Failed to fetch orders');
       }
@@ -176,8 +188,11 @@ const AdminOrdersDark = () => {
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchOrders(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, filterStatus, dateFilter, deliveryDateFilter]);
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
@@ -195,7 +210,7 @@ const AdminOrdersDark = () => {
       const data = await response.json();
       if (data.success) {
         toast.success(`Order status updated to ${newStatus}`);
-        fetchOrders();
+        fetchOrders(page); // Refresh current page
       } else {
         toast.error(data.message || 'Failed to update order status');
       }
@@ -251,7 +266,7 @@ const AdminOrdersDark = () => {
         toast.success('Order updated successfully');
         setShowEditModal(false);
         setEditingOrder(null);
-        fetchOrders();
+        fetchOrders(page); // Refresh current page
       } else {
         throw new Error(data.message || 'Failed to update order');
       }
@@ -805,37 +820,7 @@ const AdminOrdersDark = () => {
     printWindow.document.close();
   };
 
-  const filteredOrders = orders.filter(order => {
-    if (filterStatus !== 'all' && order.status !== filterStatus) {
-      return false;
-    }
-
-    if (dateFilter) {
-      const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
-      if (orderDate !== dateFilter) {
-        return false;
-      }
-    }
-
-    if (deliveryDateFilter) {
-      const deliveryDate = new Date(order.deliveryDate).toISOString().split('T')[0];
-      if (deliveryDate !== deliveryDateFilter) {
-        return false;
-      }
-    }
-
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        order._id.toLowerCase().includes(searchLower) ||
-        (order.shippingAddress?.street?.toLowerCase() || '').includes(searchLower) ||
-        (order.userInfo?.name?.toLowerCase() || '').includes(searchLower) ||
-        (order.shippingAddress?.fullName?.toLowerCase() || '').includes(searchLower)
-      );
-    }
-
-    return true;
-  });
+  const filteredOrders = orders;
 
   const getTotalRevenue = () => {
     return filteredOrders
@@ -851,15 +836,7 @@ const AdminOrdersDark = () => {
 
 
   // Status counts for quick filters
-  const statusCounts = {
-    all: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    confirmed: orders.filter(o => o.status === 'confirmed').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    shipped: orders.filter(o => o.status === 'shipped').length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
-    cancelled: orders.filter(o => o.status === 'cancelled').length
-  };
+  const statusCounts = serverStatusCounts;
 
   const columns = [
     {
@@ -1006,7 +983,7 @@ const AdminOrdersDark = () => {
             <p className={`text-sm ${tw.textSecondary}`}>Manage and track all customer orders</p>
           </div>
           <div className="flex gap-3">
-            <AdminButtonDark icon={RefreshCw} onClick={fetchOrders}>
+            <AdminButtonDark icon={RefreshCw} onClick={() => fetchOrders(page)}>
               Refresh
             </AdminButtonDark>
             <AdminButtonDark variant="outline" onClick={() => navigate('/admin')}>
@@ -1018,7 +995,7 @@ const AdminOrdersDark = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]`}>
-            <p className={`text-2xl font-bold ${tw.textPrimary}`}>{orders.length}</p>
+            <p className={`text-2xl font-bold ${tw.textPrimary}`}>{totalOrders}</p>
             <p className={`text-sm ${tw.textSecondary}`}>Total Orders</p>
           </div>
           <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]`}>
@@ -1123,7 +1100,10 @@ const AdminOrdersDark = () => {
           columns={columns}
           data={filteredOrders}
           isLoading={loading}
-          emptyMessage="No orders found matching your filters"
+          serverSidePagination={true}
+          totalServerPages={totalPages}
+          currentServerPage={page}
+          onPageChange={(newPage) => fetchOrders(newPage)}
           onRowClick={(order) => handleViewOrder(order)}
         />
 

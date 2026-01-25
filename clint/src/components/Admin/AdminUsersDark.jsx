@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink } from 'lucide-react';
+import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -18,20 +18,47 @@ const AdminUsersDark = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expandedOrders, setExpandedOrders] = useState(false);
 
+    const [page, setPage] = useState(1);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [userStats, setUserStats] = useState({ total: 0, totalActive: 0, totalAdmins: 0, onlineNow: 0, dau: 0 });
+
+    const formatLastSeen = (lastActive, createdAt) => {
+        const date = lastActive || createdAt;
+        if (!date) return 'Never';
+        const now = new Date();
+        const diff = now - new Date(date);
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days === 1) return 'Yesterday';
+        if (days < 30) return `${days} days ago`;
+        return new Date(date).toLocaleDateString();
+    };
+
     useEffect(() => {
-        fetchUsers();
+        fetchUsers(1);
     }, []);
 
-    const fetchUsers = async () => {
+    const fetchUsers = async (pageNumber = 1, searchTermOverride = null) => {
         try {
             setLoading(true);
             const token = localStorage.getItem('adminToken');
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users`, {
+            const term = searchTermOverride !== null ? searchTermOverride : searchQuery;
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users?page=${pageNumber}&limit=10&search=${term}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (response.ok) {
                 const data = await response.json();
                 setUsers(data.users || []);
+                setTotalPages(data.pagination?.pages || 0);
+                setTotalUsers(data.pagination?.total || 0);
+                if (data.stats) setUserStats(data.stats);
+                setPage(pageNumber);
             }
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -41,10 +68,15 @@ const AdminUsersDark = () => {
         }
     };
 
-    const filteredUsers = users.filter(user =>
-        user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Debounced search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchUsers(1); // Reset to page 1 on search
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const filteredUsers = users;
 
     const columns = [
         {
@@ -74,6 +106,17 @@ const AdminUsersDark = () => {
             label: 'Email',
             sortable: true,
             render: (email) => <span className={tw.textSecondary}>{email}</span>
+        },
+        {
+            key: 'lastActive',
+            label: 'Last Seen',
+            sortable: true,
+            render: (date, user) => (
+                <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${new Date() - new Date(date || user.createdAt) < 5 * 60 * 1000 ? 'bg-green-500 animate-pulse' : 'bg-[#414868]'}`} />
+                    <span className={tw.textSecondary}>{formatLastSeen(date, user.createdAt)}</span>
+                </div>
+            )
         },
         {
             key: 'phone',
@@ -136,24 +179,30 @@ const AdminUsersDark = () => {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <StatsCardDark
                         title="Total Users"
-                        value={users.length}
+                        value={userStats.total}
                         icon={User}
                         color="blue"
                     />
                     <StatsCardDark
-                        title="Active This Month"
-                        value={users.filter(u => new Date(u.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}
-                        icon={Calendar}
+                        title="Online Now"
+                        value={userStats.onlineNow}
+                        icon={Shield}
                         color="green"
                     />
                     <StatsCardDark
-                        title="Admins"
-                        value={users.filter(u => u.role === 'admin').length}
-                        icon={Shield}
+                        title="DAU (Last 24h)"
+                        value={userStats.dau}
+                        icon={Calendar}
                         color="purple"
+                    />
+                    <StatsCardDark
+                        title="Total Admins"
+                        value={userStats.totalAdmins}
+                        icon={Shield}
+                        color="orange"
                     />
                 </div>
 
@@ -176,6 +225,10 @@ const AdminUsersDark = () => {
                     columns={columns}
                     data={filteredUsers}
                     isLoading={loading}
+                    serverSidePagination={true}
+                    totalServerPages={totalPages}
+                    currentServerPage={page}
+                    onPageChange={(newPage) => fetchUsers(newPage)}
                     onRowClick={(user) => {
                         setSelectedUser(user);
                         setExpandedOrders(false);
@@ -241,6 +294,18 @@ const AdminUsersDark = () => {
                                             selectedUser.orders?.find(o => o.userInfo?.phone)?.userInfo?.phone ||
                                             'N/A'}
                                     </p>
+                                </div>
+                                <div className={`p-4 rounded-lg border ${tw.borderPrimary} ${tw.bgInput}`}>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <Clock className={`w-5 h-5 ${tw.textSecondary}`} />
+                                        <span className={`text-sm ${tw.textSecondary}`}>Activity Status</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${new Date() - new Date(selectedUser.lastActive || selectedUser.createdAt) < 5 * 60 * 1000 ? 'bg-green-500 animate-pulse' : 'bg-[#414868]'}`} />
+                                        <p className={`font-medium ${tw.textPrimary}`}>
+                                            {new Date() - new Date(selectedUser.lastActive || selectedUser.createdAt) < 5 * 60 * 1000 ? 'Online Now' : `Last seen ${formatLastSeen(selectedUser.lastActive, selectedUser.createdAt)}`}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 

@@ -8,9 +8,14 @@ const AdminTableDark = ({
     isLoading,
     onRowClick,
     pagination = true,
-    itemsPerPage = 10
+    itemsPerPage = 10,
+    serverSidePagination = false,
+    totalServerPages = 0,
+    currentServerPage = 1,
+    onPageChange
 }) => {
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localPage, setLocalPage] = useState(1);
+    const currentPage = serverSidePagination ? currentServerPage : localPage;
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
     // Sorting
@@ -29,10 +34,18 @@ const AdminTableDark = ({
     }, [data, sortConfig]);
 
     // Pagination
-    const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-    const paginatedData = pagination
+    const totalPages = serverSidePagination ? totalServerPages : Math.ceil(sortedData.length / itemsPerPage);
+    const paginatedData = (pagination && !serverSidePagination)
         ? sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
         : sortedData;
+
+    const handlePageChange = (newPage) => {
+        if (serverSidePagination) {
+            onPageChange && onPageChange(newPage);
+        } else {
+            setLocalPage(newPage);
+        }
+    };
 
     const handleSort = (key) => {
         setSortConfig(current => ({
@@ -97,11 +110,14 @@ const AdminTableDark = ({
             {pagination && totalPages > 1 && (
                 <div className={`px-6 py-4 border-t ${tw.borderPrimary} flex items-center justify-between`}>
                     <div className={`text-sm ${tw.textSecondary}`}>
-                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, data.length)} of {data.length} results
+                        {serverSidePagination
+                            ? `Showing page ${currentPage} of ${totalPages} (${data.length} items loaded)`
+                            : `Showing ${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, data.length)} of ${data.length} results`
+                        }
                     </div>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
                             className={`p-2 rounded-lg ${tw.borderPrimary} border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#414868] ${tw.textPrimary}`}
                         >
@@ -111,7 +127,7 @@ const AdminTableDark = ({
                             {currentPage} / {totalPages}
                         </span>
                         <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
                             className={`p-2 rounded-lg ${tw.borderPrimary} border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#414868] ${tw.textPrimary}`}
                         >

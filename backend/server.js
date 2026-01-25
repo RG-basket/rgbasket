@@ -154,6 +154,7 @@ app.post('/api/auth/google', async (req, res) => {
     if (user) {
       user.name = name;
       user.photo = photo;
+      user.lastActive = new Date(); // Update last active
       await user.save();
       console.log('User updated:', user.email);
       res.status(200).json({ message: 'Login successful', user });
@@ -162,7 +163,8 @@ app.post('/api/auth/google', async (req, res) => {
         googleId,
         name,
         email,
-        photo
+        photo,
+        lastActive: new Date() // Set last active for new user
       });
       await user.save();
       console.log('New user created:', user.email);
@@ -187,7 +189,7 @@ app.put('/api/users/:userId', safeCache(900), async (req, res) => {
 
     const user = await User.findOneAndUpdate(
       query,
-      { name, email, phone, photo },
+      { name, email, phone, photo, lastActive: new Date() }, // Update last active
       { new: true }
     ).select('-googleId');
 
@@ -220,7 +222,11 @@ app.get('/api/users/:userId', safeCache(900), async (req, res) => {
       ? { _id: userId }
       : { googleId: userId };
 
-    const user = await User.findOne(query).select('-googleId');
+    const user = await User.findOneAndUpdate(
+      query,
+      { lastActive: new Date() }, // Update activity on every profile fetch
+      { new: true }
+    ).select('-googleId');
 
     if (!user) {
       return res.status(404).json({

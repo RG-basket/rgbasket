@@ -15,6 +15,17 @@ router.post('/', async (req, res) => {
     // Use OrderService to handle creation, validation, pricing, and promo codes
     const order = await OrderService.createOrder(req.body, req.body.userId);
 
+    // Update user activity heartbeat
+    try {
+      const User = require('../models/User');
+      await User.findOneAndUpdate(
+        { $or: [{ _id: req.body.userId }, { googleId: req.body.userId }] },
+        { lastActive: new Date() }
+      );
+    } catch (heartbeatError) {
+      console.log('Heartbeat update failed (non-critical):', heartbeatError.message);
+    }
+
     console.log('✅ Order created via OrderService:', order.id);
 
     res.status(201).json({
@@ -68,21 +79,105 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-// Get all orders (for admin) - FIXED VERSION
+// Get all orders (for admin) - WITH PAGINATION
 router.get('/admin/orders', authenticateAdmin, async (req, res) => {
   try {
-    console.log('🔍 Admin: Fetching all orders');
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || '';
+    const status = req.query.status || 'all';
+    const date = req.query.date || '';
+    const deliveryDate = req.query.deliveryDate || '';
 
-    const orders = await Order.find()
-      .sort({ createdAt: -1 });
+    let query = {};
 
-    console.log(`📦 Found ${orders.length} total orders`);
-    console.log(`📍 Orders with location data: ${orders.filter(order => order.location?.coordinates).length}`);
+    // Status Filter
+    if (status !== 'all') {
+      query.status = status;
+    }
+
+    // Date Filter
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(date);
+      endDate.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    // Delivery Date Filter
+    if (deliveryDate) {
+      const startDate = new Date(deliveryDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(deliveryDate);
+      endDate.setHours(23, 59, 59, 999);
+      query.deliveryDate = { $gte: startDate, $lte: endDate };
+    }
+
+    // Search Filter
+    if (search) {
+      const searchConditions = [
+        { 'userInfo.name': { $regex: search, $options: 'i' } },
+        { 'userInfo.email': { $regex: search, $options: 'i' } },
+        { 'shippingAddress.fullName': { $regex: search, $options: 'i' } },
+        { 'shippingAddress.phoneNumber': { $regex: search, $options: 'i' } }
+      ];
+
+      if (search.match(/^[0-9a-fA-F]{24}$/)) {
+        searchConditions.push({ _id: search });
+      }
+
+      // If we already have query filters, we need to combine them with $and
+      if (Object.keys(query).length > 0) {
+        query = { $and: [query, { $or: searchConditions }] };
+      } else {
+        query = { $or: searchConditions };
+      }
+    }
+
+    console.log(`🔍 Admin: Fetching orders page ${page}, limit ${limit}, filters applied`);
+
+    const orders = await Order.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Order.countDocuments(query);
+
+    // Get status counts for the stats cards
+    const statusCounts = await Order.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const statusCountsMap = {
+      all: await Order.countDocuments(),
+      pending: statusCounts.find(s => s._id === 'pending')?.count || 0,
+      confirmed: statusCounts.find(s => s._id === 'confirmed')?.count || 0,
+      processing: statusCounts.find(s => s._id === 'processing')?.count || 0,
+      shipped: statusCounts.find(s => s._id === 'shipped')?.count || 0,
+      delivered: statusCounts.find(s => s._id === 'delivered')?.count || 0,
+      cancelled: statusCounts.find(s => s._id === 'cancelled')?.count || 0
+    };
+
+    console.log(`📦 Found ${orders.length} orders for current page`);
 
     res.json({
       success: true,
       orders,
-      total: orders.length
+      statusCounts: statusCountsMap,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+        hasMore: (skip + orders.length) < total
+      }
     });
   } catch (error) {
     console.error('💥 Error fetching admin orders:', error);

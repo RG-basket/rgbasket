@@ -38,6 +38,11 @@ const UserSchema = new mongoose.Schema({
   phone: {
     type: String,
     default: ''
+  },
+  // Last seen/activity timestamp
+  lastActive: {
+    type: Date,
+    default: Date.now
   }
   // You can add more fields relevant to your app later
   // defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },

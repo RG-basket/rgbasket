@@ -9,45 +9,117 @@ router.post('/login', adminLogin);
 // Protected routes - Require admin authentication
 router.get('/dashboard', authenticateAdmin, getAdminDashboard);
 
-// User Management
+// User Management with Pagination and Optimization
 router.get('/users', authenticateAdmin, async (req, res) => {
   try {
     const User = require('../models/User');
-    const Order = require('../models/Order');
-    const UserAddress = require('../models/UserAddress');
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || '';
 
-    // Fetch all users
-    const users = await User.find().sort({ createdAt: -1 }).lean();
+    // Build search query
+    const searchFilter = search ? {
+      $or: [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ]
+    } : {};
 
-    // Fetch details for each user
-    const usersWithDetails = await Promise.all(users.map(async (user) => {
-      // Find addresses where user is either _id or googleId (just in case)
-      const addresses = await UserAddress.find({
-        $or: [
-          { user: user._id.toString() },
-          { user: user.googleId } // We need googleId for this, so don't select it out yet or fetch it specifically
-        ]
-      }).sort({ isDefault: -1 }).lean();
+    // Use aggregation for high performance
+    const usersWithStats = await User.aggregate([
+      { $match: searchFilter },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      // Lookup addresses
+      {
+        $lookup: {
+          from: 'useraddresses',
+          let: { userIdStr: { $toString: '$_id' }, googleId: '$googleId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$user', '$$userIdStr'] },
+                    { $eq: ['$user', '$$googleId'] }
+                  ]
+                }
+              }
+            },
+            { $sort: { isDefault: -1, createdAt: -1 } }
+          ],
+          as: 'addresses'
+        }
+      },
+      // Lookup orders
+      {
+        $lookup: {
+          from: 'orders',
+          let: { userIdStr: { $toString: '$_id' }, googleId: '$googleId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$user', '$$userIdStr'] },
+                    { $eq: ['$user', '$$googleId'] }
+                  ]
+                }
+              }
+            },
+            { $sort: { createdAt: -1 } }
+          ],
+          as: 'orders'
+        }
+      },
+      // Project final fields to match existing UI needs
+      {
+        $project: {
+          name: 1,
+          email: 1,
+          phone: 1,
+          role: 1,
+          active: 1,
+          photo: 1,
+          createdAt: 1,
+          lastActive: 1,
+          addresses: 1,
+          orders: 1,
+          orderCount: { $size: '$orders' }
+        }
+      }
+    ]);
 
-      // Find orders for the user
-      const orders = await Order.find({
-        $or: [
-          { user: user._id.toString() },
-          { user: user.googleId }
-        ]
-      }).sort({ createdAt: -1 }).lean();
+    const total = await User.countDocuments(searchFilter);
+    const totalActive = await User.countDocuments({ active: { $ne: false } });
 
-      return {
-        ...user,
-        addresses,
-        orders
-      };
-    }));
+    // Online Now: Active in the last 5 minutes
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const onlineNow = await User.countDocuments({ lastActive: { $gte: fiveMinutesAgo } });
+
+    // DAU (Daily Active Users): Active in the last 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const dau = await User.countDocuments({ lastActive: { $gte: twentyFourHoursAgo } });
 
     res.json({
       success: true,
-      users: usersWithDetails,
-      total: users.length
+      users: usersWithStats,
+      stats: {
+        total,
+        totalActive,
+        onlineNow,
+        dau,
+        totalAdmins: await User.countDocuments({ role: 'admin' })
+      },
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+        hasMore: skip + usersWithStats.length < total
+      }
     });
   } catch (error) {
     console.error('Error fetching users:', error);
