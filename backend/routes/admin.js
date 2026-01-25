@@ -13,13 +13,44 @@ router.get('/dashboard', authenticateAdmin, getAdminDashboard);
 router.get('/users', authenticateAdmin, async (req, res) => {
   try {
     const User = require('../models/User');
-    const users = await User.find().select('-googleId').sort({ createdAt: -1 });
+    const Order = require('../models/Order');
+    const UserAddress = require('../models/UserAddress');
+
+    // Fetch all users
+    const users = await User.find().sort({ createdAt: -1 }).lean();
+
+    // Fetch details for each user
+    const usersWithDetails = await Promise.all(users.map(async (user) => {
+      // Find addresses where user is either _id or googleId (just in case)
+      const addresses = await UserAddress.find({
+        $or: [
+          { user: user._id.toString() },
+          { user: user.googleId } // We need googleId for this, so don't select it out yet or fetch it specifically
+        ]
+      }).sort({ isDefault: -1 }).lean();
+
+      // Find orders for the user
+      const orders = await Order.find({
+        $or: [
+          { user: user._id.toString() },
+          { user: user.googleId }
+        ]
+      }).sort({ createdAt: -1 }).lean();
+
+      return {
+        ...user,
+        addresses,
+        orders
+      };
+    }));
+
     res.json({
       success: true,
-      users,
+      users: usersWithDetails,
       total: users.length
     });
   } catch (error) {
+    console.error('Error fetching users:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching users'
