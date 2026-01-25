@@ -83,6 +83,54 @@ ${order.location?.coordinates
             console.error('❌ Telegram Notification Error:', error.message);
         }
     }
+
+    static async sendOrderCancellationNotification(order, reason = 'No reason provided') {
+        if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID) {
+            console.warn('[TelegramService] Token or Chat ID missing. Skipping cancellation notification.');
+            return;
+        }
+
+        try {
+            const message = `
+<b>❌ ORDER CANCELLED!</b>
+------------------------------------
+🆔 <b>Order ID:</b> #${order._id.toString().slice(-6).toUpperCase()}
+👤 <b>Customer:</b> ${order.userInfo?.name || 'Guest'}
+📞 <b>Phone:</b> <code>${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</code>
+
+⚠️ <b>Reason:</b> <i>${reason}</i>
+
+💰 <b>Amount Saved:</b> ₹${order.totalAmount}
+📅 <b>Was Scheduled for:</b> ${new Date(order.deliveryDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
+⏰ <b>Slot:</b> ${order.timeSlot}
+
+------------------------------------
+❌ <b>STATUS:</b> #CANCELLED
+      `.trim();
+
+            const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: TELEGRAM_CHAT_ID,
+                    text: message,
+                    parse_mode: 'HTML'
+                })
+            });
+
+            const data = await response.json();
+            if (!data.ok) {
+                console.error('❌ Telegram API Error:', JSON.stringify(data));
+                throw new Error(data.description);
+            }
+
+            console.log('✅ Telegram cancellation notification sent successfully');
+        } catch (error) {
+            console.error('❌ Telegram Cancellation Notification Error:', error.message);
+        }
+    }
 }
 
 module.exports = TelegramService;

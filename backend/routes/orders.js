@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const TelegramService = require('../services/TelegramService');
 const cache = require('../services/redis').cache;
 const { authenticateAdmin } = require('../middleware/auth');
 
@@ -240,6 +241,11 @@ router.put("/:orderId/cancel", async (req, res) => {
     await order.save();
 
     console.log(`✅ Order ${orderId} cancelled successfully`);
+
+    // Send Telegram notification for cancellation
+    TelegramService.sendOrderCancellationNotification(order, cancelReason || 'User cancelled').catch(err => {
+      console.error('Failed to send cancellation telegram msg:', err.message);
+    });
 
     res.json({
       success: true,
