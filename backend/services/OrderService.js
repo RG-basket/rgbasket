@@ -190,7 +190,8 @@ class OrderService {
    * Calculate order pricing with tax and discounts
    */
   calculatePricing(subtotal, taxRate = 0, discount = 0) {
-    const shippingFee = subtotal > 300 ? 0 : 29; // Free delivery over 300, else 29
+    const netValue = subtotal - discount;
+    const shippingFee = netValue >= 299 ? 0 : 29; // Free delivery at 299 and above
     const taxAmount = (subtotal * taxRate) / 100;
     let totalAmount = subtotal + shippingFee + taxAmount - discount;
     if (totalAmount < 0) totalAmount = 0;

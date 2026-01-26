@@ -253,7 +253,15 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
     // Recalculate totals if items are updated
     if (updateData.items && Array.isArray(updateData.items)) {
       updateData.subtotal = updateData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      updateData.totalAmount = updateData.subtotal + (updateData.shippingFee || 29) + (updateData.tax || 0);
+      const discount = updateData.discountAmount || 0;
+      const netValue = updateData.subtotal - discount;
+
+      // Calculate shipping if not explicitly provided
+      if (updateData.shippingFee === undefined) {
+        updateData.shippingFee = netValue >= 299 ? 0 : 29;
+      }
+
+      updateData.totalAmount = updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) - discount;
     }
 
     const order = await Order.findByIdAndUpdate(
