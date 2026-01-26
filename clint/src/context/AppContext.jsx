@@ -57,6 +57,7 @@ export const AppContextProvider = ({ children }) => {
   const [cartCount, setCartCount] = useState(0);
   const [limitPopup, setLimitPopup] = useState(null); // { productName, limit, unit }
   const [limitTimeout, setLimitTimeout] = useState(null);
+  const [customizationData, setCustomizationData] = useState({}); // { [itemKey]: { isCustomized: boolean, instructions: string } }
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -229,9 +230,14 @@ export const AppContextProvider = ({ children }) => {
       if (savedCart) {
         setCartItems(JSON.parse(savedCart));
       }
+      const savedCustomization = localStorage.getItem('customizationData');
+      if (savedCustomization) {
+        setCustomizationData(JSON.parse(savedCustomization));
+      }
     } catch (error) {
       console.error('Error loading cart state:', error);
       localStorage.removeItem('cartItems');
+      localStorage.removeItem('customizationData');
     }
   };
 
@@ -705,9 +711,42 @@ export const AppContextProvider = ({ children }) => {
         itemKey,
         product,
         weightIndex: parseInt(weightIndex),
-        quantity
+        quantity,
+        customization: customizationData[itemKey] || { isCustomized: false, instructions: '' }
       };
     }).filter(item => item.product);
+  };
+
+  const getCustomizationCharge = (product, weightInGrams) => {
+    if (!product || !product.isCustomizable || !product.customizationCharges || product.customizationCharges.length === 0) return 0;
+
+    // Sort charges by weight descending to match largest units first
+    const sortedCharges = [...product.customizationCharges].sort((a, b) => b.weight - a.weight);
+
+    let remainingWeight = weightInGrams;
+    let totalCharge = 0;
+
+    for (const rule of sortedCharges) {
+      if (rule.weight <= 0) continue;
+      const count = Math.floor(remainingWeight / rule.weight);
+      if (count > 0) {
+        totalCharge += count * rule.charge;
+        remainingWeight -= count * rule.weight;
+      }
+    }
+
+    return totalCharge;
+  };
+
+  const updateCustomization = (itemKey, data) => {
+    setCustomizationData(prev => {
+      const newData = {
+        ...prev,
+        [itemKey]: { ...(prev[itemKey] || { isCustomized: false, instructions: '' }), ...data }
+      };
+      localStorage.setItem('customizationData', JSON.stringify(newData));
+      return newData;
+    });
   };
 
   const triggerLimitPopup = (product, limit, unit) => {
@@ -779,12 +818,21 @@ export const AppContextProvider = ({ children }) => {
       return newCart;
     });
 
+    setCustomizationData(prev => {
+      const newData = { ...prev };
+      delete newData[itemKey];
+      localStorage.setItem('customizationData', JSON.stringify(newData));
+      return newData;
+    });
+
     toast.success('Item removed from cart');
   };
 
   const clearCart = () => {
     setCartItems({});
+    setCustomizationData({});
     localStorage.removeItem('cartItems');
+    localStorage.removeItem('customizationData');
     toast.success('Cart cleared');
   };
 
@@ -792,7 +840,23 @@ export const AppContextProvider = ({ children }) => {
     return getCartItemsWithDetails().reduce((total, item) => {
       const weight = item.product.weights?.[item.weightIndex];
       const price = weight?.price || item.product.price || 0;
-      return total + (price * item.quantity);
+      let lineTotal = price * item.quantity;
+
+      if (item.customization?.isCustomized) {
+        // Calculate weight in grams
+        let totalGrams = 0;
+        const weightValue = parseFloat(weight.weight) || 0;
+        if (weight.unit === 'kg') {
+          totalGrams = weightValue * 1000 * item.quantity;
+        } else if (weight.unit === 'g') {
+          totalGrams = weightValue * item.quantity;
+        }
+
+        const extraCharge = getCustomizationCharge(item.product, totalGrams);
+        lineTotal += extraCharge;
+      }
+
+      return total + lineTotal;
     }, 0);
   };
 
@@ -844,6 +908,9 @@ export const AppContextProvider = ({ children }) => {
     getCartTotal,
     getCartItemCount,
     getCartAmount: getCartTotal,
+    getCustomizationCharge,
+    updateCustomization,
+    customizationData,
     recentItems,
     setRecentItems,
 

@@ -245,6 +245,15 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                     {product.name}
                 </h3>
 
+                {/* Customizable Indicator - Simple & Subtle */}
+                {product.isCustomizable && isStockAvailable && slotAvailability && (
+                    <div className="flex items-center gap-1 opacity-80">
+                        <span className="text-[9px] bg-emerald-50 text-emerald-600 px-1 py-0.5 rounded font-bold uppercase tracking-tighter">
+                            ✨ {quantity > 0 ? 'Check Cart' : 'Customizable'}
+                        </span>
+                    </div>
+                )}
+
                 {/* Weight Selector */}
                 <div className="relative" onClick={(e) => e.stopPropagation()}>
                     <select

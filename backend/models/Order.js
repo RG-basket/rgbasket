@@ -56,6 +56,19 @@ const OrderSchema = new mongoose.Schema({
       type: Number,
       required: true
     },
+    // Customization fields
+    isCustomized: {
+      type: Boolean,
+      default: false
+    },
+    customizationInstructions: {
+      type: String,
+      default: ''
+    },
+    customizationCharge: {
+      type: Number,
+      default: 0
+    },
     image: {
       type: String,
       default: ''

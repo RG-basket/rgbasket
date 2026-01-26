@@ -52,7 +52,9 @@ const Cart = () => {
     setCartItems,
     selectedSlot,
     setSelectedSlot,
-    validateCartForSlot
+    validateCartForSlot,
+    customizationData,
+    getCustomizationCharge
   } = useAppContext();
 
   const [cartArray, setCartArray] = useState([]);
@@ -156,8 +158,8 @@ const Cart = () => {
 
 
   // --- CALCULATE TOTALS EARLY TO AVOID REFERENCE ERRORS ---
-  const subtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity, 0);
-  const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
+  const subtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity + (item.customizationCharge || 0), 0);
+  const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity + (item.customizationCharge || 0), 0);
   const totalSavings = totalMRP - subtotal;
 
   // Calculate Net Total before shipping to determine if fee applies
@@ -372,15 +374,33 @@ const Cart = () => {
       }
 
       if (product && variant) {
+        const quantity = cartItems[key];
+        const customization = customizationData[key] || { isCustomized: false, instructions: '' };
+
+        let customizationCharge = 0;
+        let totalGrams = 0;
+        if (customization.isCustomized && product.isCustomizable) {
+          const weightValue = parseFloat(variant.weight) || 0;
+          if (variant.unit === 'kg') {
+            totalGrams = weightValue * 1000 * quantity;
+          } else if (variant.unit === 'g') {
+            totalGrams = weightValue * quantity;
+          }
+          customizationCharge = getCustomizationCharge(product, totalGrams);
+        }
+
         tempArray.push({
           ...product,
           weight: variant.weight,
           unit: variant.unit,
           offerPrice: variant.offerPrice,
           price: variant.price,
-          quantity: cartItems[key],
+          quantity: quantity,
           cartKey: key,
-          inStock: variant.inStock !== false
+          inStock: variant.inStock !== false,
+          customization,
+          customizationCharge,
+          totalGrams
         });
       }
     }
@@ -440,6 +460,9 @@ const Cart = () => {
         unit: item.unit,
         quantity: item.quantity,
         price: item.offerPrice || item.price,
+        isCustomized: item.customization?.isCustomized || false,
+        customizationInstructions: item.customization?.instructions || '',
+        customizationCharge: item.customizationCharge || 0,
         image: item.images?.[0] || item.image?.[0] || '',
         userName: user?.name || 'Guest',
         userImage: user?.photo || ''
@@ -542,7 +565,7 @@ const Cart = () => {
     if (products && cartItems) {
       getCart();
     }
-  }, [products, cartItems]);
+  }, [products, cartItems, customizationData]);
 
   // Removed redundant deliveryDate initialization. Global state handles this now.
 

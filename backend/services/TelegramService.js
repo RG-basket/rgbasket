@@ -11,8 +11,12 @@ class TelegramService {
         try {
             const itemsText = order.items
                 .map((item, index) => {
-                    const lineTotal = item.quantity * item.price;
-                    return `<b>${index + 1}. ${item.name}</b>\n   ├ Variant: ${item.weight}${item.unit}\n   ├ Price: ₹${item.price} x ${item.quantity}\n   └ Total: <b>₹${lineTotal}</b>`;
+                    const lineTotal = (item.quantity * item.price) + (item.customizationCharge || 0);
+                    let customizationText = '';
+                    if (item.isCustomized) {
+                        customizationText = `\n   ├ ✨ <b>CUSTOMIZED:</b> ${item.customizationInstructions || 'No instructions'}\n   ├ 💰 Custom Charge: ₹${item.customizationCharge}`;
+                    }
+                    return `<b>${index + 1}. ${item.name}</b>\n   ├ Variant: ${item.weight}${item.unit}\n   ├ Price: ₹${item.price} x ${item.quantity}${customizationText}\n   └ Total: <b>₹${lineTotal}</b>`;
                 })
                 .join('\n\n');
 

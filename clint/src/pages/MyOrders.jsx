@@ -540,11 +540,14 @@ const MyOrders = () => {
           <tbody>
             ${order.items.map(item => `
               <tr>
-                <td><strong>${item.name}</strong></td>
+                <td>
+                  <strong>${item.name}</strong>
+                  ${item.isCustomized ? `<br><span style="font-size: 11px; color: #10b981;">✨ CUSTOMIZED: ${item.customizationInstructions || 'N/A'}</span>` : ''}
+                </td>
                 <td>${item.weight} ${item.unit || ''}</td>
                 <td>${item.quantity}</td>
-                <td>₹${item.price}</td>
-                <td><strong>₹${(item.price * item.quantity).toFixed(2)}</strong></td>
+                <td>₹${item.price}${item.customizationCharge > 0 ? `<br><span style="font-size: 10px; color: #10b981;">+ ₹${item.customizationCharge} custom</span>` : ''}</td>
+                <td><strong>₹${((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2)}</strong></td>
               </tr>
             `).join('')}
           </tbody>
@@ -801,11 +804,16 @@ const MyOrders = () => {
                                   <img src={getProductImage(item)} className="w-14 h-14 rounded-xl object-cover border border-gray-50" onError={(e) => e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjRjBGMEYwIi8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlByb2R1Y3Q8L3RleHQ+Cjwvc3ZnPg=='} />
                                   <div className="flex-1 min-w-0">
                                     <h5 className="text-[13px] font-bold text-gray-800 truncate">{item.name}</h5>
+                                    {item.isCustomized && (
+                                      <p className="text-[10px] text-green-600 font-bold flex items-center gap-1 mt-0.5">
+                                        <span>✨</span> Customized: {item.customizationInstructions || 'No instructions'}
+                                      </p>
+                                    )}
                                     <p className="text-[10px] text-gray-400 font-bold mt-0.5">{item.quantity} × {item.weight}{item.unit || ''}</p>
                                     <div className="flex items-center gap-2 mt-1">
-                                      <p className="text-[10px] text-gray-500 font-medium">₹{item.price?.toFixed(2)} × {item.quantity}</p>
+                                      <p className="text-[10px] text-gray-500 font-medium">₹{item.price?.toFixed(2)} × {item.quantity} {item.customizationCharge > 0 ? `+ ₹${item.customizationCharge?.toFixed(2)} custom` : ''}</p>
                                       <span className="text-[10px] text-gray-300">=</span>
-                                      <p className="text-xs font-black text-emerald-600">₹{(item.price * item.quantity)?.toFixed(2)}</p>
+                                      <p className="text-xs font-black text-emerald-600">₹{((item.price * item.quantity) + (item.customizationCharge || 0))?.toFixed(2)}</p>
                                     </div>
                                   </div>
                                 </div>

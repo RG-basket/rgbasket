@@ -19,14 +19,16 @@ const ProductFormDark = () => {
         name: '',
         description: [''],
         category: '',
-        weights: [{ weight: '', price: '', offerPrice: '', unit: 'kg' }],
+        weights: [{ weight: '', price: '', offerPrice: '', unit: 'kg', customizationCharge: 0 }],
         stock: 0,
         lowStockThreshold: 10,
         maxOrderQuantity: 0,
         featured: false,
         active: true,
         requiresSlotSelection: false,
-        availableSlots: []
+        availableSlots: [],
+        isCustomizable: false,
+        customizationCharges: []
     });
 
     const [images, setImages] = useState([]);
@@ -77,14 +79,16 @@ const ProductFormDark = () => {
                     name: product.name,
                     description: product.description || [''],
                     category: product.category,
-                    weights: product.weights || [{ weight: '', price: '', offerPrice: '', unit: 'kg' }],
+                    weights: product.weights?.map(w => ({ ...w, customizationCharge: w.customizationCharge || 0 })) || [{ weight: '', price: '', offerPrice: '', unit: 'kg', customizationCharge: 0 }],
                     stock: product.stock,
                     lowStockThreshold: product.lowStockThreshold || 10,
                     maxOrderQuantity: product.maxOrderQuantity || 0,
                     featured: product.featured,
                     active: product.active,
                     requiresSlotSelection: product.requiresSlotSelection || false,
-                    availableSlots: product.availableSlots || []
+                    availableSlots: product.availableSlots || [],
+                    isCustomizable: product.isCustomizable || false,
+                    customizationCharges: product.customizationCharges || []
                 });
                 setImagePreviews(product.images || []);
             }
@@ -126,7 +130,7 @@ const ProductFormDark = () => {
         const newWeights = [...formData.weights];
         newWeights[index] = {
             ...newWeights[index],
-            [field]: field === 'price' || field === 'offerPrice' ? parseFloat(value) || 0 : value
+            [field]: field === 'price' || field === 'offerPrice' || field === 'customizationCharge' ? parseFloat(value) || 0 : value
         };
         setFormData(prev => ({ ...prev, weights: newWeights }));
     };
@@ -134,7 +138,7 @@ const ProductFormDark = () => {
     const addWeight = () => {
         setFormData(prev => ({
             ...prev,
-            weights: [...prev.weights, { weight: '', price: '', offerPrice: '', unit: 'kg' }]
+            weights: [...prev.weights, { weight: '', price: '', offerPrice: '', unit: 'kg', customizationCharge: 0 }]
         }));
     };
 
@@ -190,6 +194,24 @@ const ProductFormDark = () => {
             formDataToSend.append('featured', formData.featured);
             formDataToSend.append('active', formData.active);
             formDataToSend.append('requiresSlotSelection', formData.requiresSlotSelection);
+            formDataToSend.append('isCustomizable', formData.isCustomizable);
+
+            // AUTOMATICALLY derive customization rules from variants if enabled
+            let cleanedCharges = [];
+            if (formData.isCustomizable) {
+                cleanedCharges = formData.weights.map(w => {
+                    const weightVal = parseFloat(w.weight) || 0;
+                    let grams = weightVal;
+                    if (w.unit === 'kg' || w.unit === 'l') grams = weightVal * 1000;
+
+                    return {
+                        weight: grams,
+                        charge: parseFloat(w.customizationCharge) || 0
+                    };
+                }).filter(c => c.weight > 0);
+            }
+
+            formDataToSend.append('customizationCharges', JSON.stringify(cleanedCharges));
 
             formData.availableSlots.forEach(slot => {
                 formDataToSend.append('availableSlots', slot);
@@ -323,6 +345,30 @@ const ProductFormDark = () => {
                         </div>
                     </div>
 
+                    {/* Customization Toggle */}
+                    <div className={`${tw.bgSecondary} p-6 rounded-xl border ${tw.borderPrimary}`}>
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-[#f7768e]/10 rounded-lg">
+                                    <Settings className="w-5 h-5 text-[#f7768e]" />
+                                </div>
+                                <div>
+                                    <h2 className={`text-lg font-bold ${tw.textPrimary}`}>Enable Customization</h2>
+                                    <p className={`text-xs ${tw.textSecondary}`}>Turn this on to show "Extra Charge" inputs in your variants above</p>
+                                </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.isCustomizable}
+                                    onChange={(e) => handleInputChange('isCustomizable', e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#f7768e]"></div>
+                            </label>
+                        </div>
+                    </div>
+
                     {/* Variants */}
                     <div className={`${tw.bgSecondary} p-6 rounded-xl border ${tw.borderPrimary} space-y-6`}>
                         <div className="flex justify-between items-center">
@@ -336,7 +382,7 @@ const ProductFormDark = () => {
 
                         <div className="space-y-4">
                             {formData.weights.map((weight, index) => (
-                                <div key={index} className={`grid grid-cols-1 md:grid-cols-5 gap-4 p-4 ${tw.bgInput} rounded-lg border ${tw.borderPrimary}`}>
+                                <div key={index} className={`grid grid-cols-1 md:grid-cols-6 gap-4 p-4 ${tw.bgInput} rounded-lg border ${tw.borderPrimary}`}>
                                     <div>
                                         <label className={`block text-xs ${tw.textSecondary} mb-1`}>Weight/Size</label>
                                         <input
@@ -377,6 +423,18 @@ const ProductFormDark = () => {
                                             placeholder="0"
                                         />
                                     </div>
+                                    {formData.isCustomizable && (
+                                        <div>
+                                            <label className={`block text-xs ${tw.textSecondary} mb-1`}>Extra Charge (₹)</label>
+                                            <input
+                                                type="number"
+                                                value={weight.customizationCharge}
+                                                onChange={(e) => handleWeightChange(index, 'customizationCharge', e.target.value)}
+                                                className={`w-full px-3 py-2 ${tw.bgSecondary} border border-[#f7768e]/30 rounded-lg text-sm ${tw.textPrimary} focus:border-[#f7768e] focus:ring-1 focus:ring-[#f7768e]`}
+                                                placeholder="e.g. 10"
+                                            />
+                                        </div>
+                                    )}
                                     <div className="flex items-end justify-center">
                                         {formData.weights.length > 1 && (
                                             <button

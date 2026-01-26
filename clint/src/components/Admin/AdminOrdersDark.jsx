@@ -22,8 +22,8 @@ const statusIcons = {
 const recalculateOrderTotals = (order) => {
   if (!order || !order.items) return order;
 
-  // Calculate subtotal from items
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Calculate subtotal from items (include customization charge)
+  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity) + (item.customizationCharge || 0), 0);
 
   // Get discount amount (if any)
   const discountAmount = order.discountAmount || 0;
@@ -296,9 +296,43 @@ const AdminOrdersDark = () => {
     }
 
     const updatedItems = [...editingOrder.items];
+    const item = updatedItems[index];
+    const qty = parseInt(newQuantity);
+
+    // Recalculate customization charge if item is customized
+    let newCustomizationCharge = item.customizationCharge || 0;
+    if (item.isCustomized) {
+      const product = products.find(p => p._id === (item.productId || item.product));
+      if (product && product.isCustomizable) {
+        // Calculate total grams
+        let totalGrams = 0;
+        const weightValue = parseFloat(item.weight) || 0;
+        if (item.unit === 'kg') {
+          totalGrams = weightValue * 1000 * qty;
+        } else if (item.unit === 'g') {
+          totalGrams = weightValue * qty;
+        }
+
+        // Inline calculation logic matching common function
+        const sortedCharges = [...(product.customizationCharges || [])].sort((a, b) => b.weight - a.weight);
+        let remainingWeight = totalGrams;
+        let totalCharge = 0;
+        for (const rule of sortedCharges) {
+          if (rule.weight <= 0) continue;
+          const count = Math.floor(remainingWeight / rule.weight);
+          if (count > 0) {
+            totalCharge += count * rule.charge;
+            remainingWeight -= count * rule.weight;
+          }
+        }
+        newCustomizationCharge = totalCharge;
+      }
+    }
+
     updatedItems[index] = {
-      ...updatedItems[index],
-      quantity: parseInt(newQuantity)
+      ...item,
+      quantity: qty,
+      customizationCharge: newCustomizationCharge
     };
 
     setEditingOrder(prev => ({
@@ -761,11 +795,15 @@ const AdminOrdersDark = () => {
           <tbody>
             ${order.items.map(item =>
           '<tr>' +
-          '<td><strong>' + item.name + '</strong><br><span style="font-size: 11px; color: #64748b;">' + item.description + '</span></td>' +
+          '<td>' +
+          '<strong>' + item.name + '</strong>' +
+          (item.isCustomized ? '<br><span style="font-size: 11px; color: #10b981; font-weight: 600;">✨ CUSTOMIZED: ' + (item.customizationInstructions || 'N/A') + '</span>' : '') +
+          '<br><span style="font-size: 11px; color: #64748b;">' + item.description + '</span>' +
+          '</td>' +
           '<td>' + item.weight + (item.unit ? ' ' + item.unit : '') + '</td>' +
           '<td>' + item.quantity + '</td>' +
-          '<td>₹' + item.price + '</td>' +
-          '<td><strong>₹' + (item.price * item.quantity).toFixed(2) + '</strong></td>' +
+          '<td>₹' + item.price + (item.customizationCharge > 0 ? `<br><span style="font-size: 10px; color: #10b981;">+ ₹${item.customizationCharge} custom</span>` : '') + '</td>' +
+          '<td><strong>₹' + ((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2) + '</strong></td>' +
           '</tr>'
         ).join('')}
           </tbody>
@@ -1316,15 +1354,27 @@ const AdminOrdersDark = () => {
                                 />
                                 <div>
                                   <p className="font-medium">{item.name}</p>
+                                  {item.isCustomized && (
+                                    <p className="text-xs text-green-400 font-bold flex items-center gap-1 mt-0.5">
+                                      <span>✨</span> CUSTOMIZED: {item.customizationInstructions || 'No instructions'}
+                                    </p>
+                                  )}
                                   <p className={`text-xs ${tw.textSecondary}`}>{item.description}</p>
                                 </div>
                               </div>
                             </td>
                             <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.weight} {item.unit}</td>
                             <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.quantity}</td>
-                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>₹{item.price}</td>
+                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>
+                              <div>
+                                ₹{item.price}
+                                {item.customizationCharge > 0 && (
+                                  <p className="text-[10px] text-green-400 font-medium">+ ₹{item.customizationCharge} customization</p>
+                                )}
+                              </div>
+                            </td>
                             <td className={`px-4 py-3 text-sm font-medium text-right ${tw.textPrimary}`}>
-                              ₹{(item.price * item.quantity).toFixed(2)}
+                              ₹{((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2)}
                             </td>
                           </tr>
                         ))}
@@ -1498,6 +1548,11 @@ const AdminOrdersDark = () => {
                         <h4 className={`font-medium ${tw.textPrimary}`}>{item.name}</h4>
                         <p className={`text-sm ${tw.textSecondary}`}>{item.description}</p>
                         <p className={`text-sm ${tw.textSecondary}`}>{item.weight} {item.unit}</p>
+                        {item.isCustomized && (
+                          <p className="text-xs text-green-400 font-bold mt-1 flex items-center gap-1">
+                            <span>✨</span> Customized: {item.customizationInstructions || 'No instructions'}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-3">
                         <div>
@@ -1523,8 +1578,11 @@ const AdminOrdersDark = () => {
                         </div>
                         <div className="text-right">
                           <div className={`text-sm font-medium ${tw.textPrimary}`}>
-                            ₹{(item.price * item.quantity).toFixed(2)}
+                            ₹{((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2)}
                           </div>
+                          {item.customizationCharge > 0 && (
+                            <div className="text-[10px] text-green-400 font-bold">+₹{item.customizationCharge} custom</div>
+                          )}
                           <div className={`text-xs ${tw.textSecondary}`}>Total</div>
                         </div>
                         {editingOrder.items.length > 1 && (

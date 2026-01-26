@@ -58,6 +58,26 @@ const ProductSchema = new mongoose.Schema({
       type: String,
       required: [true, 'Unit is required'],
       enum: ['kg', 'g', 'ml', 'l', 'piece', 'pack', 'dozen', 'bundle']
+    },
+    customizationCharge: {
+      type: Number,
+      default: 0
+    }
+  }],
+
+  // Customization
+  isCustomizable: {
+    type: Boolean,
+    default: false
+  },
+  customizationCharges: [{
+    weight: {
+      type: Number, // in grams
+      required: true
+    },
+    charge: {
+      type: Number,
+      required: true
     }
   }],
 

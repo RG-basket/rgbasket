@@ -21,19 +21,19 @@ router.get('/', async (req, res) => {
 
     // Build query
     let query = { active: true };
-    
+
     if (category) {
       query.category = category;
     }
-    
+
     if (search) {
       query.$text = { $search: search };
     }
-    
+
     if (inStock !== undefined) {
       query.inStock = inStock === 'true';
     }
-    
+
     if (featured !== undefined) {
       query.featured = featured === 'true';
     }
@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -107,17 +107,17 @@ router.get('/category/:category', async (req, res) => {
     const { category } = req.params;
     const { page = 1, limit = 50000 } = req.query;
 
-    const products = await Product.find({ 
+    const products = await Product.find({
       category: { $regex: new RegExp(category, 'i') },
-      active: true 
+      active: true
     })
-    .sort({ createdAt: -1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
 
-    const total = await Product.countDocuments({ 
+    const total = await Product.countDocuments({
       category: { $regex: new RegExp(category, 'i') },
-      active: true 
+      active: true
     });
 
     res.json({
@@ -145,10 +145,15 @@ router.get('/category/:category', async (req, res) => {
 router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
   try {
     const productData = req.body;
-    
+
     // Parse weights if sent as string
     if (typeof productData.weights === 'string') {
       productData.weights = JSON.parse(productData.weights);
+    }
+
+    // Parse customizationCharges if sent as string
+    if (typeof productData.customizationCharges === 'string') {
+      productData.customizationCharges = JSON.parse(productData.customizationCharges);
     }
 
     // Handle uploaded images from Cloudinary
@@ -166,7 +171,7 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating product:', error);
-    
+
     res.status(400).json({
       success: false,
       message: error.message || 'Error creating product'
@@ -178,16 +183,21 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
 router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
   try {
     const productData = req.body;
-    
+
     // Parse weights if sent as string
     if (typeof productData.weights === 'string') {
       productData.weights = JSON.parse(productData.weights);
     }
 
+    // Parse customizationCharges if sent as string
+    if (typeof productData.customizationCharges === 'string') {
+      productData.customizationCharges = JSON.parse(productData.customizationCharges);
+    }
+
     // Handle new images from Cloudinary
     if (req.files && req.files.length > 0) {
       productData.images = req.files.map(file => file.path); // Cloudinary URLs
-      
+
       // Delete old images from Cloudinary if new ones are uploaded
       const oldProduct = await Product.findById(req.params.id);
       if (oldProduct && oldProduct.images) {
@@ -226,7 +236,7 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating product:', error);
-    
+
     res.status(400).json({
       success: false,
       message: error.message || 'Error updating product'
@@ -238,7 +248,7 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
 router.delete('/:id', authenticateAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,

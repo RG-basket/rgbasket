@@ -176,14 +176,56 @@ class OrderService {
         price: price, // Mapped to 'price' in Order schema (not unitPrice)
         totalPrice: price * item.quantity, // Not stored in schema item but used for subtotal calculation
         image: product.images[0] || '',
-        sku: product.sku
+        sku: product.sku,
+        // Customization fields
+        isCustomized: item.isCustomized || false,
+        customizationInstructions: item.customizationInstructions || '',
+        customizationCharge: 0
       };
 
+      // Server-side validation of customization charge
+      if (validatedItem.isCustomized && product.isCustomizable) {
+        const weightValue = parseFloat(productVariant.weight) || 0;
+        let totalGrams = 0;
+        if (productVariant.unit === 'kg') {
+          totalGrams = weightValue * 1000 * item.quantity;
+        } else if (productVariant.unit === 'g') {
+          totalGrams = weightValue * item.quantity;
+        }
+
+        const calculatedCharge = this.calculateCustomizationCharge(product, totalGrams);
+        validatedItem.customizationCharge = calculatedCharge;
+      }
+
       validatedItems.push(validatedItem);
-      subtotal += validatedItem.totalPrice;
+      subtotal += validatedItem.totalPrice + (validatedItem.customizationCharge || 0);
     }
 
     return { validatedItems, subtotal };
+  }
+
+  /**
+   * Helper to calculate customization charge server-side
+   */
+  calculateCustomizationCharge(product, weightInGrams) {
+    if (!product || !product.isCustomizable || !product.customizationCharges || product.customizationCharges.length === 0) return 0;
+
+    // Sort charges by weight descending to match largest units first
+    const sortedCharges = [...product.customizationCharges].sort((a, b) => b.weight - a.weight);
+
+    let remainingWeight = weightInGrams;
+    let totalCharge = 0;
+
+    for (const rule of sortedCharges) {
+      if (rule.weight <= 0) continue;
+      const count = Math.floor(remainingWeight / rule.weight);
+      if (count > 0) {
+        totalCharge += count * rule.charge;
+        remainingWeight -= count * rule.weight;
+      }
+    }
+
+    return totalCharge;
   }
 
   /**
