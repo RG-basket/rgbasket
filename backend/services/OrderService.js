@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const PromoCode = require('../models/PromoCode');
+const ServiceArea = require('../models/ServiceArea');
 const TelegramService = require('./TelegramService');
 const AppError = require('../utils/AppError');
 
@@ -58,7 +59,9 @@ class OrderService {
       }
 
       // Calculate pricing
-      const pricing = this.calculatePricing(subtotal, orderData.taxRate, discountAmount);
+      const pincode = orderData.shippingAddress?.pincode;
+      const tipAmount = Number(orderData.tipAmount) || 0;
+      const pricing = await this.calculatePricing(subtotal, orderData.taxRate, discountAmount, pincode, tipAmount);
 
       // Create order
       const order = new Order({
@@ -76,9 +79,10 @@ class OrderService {
         // Promo Fields
         promoCode: promoCodeDoc ? promoCodeDoc.code : null,
         discountAmount: pricing.discount,
-        originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount, // pre-discount
+        originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount + pricing.tipAmount, // pre-discount
         finalTotal: pricing.totalAmount,
-        selectedGift: orderData.selectedGift || null
+        selectedGift: orderData.selectedGift || null,
+        tipAmount: pricing.tipAmount
       });
 
 
@@ -231,19 +235,36 @@ class OrderService {
   /**
    * Calculate order pricing with tax and discounts
    */
-  calculatePricing(subtotal, taxRate = 0, discount = 0) {
+  async calculatePricing(subtotal, taxRate = 0, discount = 0, pincode = null, tipAmount = 0) {
     const netValue = subtotal - discount;
-    const shippingFee = netValue >= 299 ? 0 : 29; // Free delivery at 299 and above
+
+    let shippingFee = 29;
+    let freeDeliveryThreshold = 299;
+
+    if (pincode) {
+      try {
+        const serviceArea = await ServiceArea.findOne({ pincode, isActive: true });
+        if (serviceArea) {
+          shippingFee = serviceArea.deliveryCharge !== undefined ? serviceArea.deliveryCharge : 29;
+          freeDeliveryThreshold = serviceArea.minOrderForFreeDelivery !== undefined ? serviceArea.minOrderForFreeDelivery : 299;
+        }
+      } catch (err) {
+        console.error('[OrderService] Error fetching service area for pricing:', err);
+      }
+    }
+
+    const finalShippingFee = (subtotal > 0 && netValue < freeDeliveryThreshold) ? shippingFee : 0;
     const taxAmount = (subtotal * taxRate) / 100;
-    let totalAmount = subtotal + shippingFee + taxAmount - discount;
+    let totalAmount = subtotal + finalShippingFee + taxAmount + tipAmount - discount;
     if (totalAmount < 0) totalAmount = 0;
 
     return {
       subtotal: Math.round(subtotal * 100) / 100,
-      shippingFee,
+      shippingFee: finalShippingFee,
       taxAmount: Math.round(taxAmount * 100) / 100,
       taxRate,
       discount: Math.round(discount * 100) / 100,
+      tipAmount: Math.round(tipAmount * 100) / 100,
       totalAmount: Math.round(totalAmount * 100) / 100
     };
   }
@@ -364,7 +385,8 @@ class OrderService {
       finalTotal: orderObj.finalTotal,
       deliveryDate: orderObj.deliveryDate,
       timeSlot: orderObj.timeSlot,
-      paymentMethod: orderObj.paymentMethod
+      paymentMethod: orderObj.paymentMethod,
+      tipAmount: orderObj.tipAmount
     };
 
 

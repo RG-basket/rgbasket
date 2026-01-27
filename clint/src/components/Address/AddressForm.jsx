@@ -175,16 +175,14 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
           const data = await response.json();
 
           if (data.success && data.location) {
-            const { area, district, state, pincode } = data.location;
-
-            // Auto-fill landmark with detected location
-            const landmarkText = `${area}, ${district}, ${state} ${pincode}`;
+            // Just indicate that location was captured, don't show details
+            // This avoids confusing users with potentially incorrect GPS pincode
             setFormData(prev => ({
               ...prev,
-              landmark: landmarkText
+              landmark: 'Location Captured'
             }));
 
-            toast.success('Location detected automatically');
+            toast.success('Location detected - Please enter your pincode manually');
           }
         }
       } catch (error) {
@@ -247,6 +245,22 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
       debouncedValidatePhone(newFormData.phoneNumber, newFormData.confirmPhoneNumber);
     }
   };
+
+  // Helper to get delivery info for current pincode
+  const getDeliveryInfo = () => {
+    if (pincodeStatus === 'valid') {
+      const area = serviceAreas.find(p => p.pincode === formData.pincode);
+      if (area) {
+        return {
+          charge: area.deliveryCharge ?? 29,
+          freeAbove: area.minOrderForFreeDelivery ?? 299
+        };
+      }
+    }
+    return null;
+  };
+
+  const deliveryInfo = getDeliveryInfo();
 
   // Manual verify button handler
   const handleManualVerify = () => {
@@ -799,10 +813,25 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="flex items-center gap-3 text-green-700 bg-green-50/80 px-4 py-3 rounded-xl border border-green-200"
+                            className="mt-2 text-green-600 text-sm font-medium flex flex-col gap-2"
                           >
-                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                            <span className="font-medium">✅ Serviceable in {formData.city}</span>
+                            <div className="flex items-center gap-3 text-green-700 bg-green-50/80 px-4 py-3 rounded-xl border border-green-200">
+                              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                              <span className="font-medium">✅ Serviceable area: {serviceAreas.find(p => p.pincode === formData.pincode)?.name}</span>
+                            </div>
+                            {deliveryInfo && (
+                              <div className="bg-green-50 p-3 rounded-xl border border-green-200 flex justify-between items-center text-xs shadow-sm">
+                                <div className="flex flex-col">
+                                  <span className="text-green-600 font-semibold uppercase text-[10px] tracking-wider mb-1">Standard Delivery</span>
+                                  <span className="font-bold text-lg text-gray-800">₹{deliveryInfo.charge}</span>
+                                </div>
+                                <div className="h-8 w-px bg-green-200"></div>
+                                <div className="flex flex-col text-right">
+                                  <span className="text-green-600 font-semibold uppercase text-[10px] tracking-wider mb-1">Free Above</span>
+                                  <span className="font-bold text-lg text-gray-800">₹{deliveryInfo.freeAbove}</span>
+                                </div>
+                              </div>
+                            )}
                           </motion.div>
                         )}
 
@@ -929,7 +958,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
             </div>
           </motion.div>
         </motion.div>
-      </AnimatePresence>
+      </AnimatePresence >
     </>
   );
 };

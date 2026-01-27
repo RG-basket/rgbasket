@@ -54,7 +54,8 @@ const Cart = () => {
     setSelectedSlot,
     validateCartForSlot,
     customizationData,
-    getCustomizationCharge
+    getCustomizationCharge,
+    serviceAreas
   } = useAppContext();
 
   const [cartArray, setCartArray] = useState([]);
@@ -157,6 +158,9 @@ const Cart = () => {
 
 
 
+  // Tip state
+  const [tipAmount, setTipAmount] = useState(0);
+
   // --- CALCULATE TOTALS EARLY TO AVOID REFERENCE ERRORS ---
   const subtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity + (item.customizationCharge || 0), 0);
   const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity + (item.customizationCharge || 0), 0);
@@ -165,11 +169,22 @@ const Cart = () => {
   // Calculate Net Total before shipping to determine if fee applies
   // Convenience Fee (₹29) applies if (Subtotal - Discount) is strictly less than ₹299
   const netValueForShipping = subtotal - discountAmount;
-  const shippingFee = (cartArray.length > 0 && netValueForShipping < 299) ? 29 : 0;
+
+  // Dynamic Shipping Fee based on Pincode
+  const selectedArea = serviceAreas?.find(area => area.pincode === selectedAddress?.pincode);
+  const baseShippingFee = selectedArea ? (selectedArea.deliveryCharge ?? 0) : 29;
+  const freeDeliveryThreshold = selectedArea ? (selectedArea.minOrderForFreeDelivery ?? 299) : 299;
+
+  const shippingFee = (cartArray.length > 0 && netValueForShipping < freeDeliveryThreshold) ? baseShippingFee : 0;
+
+  // Split shipping fee into emotional components
+  const standardFee = shippingFee > 0 ? Math.min(shippingFee, 29) : 0;
+  const distanceSurcharge = shippingFee > 29 ? (shippingFee - 29) : 0;
+
   const tax = 0;
 
   // Final Total Amount
-  let totalAmount = subtotal + shippingFee + tax - discountAmount;
+  let totalAmount = subtotal + shippingFee + tax + tipAmount - discountAmount;
   if (totalAmount < 0) totalAmount = 0;
 
 
@@ -493,9 +508,10 @@ const Cart = () => {
           photo: user?.photo || '',
           phone: selectedAddress.phoneNumber
         },
-        instruction,
-        promoCode: promoApplied ? promoCode : null,
-        selectedGift: selectedGift,
+        instruction: instruction || "",
+        promoCode: promoCode || null,
+        selectedGift: selectedGift || null,
+        tipAmount: tipAmount || 0,
         location: locationData
       };
 
@@ -982,6 +998,11 @@ const Cart = () => {
           removePromo={removePromoCode}
           promoCode={promoCode}
           discountAmount={discountAmount}
+          baseShippingFee={baseShippingFee}
+          tipAmount={tipAmount}
+          setTipAmount={setTipAmount}
+          standardFee={standardFee}
+          distanceSurcharge={distanceSurcharge}
         />
       )}
       {/* Location Prompt Modal */}

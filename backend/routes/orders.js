@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const ServiceArea = require('../models/ServiceArea');
 const TelegramService = require('../services/TelegramService');
 const cache = require('../services/redis').cache;
 const { authenticateAdmin, checkBanned } = require('../middleware/auth');
@@ -252,16 +253,29 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
 
     // Recalculate totals if items are updated
     if (updateData.items && Array.isArray(updateData.items)) {
-      updateData.subtotal = updateData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      updateData.subtotal = updateData.items.reduce((sum, item) => sum + (item.price * item.quantity + (item.customizationCharge || 0)), 0);
       const discount = updateData.discountAmount || 0;
       const netValue = updateData.subtotal - discount;
 
       // Calculate shipping if not explicitly provided
       if (updateData.shippingFee === undefined) {
-        updateData.shippingFee = netValue >= 299 ? 0 : 29;
+        let shippingFee = 29;
+        let freeAbove = 299;
+
+        const pincode = updateData.shippingAddress?.pincode || (await Order.findById(orderId))?.shippingAddress?.pincode;
+        if (pincode) {
+          const area = await ServiceArea.findOne({ pincode, isActive: true });
+          if (area) {
+            shippingFee = area.deliveryCharge ?? 29;
+            freeAbove = area.minOrderForFreeDelivery ?? 299;
+          }
+        }
+
+        updateData.shippingFee = netValue >= freeAbove ? 0 : shippingFee;
       }
 
-      updateData.totalAmount = updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) - discount;
+      const tipAmount = updateData.tipAmount || (await Order.findById(orderId))?.tipAmount || 0;
+      updateData.totalAmount = updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) + tipAmount - discount;
     }
 
     const order = await Order.findByIdAndUpdate(

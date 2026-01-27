@@ -35,7 +35,8 @@ ${itemsText}
 
 ------------------------------------
 💰 <b>Subtotal:</b> ₹${order.subtotal}
-🚚 <b>Shipping:</b> ₹${order.shippingFee}
+🚚 <b>Shipping:</b> ₹${order.shippingFee} ${order.shippingFee > 29 ? `(Dist. Surcharge incl.)` : ''}
+💝 <b>Delivery Tip:</b> ₹${order.tipAmount || 0}
 🏷️ <b>Discount:</b> -₹${order.discountAmount}
 ✨ <b>Final Amount:</b> <b>₹${order.totalAmount}</b>
 

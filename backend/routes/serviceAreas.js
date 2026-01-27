@@ -40,7 +40,7 @@ router.get('/admin/all', authenticateAdmin, async (req, res) => {
 // POST Create new service area (Admin only)
 router.post('/', authenticateAdmin, async (req, res) => {
     try {
-        const { pincode, name, isActive } = req.body;
+        const { pincode, name, isActive, deliveryCharge, minOrderForFreeDelivery } = req.body;
 
         // Check if pincode already exists
         const existing = await ServiceArea.findOne({ pincode });
@@ -51,7 +51,13 @@ router.post('/', authenticateAdmin, async (req, res) => {
             });
         }
 
-        const newArea = new ServiceArea({ pincode, name, isActive });
+        const newArea = new ServiceArea({
+            pincode,
+            name,
+            isActive,
+            deliveryCharge: deliveryCharge || 0,
+            minOrderForFreeDelivery: minOrderForFreeDelivery || 0
+        });
         await newArea.save();
 
         res.status(201).json({
@@ -71,11 +77,17 @@ router.post('/', authenticateAdmin, async (req, res) => {
 // PUT Update service area (Admin only)
 router.put('/:id', authenticateAdmin, async (req, res) => {
     try {
-        const { pincode, name, isActive } = req.body;
+        const { pincode, name, isActive, deliveryCharge, minOrderForFreeDelivery } = req.body;
 
         const area = await ServiceArea.findByIdAndUpdate(
             req.params.id,
-            { pincode, name, isActive },
+            {
+                pincode,
+                name,
+                isActive,
+                deliveryCharge: deliveryCharge !== undefined ? deliveryCharge : 0,
+                minOrderForFreeDelivery: minOrderForFreeDelivery !== undefined ? minOrderForFreeDelivery : 0
+            },
             { new: true, runValidators: true }
         );
 
@@ -96,6 +108,61 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
         res.status(400).json({
             success: false,
             message: error.message || 'Error updating service area'
+        });
+    }
+});
+
+// PATCH Bulk update service areas (Admin only)
+router.patch('/bulk-update', authenticateAdmin, async (req, res) => {
+    try {
+        const { updates } = req.body;
+
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Updates array is required'
+            });
+        }
+
+        const results = [];
+        const errors = [];
+
+        // Process each update
+        for (const update of updates) {
+            try {
+                const { id, deliveryCharge, minOrderForFreeDelivery } = update;
+
+                const updateData = {};
+                if (deliveryCharge !== undefined) updateData.deliveryCharge = Number(deliveryCharge);
+                if (minOrderForFreeDelivery !== undefined) updateData.minOrderForFreeDelivery = Number(minOrderForFreeDelivery);
+
+                const area = await ServiceArea.findByIdAndUpdate(
+                    id,
+                    updateData,
+                    { new: true, runValidators: true }
+                );
+
+                if (area) {
+                    results.push(area);
+                } else {
+                    errors.push({ id, error: 'Not found' });
+                }
+            } catch (err) {
+                errors.push({ id: update.id, error: err.message });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Updated ${results.length} service area(s)`,
+            updated: results.length,
+            errors: errors.length > 0 ? errors : undefined
+        });
+    } catch (error) {
+        console.error('Error bulk updating service areas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error bulk updating service areas'
         });
     }
 });

@@ -165,6 +165,10 @@ const OrderSchema = new mongoose.Schema({
   selectedGift: {
     type: String,
     default: null
+  },
+  tipAmount: {
+    type: Number,
+    default: 0
   }
 }, {
 

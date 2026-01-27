@@ -14,8 +14,16 @@ const AdminServiceAreasDark = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingArea, setEditingArea] = useState(null);
-    const [formData, setFormData] = useState({ pincode: '', name: '', isActive: true });
+    const [formData, setFormData] = useState({
+        pincode: '',
+        name: '',
+        isActive: true,
+        deliveryCharge: 0,
+        minOrderForFreeDelivery: 0
+    });
     const [saving, setSaving] = useState(false);
+    const [bulkEditMode, setBulkEditMode] = useState(false);
+    const [bulkEditData, setBulkEditData] = useState({});
 
     useEffect(() => {
         fetchServiceAreas();
@@ -71,7 +79,9 @@ const AdminServiceAreasDark = () => {
                 body: JSON.stringify({
                     pincode: formData.pincode.trim(),
                     name: formData.name.trim(),
-                    isActive: formData.isActive
+                    isActive: formData.isActive,
+                    deliveryCharge: Number(formData.deliveryCharge),
+                    minOrderForFreeDelivery: Number(formData.minOrderForFreeDelivery)
                 })
             });
 
@@ -118,10 +128,22 @@ const AdminServiceAreasDark = () => {
     const handleOpenModal = (area = null) => {
         if (area) {
             setEditingArea(area);
-            setFormData({ pincode: area.pincode, name: area.name, isActive: area.isActive });
+            setFormData({
+                pincode: area.pincode,
+                name: area.name,
+                isActive: area.isActive,
+                deliveryCharge: area.deliveryCharge || 0,
+                minOrderForFreeDelivery: area.minOrderForFreeDelivery || 0
+            });
         } else {
             setEditingArea(null);
-            setFormData({ pincode: '', name: '', isActive: true });
+            setFormData({
+                pincode: '',
+                name: '',
+                isActive: true,
+                deliveryCharge: 0,
+                minOrderForFreeDelivery: 0
+            });
         }
         setIsModalOpen(true);
     };
@@ -129,7 +151,72 @@ const AdminServiceAreasDark = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingArea(null);
-        setFormData({ pincode: '', name: '', isActive: true });
+        setFormData({
+            pincode: '',
+            name: '',
+            isActive: true,
+            deliveryCharge: 0,
+            minOrderForFreeDelivery: 0
+        });
+    };
+
+    const handleBulkEditToggle = () => {
+        if (bulkEditMode) {
+            // Exiting bulk edit mode
+            setBulkEditData({});
+        }
+        setBulkEditMode(!bulkEditMode);
+    };
+
+    const handleBulkFieldChange = (areaId, field, value) => {
+        setBulkEditData(prev => ({
+            ...prev,
+            [areaId]: {
+                ...prev[areaId],
+                [field]: value
+            }
+        }));
+    };
+
+    const handleBulkSave = async () => {
+        const updates = Object.entries(bulkEditData).map(([id, changes]) => ({
+            id,
+            ...changes
+        }));
+
+        if (updates.length === 0) {
+            toast.error('No changes to save');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/service-areas/bulk-update`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ updates })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                toast.success(`Updated ${updates.length} service area(s)`);
+                fetchServiceAreas();
+                setBulkEditMode(false);
+                setBulkEditData({});
+            } else {
+                toast.error(result.message || 'Failed to save changes');
+            }
+        } catch (error) {
+            console.error('Error saving bulk changes:', error);
+            toast.error('Error saving changes');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const filteredAreas = serviceAreas.filter(area =>
@@ -160,12 +247,52 @@ const AdminServiceAreasDark = () => {
             )
         },
         {
+            key: 'deliveryCharge',
+            label: 'Delivery Fee',
+            sortable: true,
+            render: (charge, area) => {
+                if (bulkEditMode) {
+                    const currentValue = bulkEditData[area._id]?.deliveryCharge ?? charge;
+                    return (
+                        <input
+                            type="number"
+                            value={currentValue}
+                            onChange={(e) => handleBulkFieldChange(area._id, 'deliveryCharge', Number(e.target.value))}
+                            className={`w-20 px-2 py-1 rounded border ${tw.borderPrimary} ${tw.bgInput} ${tw.textPrimary} font-medium focus:ring-1 focus:ring-[#7aa2f7] focus:border-[#7aa2f7]`}
+                            min="0"
+                        />
+                    );
+                }
+                return <span className={`font-medium ${tw.textPrimary}`}>₹{charge || 0}</span>;
+            }
+        },
+        {
+            key: 'minOrderForFreeDelivery',
+            label: 'Free Above',
+            sortable: true,
+            render: (min, area) => {
+                if (bulkEditMode) {
+                    const currentValue = bulkEditData[area._id]?.minOrderForFreeDelivery ?? min;
+                    return (
+                        <input
+                            type="number"
+                            value={currentValue}
+                            onChange={(e) => handleBulkFieldChange(area._id, 'minOrderForFreeDelivery', Number(e.target.value))}
+                            className={`w-20 px-2 py-1 rounded border ${tw.borderPrimary} ${tw.bgInput} ${tw.textPrimary} font-medium focus:ring-1 focus:ring-[#7aa2f7] focus:border-[#7aa2f7]`}
+                            min="0"
+                        />
+                    );
+                }
+                return <span className={`font-medium ${tw.textPrimary}`}>₹{min || 0}</span>;
+            }
+        },
+        {
             key: 'isActive',
             label: 'Status',
             render: (isActive) => (
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActive
-                        ? 'bg-emerald-500/20 text-emerald-500'
-                        : 'bg-red-500/20 text-red-500'
+                    ? 'bg-emerald-500/20 text-emerald-500'
+                    : 'bg-red-500/20 text-red-500'
                     }`}>
                     {isActive ? 'Active' : 'Inactive'}
                 </span>
@@ -183,22 +310,25 @@ const AdminServiceAreasDark = () => {
         {
             key: 'actions',
             label: 'Actions',
-            render: (_, area) => (
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => handleOpenModal(area)}
-                        className={`p-1.5 rounded-lg hover:bg-[#7aa2f7]/10 text-[#7aa2f7] transition-colors`}
-                    >
-                        <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={() => handleDelete(area._id)}
-                        className={`p-1.5 rounded-lg hover:bg-[#f7768e]/10 text-[#f7768e] transition-colors`}
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-            )
+            render: (_, area) => {
+                if (bulkEditMode) return null;
+                return (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handleOpenModal(area)}
+                            className={`p-1.5 rounded-lg hover:bg-[#7aa2f7]/10 text-[#7aa2f7] transition-colors`}
+                        >
+                            <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => handleDelete(area._id)}
+                            className={`p-1.5 rounded-lg hover:bg-[#f7768e]/10 text-[#f7768e] transition-colors`}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                );
+            }
         }
     ];
 
@@ -211,13 +341,42 @@ const AdminServiceAreasDark = () => {
                         <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Service Areas</h1>
                         <p className={`text-sm ${tw.textSecondary}`}>Manage pincodes where delivery is available</p>
                     </div>
-                    <AdminButtonDark
-                        variant="primary"
-                        icon={Plus}
-                        onClick={() => handleOpenModal()}
-                    >
-                        Add New Area
-                    </AdminButtonDark>
+                    <div className="flex gap-2">
+                        {bulkEditMode ? (
+                            <>
+                                <AdminButtonDark
+                                    variant="success"
+                                    onClick={handleBulkSave}
+                                    disabled={saving || Object.keys(bulkEditData).length === 0}
+                                >
+                                    {saving ? 'Saving...' : `Save Changes (${Object.keys(bulkEditData).length})`}
+                                </AdminButtonDark>
+                                <AdminButtonDark
+                                    variant="outline"
+                                    onClick={handleBulkEditToggle}
+                                    disabled={saving}
+                                >
+                                    Cancel
+                                </AdminButtonDark>
+                            </>
+                        ) : (
+                            <>
+                                <AdminButtonDark
+                                    variant="outline"
+                                    onClick={handleBulkEditToggle}
+                                >
+                                    Bulk Edit
+                                </AdminButtonDark>
+                                <AdminButtonDark
+                                    variant="primary"
+                                    icon={Plus}
+                                    onClick={() => handleOpenModal()}
+                                >
+                                    Add New Area
+                                </AdminButtonDark>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Search */}
@@ -278,6 +437,24 @@ const AdminServiceAreasDark = () => {
                             placeholder="e.g., Saheed Nagar, Bhubaneswar"
                             required
                         />
+                        <div className="grid grid-cols-2 gap-4">
+                            <AdminInputDark
+                                label="Delivery Charge (₹)"
+                                type="number"
+                                value={formData.deliveryCharge}
+                                onChange={(e) => setFormData({ ...formData, deliveryCharge: e.target.value })}
+                                placeholder="e.g., 49"
+                                required
+                            />
+                            <AdminInputDark
+                                label="Free Delivery Above (₹)"
+                                type="number"
+                                value={formData.minOrderForFreeDelivery}
+                                onChange={(e) => setFormData({ ...formData, minOrderForFreeDelivery: e.target.value })}
+                                placeholder="e.g., 499"
+                                required
+                            />
+                        </div>
                         <div className="flex items-center gap-3 p-3 rounded-lg bg-[#1a1b26] border border-[#24283b]">
                             <label className="flex flex-1 items-center gap-2 cursor-pointer">
                                 <input

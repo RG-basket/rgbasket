@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ const statusIcons = {
 };
 
 // Helper function to recalculate totals for any order
-const recalculateOrderTotals = (order) => {
+const recalculateOrderTotals = (order, serviceAreas = []) => {
   if (!order || !order.items) return order;
 
   // Calculate subtotal from items (include customization charge)
@@ -31,14 +31,22 @@ const recalculateOrderTotals = (order) => {
   // Calculate net value for shipping (subtotal - discount)
   const netValueForShipping = subtotal - discountAmount;
 
-  // Shipping fee: ₹29 if net value < ₹299, otherwise ₹0
-  const shippingFee = (order.items.length > 0 && netValueForShipping < 299) ? 29 : 0;
+  // Dynamic Shipping Fee based on Pincode
+  const pincode = order.shippingAddress?.pincode;
+  const selectedArea = serviceAreas.find(area => area.pincode === pincode);
+  const baseShippingFee = selectedArea ? (selectedArea.deliveryCharge ?? 0) : 29;
+  const freeDeliveryThreshold = selectedArea ? (selectedArea.minOrderForFreeDelivery ?? 299) : 299;
+
+  const shippingFee = (order.items.length > 0 && netValueForShipping < freeDeliveryThreshold) ? baseShippingFee : 0;
+
+  // Tip Amount
+  const tipAmount = order.tipAmount || 0;
 
   // Tax (usually 0)
   const tax = order.tax || 0;
 
-  // Final total: subtotal + shipping + tax - discount
-  let totalAmount = subtotal + shippingFee + tax - discountAmount;
+  // Calculate final total
+  let totalAmount = subtotal + shippingFee + tax + tipAmount - discountAmount;
   if (totalAmount < 0) totalAmount = 0;
 
   return {
@@ -90,6 +98,7 @@ const AdminOrdersDark = () => {
 
   // Product Search State
   const [products, setProducts] = useState([]);
+  const [serviceAreas, setServiceAreas] = useState([]);
   const [productSearch, setProductSearch] = useState('');
   const [showProductResults, setShowProductResults] = useState(false);
   const navigate = useNavigate();
@@ -165,7 +174,7 @@ const AdminOrdersDark = () => {
 
       const data = await response.json();
       if (data.success) {
-        const processedOrders = (data.orders || []).map(recalculateOrderTotals);
+        const processedOrders = (data.orders || []).map(order => recalculateOrderTotals(order, serviceAreas));
         setOrders(processedOrders);
 
         if (data.statusCounts) {
@@ -192,7 +201,26 @@ const AdminOrdersDark = () => {
       fetchOrders(1);
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchTerm, filterStatus, dateFilter, deliveryDateFilter]);
+  }, [searchTerm, filterStatus, dateFilter, deliveryDateFilter, serviceAreas]);
+
+  // Fetch Service Areas
+  useEffect(() => {
+    const fetchServiceAreas = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/service-areas/admin/all`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setServiceAreas(data.serviceAreas || []);
+        }
+      } catch (error) {
+        console.error('Error fetching service areas:', error);
+      }
+    };
+    fetchServiceAreas();
+  }, []);
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
@@ -250,7 +278,7 @@ const AdminOrdersDark = () => {
     try {
       const token = localStorage.getItem('adminToken');
 
-      const updatedOrder = recalculateOrderTotals(editingOrder);
+      const updatedOrder = recalculateOrderTotals(editingOrder, serviceAreas);
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/admin/orders/${editingOrder._id}`, {
         method: 'PUT',
@@ -397,7 +425,7 @@ const AdminOrdersDark = () => {
     const printWindow = window.open('', '_blank');
 
     // Recalculate order totals to ensure correct values in print
-    const order = recalculateOrderTotals(selectedOrder);
+    const order = recalculateOrderTotals(selectedOrder, serviceAreas);
 
     const billHtml = `
 <!DOCTYPE html>
@@ -1397,6 +1425,14 @@ const AdminOrdersDark = () => {
                             <td colSpan="4" className={`px-4 py-2 text-sm text-right text-green-400`}>Discount ({displayOrder.promoCode})</td>
                             <td className={`px-4 py-2 text-sm text-right text-green-400`}>
                               - ₹{displayOrder.discountAmount?.toFixed(2)}
+                            </td>
+                          </tr>
+                        )}
+                        {displayOrder.tipAmount > 0 && (
+                          <tr>
+                            <td colSpan="4" className={`px-4 py-2 text-sm text-right text-orange-400`}>Delivery Tip 💝</td>
+                            <td className={`px-4 py-2 text-sm text-right text-orange-400`}>
+                              + ₹{displayOrder.tipAmount?.toFixed(2)}
                             </td>
                           </tr>
                         )}

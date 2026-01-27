@@ -16,6 +16,14 @@ const serviceAreaSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    deliveryCharge: {
+        type: Number,
+        default: 0
+    },
+    minOrderForFreeDelivery: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true
