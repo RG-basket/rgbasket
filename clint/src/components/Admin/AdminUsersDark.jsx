@@ -17,6 +17,7 @@ const AdminUsersDark = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expandedOrders, setExpandedOrders] = useState(false);
+    const [activeFilter, setActiveFilter] = useState('all'); // all, online, dau
 
     const [page, setPage] = useState(1);
     const [totalUsers, setTotalUsers] = useState(0);
@@ -44,12 +45,14 @@ const AdminUsersDark = () => {
         fetchUsers(1);
     }, []);
 
-    const fetchUsers = async (pageNumber = 1, searchTermOverride = null) => {
+    const fetchUsers = async (pageNumber = 1, searchTermOverride = null, filterOverride = null) => {
         try {
             setLoading(true);
             const token = localStorage.getItem('adminToken');
             const term = searchTermOverride !== null ? searchTermOverride : searchQuery;
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users?page=${pageNumber}&limit=10&search=${term}`, {
+            const targetFilter = filterOverride !== null ? filterOverride : activeFilter;
+
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users?page=${pageNumber}&limit=10&search=${term}&filter=${targetFilter}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (response.ok) {
@@ -80,6 +83,12 @@ const AdminUsersDark = () => {
 
     const toggleBan = async (userId, currentBanStatus) => {
         try {
+            let banReason = '';
+            if (!currentBanStatus) {
+                banReason = window.prompt('Enter reason for banning this user:', 'Suspicious activity / Fake orders');
+                if (banReason === null) return; // Cancelled
+            }
+
             const token = localStorage.getItem('adminToken');
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users/${userId}/ban`, {
                 method: 'PATCH',
@@ -87,14 +96,17 @@ const AdminUsersDark = () => {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ isBanned: !currentBanStatus })
+                body: JSON.stringify({
+                    isBanned: !currentBanStatus,
+                    banReason: banReason || 'No reason provided'
+                })
             });
 
             if (response.ok) {
                 toast.success(`User ${!currentBanStatus ? 'banned' : 'unbanned'} successfully`);
                 fetchUsers(page);
                 if (selectedUser?._id === userId) {
-                    setSelectedUser({ ...selectedUser, isBanned: !currentBanStatus });
+                    setSelectedUser({ ...selectedUser, isBanned: !currentBanStatus, banReason: banReason });
                 }
             } else {
                 toast.error('Failed to update user status');
@@ -124,7 +136,14 @@ const AdminUsersDark = () => {
                         <div className="flex items-center gap-2">
                             <p className={`font-medium ${tw.textPrimary}`}>{user.name}</p>
                             {user.isBanned && (
-                                <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-red-500/20 text-red-500 tracking-tighter uppercase border border-red-500/30">Banned</span>
+                                <div className="group relative">
+                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-red-500/20 text-red-500 tracking-tighter uppercase border border-red-500/30 cursor-help">Banned</span>
+                                    {user.banReason && (
+                                        <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-red-900 border border-red-500 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                            <strong>Reason:</strong> {user.banReason}
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                         <p className={`text-xs ${tw.textSecondary}`}>Joined {new Date(user.createdAt).toLocaleDateString()}</p>
@@ -226,30 +245,55 @@ const AdminUsersDark = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Users</h1>
-                        <p className={`text-sm ${tw.textSecondary}`}>Manage registered customers</p>
+                        <p className={`text-sm ${tw.textSecondary}`}>
+                            {activeFilter === 'online' ? 'Viewing Live Users (Active in last 5m)' :
+                                activeFilter === 'dau' ? 'Viewing Daily Active Users (Last 24h)' :
+                                    'Manage registered customers'}
+                        </p>
                     </div>
+                    {activeFilter !== 'all' && (
+                        <AdminButtonDark
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setActiveFilter('all');
+                                fetchUsers(1, null, 'all');
+                            }}
+                        >
+                            Reset Filters
+                        </AdminButtonDark>
+                    )}
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <StatsCardDark
-                        title="Total Users"
-                        value={userStats.total}
-                        icon={User}
-                        color="blue"
-                    />
-                    <StatsCardDark
-                        title="Online Now"
-                        value={userStats.onlineNow}
-                        icon={Shield}
-                        color="green"
-                    />
-                    <StatsCardDark
-                        title="DAU (Last 24h)"
-                        value={userStats.dau}
-                        icon={Calendar}
-                        color="purple"
-                    />
+                    <div className="cursor-pointer transition-transform active:scale-95" onClick={() => { setActiveFilter('all'); fetchUsers(1, null, 'all'); }}>
+                        <StatsCardDark
+                            title="Total Users"
+                            value={userStats.total}
+                            icon={User}
+                            color="blue"
+                            className={activeFilter === 'all' ? 'ring-2 ring-blue-500' : ''}
+                        />
+                    </div>
+                    <div className="cursor-pointer transition-transform active:scale-95" onClick={() => { setActiveFilter('online'); fetchUsers(1, null, 'online'); }}>
+                        <StatsCardDark
+                            title="Online Now"
+                            value={userStats.onlineNow}
+                            icon={Shield}
+                            color="green"
+                            className={activeFilter === 'online' ? 'ring-2 ring-green-500' : ''}
+                        />
+                    </div>
+                    <div className="cursor-pointer transition-transform active:scale-95" onClick={() => { setActiveFilter('dau'); fetchUsers(1, null, 'dau'); }}>
+                        <StatsCardDark
+                            title="DAU (Last 24h)"
+                            value={userStats.dau}
+                            icon={Calendar}
+                            color="purple"
+                            className={activeFilter === 'dau' ? 'ring-2 ring-purple-500' : ''}
+                        />
+                    </div>
                     <StatsCardDark
                         title="Total Admins"
                         value={userStats.totalAdmins}
@@ -314,6 +358,11 @@ const AdminUsersDark = () => {
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${selectedUser.role === 'admin' ? 'bg-[#bb9af7]/20 text-[#bb9af7]' : 'bg-[#7aa2f7]/20 text-[#7aa2f7]'}`}>
                                             {selectedUser.role || 'User'}
                                         </span>
+                                        {selectedUser.isBanned && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-500 border border-red-500/30">
+                                                BANNED: {selectedUser.banReason || 'No reason specified'}
+                                            </span>
+                                        )}
                                         <p className={`text-xs ${tw.textSecondary} flex items-center gap-1`}>
                                             <Calendar className="w-3 h-3" /> Joined {new Date(selectedUser.createdAt).toLocaleDateString()}
                                         </p>

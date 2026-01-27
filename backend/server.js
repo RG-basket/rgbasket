@@ -127,6 +127,9 @@ const offerRoutes = require('./routes/offerRoutes');
 const serviceAreaRoutes = require('./routes/serviceAreas');
 
 
+// Import middleware
+const { checkBanned } = require('./middleware/auth');
+
 // Use routes
 app.use('/api/admin', adminRoutes);
 app.use('/api/orders', orderRoutes);
@@ -178,7 +181,7 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // Update user profile
-app.put('/api/users/:userId', async (req, res) => {
+app.put('/api/users/:userId', checkBanned, async (req, res) => {
   try {
     const { name, email, phone, photo } = req.body;
 
@@ -215,7 +218,7 @@ app.put('/api/users/:userId', async (req, res) => {
 });
 
 // Get user details
-app.get('/api/users/:userId', async (req, res) => {
+app.get('/api/users/:userId', checkBanned, async (req, res) => {
   try {
     const userId = req.params.userId;
     const query = mongoose.isValidObjectId(userId)
@@ -249,7 +252,7 @@ app.get('/api/users/:userId', async (req, res) => {
 });
 
 // Get orders for specific user
-app.get('/api/orders/user/:userId', async (req, res) => {
+app.get('/api/orders/user/:userId', checkBanned, async (req, res) => {
   try {
     const Order = require('./models/Order');
     const orders = await Order.find({ user: req.params.userId })

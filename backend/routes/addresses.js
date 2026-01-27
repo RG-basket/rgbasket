@@ -4,7 +4,7 @@ const UserAddress = require('../models/UserAddress');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const { cache } = require("../services/redis");
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, checkBanned } = require('../middleware/auth');
 
 // Admin: Capture/Save User Location
 router.post('/admin/capture', authenticateAdmin, async (req, res) => {
@@ -81,7 +81,7 @@ router.post('/admin/capture', authenticateAdmin, async (req, res) => {
 
 // Get all addresses for a user
 
-router.get('/user/:userId', async (req, res) => {
+router.get('/user/:userId', checkBanned, async (req, res) => {
   try {
     console.log('Fetching addresses for user:', req.params.userId);
 
@@ -105,7 +105,7 @@ router.get('/user/:userId', async (req, res) => {
 
 // Create new address
 // Create new address
-router.post('/', async (req, res) => {
+router.post('/', checkBanned, async (req, res) => {
   try {
     console.log('📝 Creating new address request received');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
@@ -197,7 +197,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Set default address
-router.patch('/:id/set-default', async (req, res) => {
+router.patch('/:id/set-default', checkBanned, async (req, res) => {
   try {
     await UserAddress.updateMany(
       { user: req.body.userId },

@@ -29,7 +29,12 @@ const BanScreen = ({ user }) => {
                     <h3 className="font-bold text-gray-800 mb-2 underline decoration-red-200">User Details:</h3>
                     <p className="text-sm text-gray-600"><span className="font-bold">Name:</span> {user?.name}</p>
                     <p className="text-sm text-gray-600"><span className="font-bold">Email:</span> {user?.email}</p>
-                    <p className="text-sm text-gray-600"><span className="font-bold">Status:</span> <span className="text-red-600 font-black">BANNED</span></p>
+                    {user?.isBanned && user?.banReason && (
+                        <p className="text-sm text-gray-600 mt-2 p-2 bg-red-50 rounded border border-red-100">
+                            <span className="font-bold text-red-700">Reason:</span> {user.banReason}
+                        </p>
+                    )}
+                    <p className="text-sm text-gray-600 mt-2 font-medium">Status: <span className="text-red-600 font-bold uppercase tracking-widest">Restricted</span></p>
                 </div>
 
                 <div className="space-y-4">

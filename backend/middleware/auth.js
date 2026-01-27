@@ -42,4 +42,35 @@ const authenticateAdminOr404 = (req, res, next) => {
   }
 };
 
-module.exports = { authenticateAdmin, authenticateAdminOr404 };
+const checkBanned = async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const userId = req.body.userId || req.body.user || req.params.userId || req.query.userId;
+
+    if (!userId) {
+      return next();
+    }
+
+    const query = require('mongoose').isValidObjectId(userId)
+      ? { _id: userId }
+      : { googleId: userId };
+
+    const user = await User.findOne(query);
+
+    if (user && user.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: user.banReason || 'Your account has been restricted. Please contact support.',
+        reason: user.banReason,
+        isBanned: true
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error in checkBanned middleware:', error);
+    next();
+  }
+};
+
+module.exports = { authenticateAdmin, authenticateAdminOr404, checkBanned };

@@ -17,18 +17,31 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const search = req.query.search || '';
+    const filter = req.query.filter || 'all'; // all, online, dau
 
-    // Build search query
-    const searchFilter = search ? {
-      $or: [
+    // Build the base filter
+    let baseFilter = {};
+
+    // Add search if provided
+    if (search) {
+      baseFilter.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
-      ]
-    } : {};
+      ];
+    }
+
+    // Apply categorical filters
+    if (filter === 'online') {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      baseFilter.lastActive = { $gte: fiveMinutesAgo };
+    } else if (filter === 'dau') {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      baseFilter.lastActive = { $gte: twentyFourHoursAgo };
+    }
 
     // Use aggregation for high performance
     const usersWithStats = await User.aggregate([
-      { $match: searchFilter },
+      { $match: baseFilter },
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: limit },
@@ -93,7 +106,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
       }
     ]);
 
-    const total = await User.countDocuments(searchFilter);
+    const total = await User.countDocuments(baseFilter);
     const totalActive = await User.countDocuments({ isBanned: { $ne: true } });
 
     // Online Now: Active in the last 5 minutes
@@ -135,10 +148,13 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 router.patch('/users/:userId/ban', authenticateAdmin, async (req, res) => {
   try {
     const User = require('../models/User');
-    const { isBanned } = req.body;
+    const { isBanned, banReason } = req.body;
     const user = await User.findByIdAndUpdate(
       req.params.userId,
-      { isBanned },
+      {
+        isBanned,
+        banReason: isBanned ? (banReason || 'No reason provided') : ''
+      },
       { new: true }
     ).select('-googleId');
 

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { tw } from '../../../config/tokyoNightTheme';
 
-const StatsCardDark = ({ title, value, icon: Icon, trend, trendValue, color = 'blue' }) => {
+const StatsCardDark = ({ title, value, icon: Icon, trend, trendValue, color = 'blue', className = '' }) => {
     const colorMap = {
         blue: { bg: 'bg-[#7aa2f7]/10', text: 'text-[#7aa2f7]', border: 'border-[#7aa2f7]/20' },
         green: { bg: 'bg-[#9ece6a]/10', text: 'text-[#9ece6a]', border: 'border-[#9ece6a]/20' },
@@ -18,7 +18,7 @@ const StatsCardDark = ({ title, value, icon: Icon, trend, trendValue, color = 'b
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`${tw.bgSecondary} rounded-xl p-6 border ${tw.borderPrimary} shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#7aa2f7]/50 group`}
+            className={`${tw.bgSecondary} rounded-xl p-6 border ${tw.borderPrimary} shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#7aa2f7]/50 group ${className}`}
         >
             <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-lg ${theme.bg} ${theme.text} group-hover:scale-110 transition-transform duration-300`}>

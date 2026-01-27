@@ -3,12 +3,12 @@ const router = express.Router();
 const Order = require('../models/Order');
 const TelegramService = require('../services/TelegramService');
 const cache = require('../services/redis').cache;
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, checkBanned } = require('../middleware/auth');
 
 const OrderService = require('../services/OrderService');
 
 // Create new order from cart
-router.post('/', async (req, res) => {
+router.post('/', checkBanned, async (req, res) => {
   try {
     console.log('🔍 Order creation request body:', JSON.stringify(req.body, null, 2));
 
@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET ORDERS FOR SPECIFIC USER
-router.get('/user/:userId', async (req, res) => {
+router.get('/user/:userId', checkBanned, async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -295,7 +295,7 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
 });
 
 // Cancel order (for users)
-router.put("/:orderId/cancel", async (req, res) => {
+router.put("/:orderId/cancel", checkBanned, async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status, cancelReason } = req.body;

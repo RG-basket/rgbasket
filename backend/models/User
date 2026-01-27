@@ -34,6 +34,10 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  banReason: {
+    type: String,
+    default: ''
+  },
   // Admin privileges
   isAdmin: {
     type: Boolean,
