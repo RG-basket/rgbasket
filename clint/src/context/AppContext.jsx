@@ -197,15 +197,70 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-  // ===== AUTHENTICATION =====
   useEffect(() => {
     loadAuthState();
     loadCartState();
-    // loadSlotState is now async, so we need to call it properly
     loadSlotState().catch(err => {
       console.error('Error loading slot state on mount:', err);
     });
+
+    // RE-VERIFY BAN STATUS when user brings tab back to focus
+    // Optimized Ban Check: Don't ping server more than once every 2 minutes
+    const throttledCheck = () => {
+      const lastCheck = localStorage.getItem('lastBanCheck');
+      const now = Date.now();
+      const TWO_MINUTES = 2 * 60 * 1000;
+
+      // Only check if never checked, or 2 mins passed, or user is already banned in local state
+      if (!lastCheck || (now - parseInt(lastCheck)) > TWO_MINUTES || JSON.parse(localStorage.getItem('user'))?.isBanned) {
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          checkUserStatus(userData.id || userData._id);
+          localStorage.setItem('lastBanCheck', now.toString());
+        }
+      }
+    };
+
+    window.addEventListener('focus', throttledCheck);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') throttledCheck();
+    });
+
+    return () => {
+      window.removeEventListener('focus', throttledCheck);
+      document.removeEventListener('visibilitychange', throttledCheck);
+    };
   }, []);
+
+  const checkUserStatus = async (userId) => {
+    if (!userId) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/users/${userId}`);
+      if (response.data.success) {
+        const updatedUser = {
+          ...response.data.user,
+          id: response.data.user._id
+        };
+
+        // Only update state if something actually changed to avoid re-renders
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        if (JSON.stringify(currentUser) !== JSON.stringify(updatedUser)) {
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+
+        if (updatedUser.isBanned) {
+          console.warn('🛑 User is currently banned');
+        }
+      }
+    } catch (error) {
+      if (error.response?.status === 404) {
+        logout();
+      }
+      console.error('Error checking user status:', error);
+    }
+  };
 
   const loadAuthState = () => {
     try {
@@ -216,6 +271,14 @@ export const AppContextProvider = ({ children }) => {
         const userData = JSON.parse(savedUser);
         setUser(userData);
         setIsLoggedIn(true);
+
+        // IMMEDIATE CHECK: If the local cache says they are banned, keep them blocked
+        if (userData.isBanned === true) {
+          console.log('User is banned (from local storage)');
+        }
+
+        // Verify fresh ban status from server in background
+        checkUserStatus(userData.id || userData._id || userData.googleId);
       }
     } catch (error) {
       console.error('Error loading auth state:', error);

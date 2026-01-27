@@ -88,16 +88,26 @@ const ScrollToTop = () => {
   return null;
 };
 
+import BanScreen from "./components/Auth/BanScreen.jsx";
+
 const App = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
-  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup } = useAppContext();
+  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user } = useAppContext();
+
+  // console.log('Current User in App:', user);
+
 
   // Removed Escape key listener to strictly enforce "dismissible only via X button"
   // as per requirements.
 
   return (
     <div className="min-h-screen flex flex-col justify-between">
+      {/* GLOBAL BAN OVERLAY */}
+      {user && user.isBanned === true && !isAdminPath && (
+        <BanScreen user={user} />
+      )}
+
       <ScrollToTop />
       {!isAdminPath && <LoginGuard />}
       {!isAdminPath && <InstallPopup />}

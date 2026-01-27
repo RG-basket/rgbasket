@@ -78,6 +78,33 @@ const AdminUsersDark = () => {
 
     const filteredUsers = users;
 
+    const toggleBan = async (userId, currentBanStatus) => {
+        try {
+            const token = localStorage.getItem('adminToken');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users/${userId}/ban`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ isBanned: !currentBanStatus })
+            });
+
+            if (response.ok) {
+                toast.success(`User ${!currentBanStatus ? 'banned' : 'unbanned'} successfully`);
+                fetchUsers(page);
+                if (selectedUser?._id === userId) {
+                    setSelectedUser({ ...selectedUser, isBanned: !currentBanStatus });
+                }
+            } else {
+                toast.error('Failed to update user status');
+            }
+        } catch (error) {
+            console.error('Error toggling ban:', error);
+            toast.error('Error updating user status');
+        }
+    };
+
     const columns = [
         {
             key: 'name',
@@ -85,11 +112,21 @@ const AdminUsersDark = () => {
             sortable: true,
             render: (_, user) => (
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-[#7aa2f7] to-[#bb9af7] flex items-center justify-center text-[#1a1b26] font-bold shadow-lg shadow-blue-500/20`}>
+                    <div className={`relative w-10 h-10 rounded-full bg-gradient-to-br from-[#7aa2f7] to-[#bb9af7] flex items-center justify-center text-[#1a1b26] font-bold shadow-lg shadow-blue-500/20`}>
                         {user.name?.charAt(0).toUpperCase()}
+                        {user.isBanned && (
+                            <div className="absolute -top-1 -right-1 bg-red-500 border-2 border-[#1a1b26] rounded-full p-0.5">
+                                <Shield className="w-2.5 h-2.5 text-white" />
+                            </div>
+                        )}
                     </div>
                     <div>
-                        <p className={`font-medium ${tw.textPrimary}`}>{user.name}</p>
+                        <div className="flex items-center gap-2">
+                            <p className={`font-medium ${tw.textPrimary}`}>{user.name}</p>
+                            {user.isBanned && (
+                                <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-red-500/20 text-red-500 tracking-tighter uppercase border border-red-500/30">Banned</span>
+                            )}
+                        </div>
                         <p className={`text-xs ${tw.textSecondary}`}>Joined {new Date(user.createdAt).toLocaleDateString()}</p>
                     </div>
                 </div>
@@ -152,17 +189,32 @@ const AdminUsersDark = () => {
             key: 'actions',
             label: 'Actions',
             render: (_, user) => (
-                <AdminButtonDark
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedUser(user);
-                        setIsModalOpen(true);
-                    }}
-                >
-                    Details
-                </AdminButtonDark>
+                <div className="flex items-center gap-2">
+                    <AdminButtonDark
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedUser(user);
+                            setIsModalOpen(true);
+                        }}
+                    >
+                        Details
+                    </AdminButtonDark>
+                    <AdminButtonDark
+                        variant="ghost"
+                        size="sm"
+                        className={user.isBanned ? "text-green-500 hover:bg-green-500/10" : "text-red-500 hover:bg-red-500/10"}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Are you sure you want to ${user.isBanned ? 'unban' : 'ban'} this user?`)) {
+                                toggleBan(user._id, user.isBanned);
+                            }
+                        }}
+                    >
+                        {user.isBanned ? 'Unban' : 'Ban'}
+                    </AdminButtonDark>
+                </div>
             )
         }
     ];

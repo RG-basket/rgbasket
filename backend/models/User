@@ -29,6 +29,11 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Specifically to track formal bans
+  isBanned: {
+    type: Boolean,
+    default: false
+  },
   // Admin privileges
   isAdmin: {
     type: Boolean,

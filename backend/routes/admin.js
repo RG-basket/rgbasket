@@ -82,6 +82,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
           phone: 1,
           role: 1,
           active: 1,
+          isBanned: 1,
           photo: 1,
           createdAt: 1,
           lastActive: 1,
@@ -93,7 +94,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     ]);
 
     const total = await User.countDocuments(searchFilter);
-    const totalActive = await User.countDocuments({ active: { $ne: false } });
+    const totalActive = await User.countDocuments({ isBanned: { $ne: true } });
 
     // Online Now: Active in the last 5 minutes
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -130,7 +131,38 @@ router.get('/users', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Toggle user active status
+// Toggle user ban status
+router.patch('/users/:userId/ban', authenticateAdmin, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const { isBanned } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { isBanned },
+      { new: true }
+    ).select('-googleId');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `User ${isBanned ? 'banned' : 'unbanned'} successfully`,
+      user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating user status'
+    });
+  }
+});
+
+// Toggle user active status (legacy compatibility)
 router.patch('/users/:userId/status', authenticateAdmin, async (req, res) => {
   try {
     const User = require('../models/User');
@@ -150,7 +182,7 @@ router.patch('/users/:userId/status', authenticateAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      message: `User ${active ? 'activated' : 'banned'} successfully`,
+      message: `User ${active ? 'activated' : 'deactivated'} successfully`,
       user
     });
   } catch (error) {

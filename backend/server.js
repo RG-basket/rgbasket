@@ -19,7 +19,7 @@ const BACKEND_URL = process.env.BACKEND_URL;
 app.use(cors({
   origin: "*",
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
@@ -178,7 +178,7 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // Update user profile
-app.put('/api/users/:userId', safeCache(900), async (req, res) => {
+app.put('/api/users/:userId', async (req, res) => {
   try {
     const { name, email, phone, photo } = req.body;
 
@@ -215,7 +215,7 @@ app.put('/api/users/:userId', safeCache(900), async (req, res) => {
 });
 
 // Get user details
-app.get('/api/users/:userId', safeCache(900), async (req, res) => {
+app.get('/api/users/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
     const query = mongoose.isValidObjectId(userId)
