@@ -251,8 +251,14 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
     if (pincodeStatus === 'valid') {
       const area = serviceAreas.find(p => p.pincode === formData.pincode);
       if (area) {
+        const totalCharge = area.deliveryCharge ?? 29;
+        const standardFee = Math.min(totalCharge, 29);
+        const surcharge = totalCharge > 29 ? (totalCharge - 29) : 0;
+
         return {
-          charge: area.deliveryCharge ?? 29,
+          charge: totalCharge,
+          standardFee: standardFee,
+          surcharge: surcharge,
           freeAbove: area.minOrderForFreeDelivery ?? 299
         };
       }
@@ -820,15 +826,50 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
                               <span className="font-medium">✅ Serviceable area: {serviceAreas.find(p => p.pincode === formData.pincode)?.name}</span>
                             </div>
                             {deliveryInfo && (
-                              <div className="bg-green-50 p-3 rounded-xl border border-green-200 flex justify-between items-center text-xs shadow-sm">
-                                <div className="flex flex-col">
-                                  <span className="text-green-600 font-semibold uppercase text-[10px] tracking-wider mb-1">Standard Delivery</span>
-                                  <span className="font-bold text-lg text-gray-800">₹{deliveryInfo.charge}</span>
+                              <div className="bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100/50 mt-2">
+                                <div className="flex justify-between items-center pb-2 border-b border-emerald-100/30 mb-2">
+                                  <span className="text-sm font-semibold text-emerald-800">Delivery Information</span>
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-white px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-tight">
+                                    Serviceable Area
+                                  </span>
                                 </div>
-                                <div className="h-8 w-px bg-green-200"></div>
-                                <div className="flex flex-col text-right">
-                                  <span className="text-green-600 font-semibold uppercase text-[10px] tracking-wider mb-1">Free Above</span>
-                                  <span className="font-bold text-lg text-gray-800">₹{deliveryInfo.freeAbove}</span>
+
+                                <div className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500 font-medium">Standard Delivery Fee</span>
+                                    <span className="font-bold text-gray-700">₹{deliveryInfo.standardFee}</span>
+                                  </div>
+
+                                  {deliveryInfo.surcharge > 0 && (
+                                    <div className="flex justify-between items-start text-sm">
+                                      <div className="flex flex-col">
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-gray-500 font-medium">Distance Surcharge</span>
+                                          <div className="group relative">
+                                            <span className="cursor-help text-amber-500 hover:text-amber-600">
+                                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                              </svg>
+                                            </span>
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
+                                              This ₹{deliveryInfo.surcharge} helps our partners cover fuel and effort for deliveries to remote locations.
+                                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-800"></div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <span className="text-[10px] text-amber-600 font-semibold italic">Additional fee for long-distance delivery 🚚</span>
+                                      </div>
+                                      <span className="font-bold text-amber-600">+ ₹{deliveryInfo.surcharge}</span>
+                                    </div>
+                                  )}
+
+                                  <div className="flex justify-between items-end pt-2 mt-1 border-t border-emerald-100/30">
+                                    <div className="flex flex-col">
+                                      <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">Total Charge</span>
+                                      <span className="text-[10px] text-gray-400 font-medium italic">FREE on orders above ₹{deliveryInfo.freeAbove}</span>
+                                    </div>
+                                    <span className="text-2xl font-black text-emerald-700 tracking-tighter">₹{deliveryInfo.charge}</span>
+                                  </div>
                                 </div>
                               </div>
                             )}
