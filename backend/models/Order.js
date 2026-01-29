@@ -171,11 +171,33 @@ const OrderSchema = new mongoose.Schema({
     default: 0
   }
 }, {
-
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+
+// Logic to check if an order can be cancelled
+OrderSchema.virtual('isCancellable').get(function () {
+  const cancellableStatuses = ['pending', 'confirmed'];
+  return cancellableStatuses.includes(this.status);
+});
+
+// Method to perform cancellation
+OrderSchema.methods.cancelOrder = async function (reason = 'Cancelled by user') {
+  if (!this.isCancellable) {
+    throw new Error('Order cannot be cancelled at this stage');
+  }
+
+  this.status = 'cancelled';
+  this.statusHistory = this.statusHistory || [];
+  this.statusHistory.push({
+    status: 'cancelled',
+    timestamp: new Date(),
+    comment: reason
+  });
+
+  return await this.save();
+};
 
 // Indexes for performance
 OrderSchema.index({ user: 1 });

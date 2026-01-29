@@ -480,7 +480,32 @@ class OrderService {
       throw new AppError('Order cannot be cancelled at this stage', 400);
     }
 
+    // Capture items and promo before cancellation for cleanup
+    const itemsToRevert = order.items.map(item => ({
+      productId: item.productId,
+      quantity: item.quantity
+    }));
+    const promoToRevert = order.promoCode;
+
     const cancelledOrder = await order.cancelOrder(reason);
+
+    // Atomic Reversions (Inventory and Promo)
+    try {
+      if (itemsToRevert.length > 0) {
+        await this.updateProductInventory(itemsToRevert, 'increment');
+        console.log(`[OrderService] Reverted stock for cancelled order ${orderId}`);
+      }
+
+      if (promoToRevert) {
+        await PromoCode.revertUsageAtomic(promoToRevert, userId, orderId);
+        console.log(`[OrderService] Reverted promo usage for cancelled order ${orderId}`);
+      }
+    } catch (err) {
+      console.error('[OrderService] Critical Background Error: Failed to revert resources for cancelled order:', err);
+      // We don't throw here because the order IS cancelled in DB, 
+      // but we log it for admin manual reconciliation.
+    }
+
     return this.formatOrderResponse(cancelledOrder);
   }
 

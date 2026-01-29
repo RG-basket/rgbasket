@@ -226,18 +226,42 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
       updateData.deliveredAt = new Date();
     }
 
+    const oldOrder = await Order.findById(orderId);
+    if (!oldOrder) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Handle Stock & Promo reversion if status is changing TO 'cancelled' from a non-cancelled status
+    if (status === 'cancelled' && oldOrder.status !== 'cancelled') {
+      try {
+        const OrderService = require('../services/OrderService');
+        const PromoCode = require('../models/PromoCode');
+
+        // Revert Stock
+        const itemsToRevert = oldOrder.items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity
+        }));
+        if (itemsToRevert.length > 0) {
+          await OrderService.updateProductInventory(itemsToRevert, 'increment');
+          console.log(`[Admin] Reverted stock for cancelled order ${orderId}`);
+        }
+
+        // Revert Promo Usage
+        if (oldOrder.promoCode) {
+          await PromoCode.revertUsageAtomic(oldOrder.promoCode, oldOrder.user, orderId);
+          console.log(`[Admin] Reverted promo usage for cancelled order ${orderId}`);
+        }
+      } catch (err) {
+        console.error('[Admin] Resource reversion failed during cancellation:', err);
+      }
+    }
+
     const order = await Order.findByIdAndUpdate(
       orderId,
       updateData,
       { new: true }
     );
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
 
     console.log(`✅ Order ${orderId} status updated to:`, status);
 
@@ -266,8 +290,12 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
 
     // Recalculate totals if items are updated
     if (updateData.items && Array.isArray(updateData.items)) {
-      updateData.subtotal = updateData.items.reduce((sum, item) => sum + (item.price * item.quantity + (item.customizationCharge || 0)), 0);
-      const discount = updateData.discountAmount || 0;
+      const rawSubtotal = updateData.items.reduce((sum, item) => sum + (item.price * item.quantity + (item.customizationCharge || 0)), 0);
+      updateData.subtotal = Math.round(rawSubtotal * 100) / 100;
+
+      const discount = Math.round((updateData.discountAmount || 0) * 100) / 100;
+      updateData.discountAmount = discount;
+
       const netValue = updateData.subtotal - discount;
 
       // Calculate shipping if not explicitly provided
@@ -284,12 +312,13 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
           }
         }
 
-        updateData.shippingFee = netValue >= freeAbove ? 0 : shippingFee;
+        updateData.shippingFee = (updateData.subtotal > 0 && netValue < freeAbove) ? Math.round(shippingFee * 100) / 100 : 0;
       }
 
-      const tipAmount = updateData.tipAmount || (await Order.findById(orderId))?.tipAmount || 0;
-      updateData.subtotal = Math.round(updateData.subtotal * 100) / 100;
-      let calculatedTotal = (updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) + tipAmount - discount);
+      const tipAmount = Math.round((updateData.tipAmount || (await Order.findById(orderId))?.tipAmount || 0) * 100) / 100;
+      const taxAmount = Math.round((updateData.tax || 0) * 100) / 100;
+
+      let calculatedTotal = (updateData.subtotal + (updateData.shippingFee || 0) + taxAmount + tipAmount - discount);
       updateData.totalAmount = Math.max(0, Math.round(calculatedTotal * 100) / 100);
     }
 

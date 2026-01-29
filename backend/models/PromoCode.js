@@ -101,6 +101,19 @@ promoCodeSchema.statics.registerUsageAtomic = async function (promoId, userId, o
     return result;
 };
 
+// Logic to revert promo usage if order is cancelled
+promoCodeSchema.statics.revertUsageAtomic = async function (promoCode, userId, orderId) {
+    if (!promoCode) return;
+
+    await this.findOneAndUpdate(
+        { code: promoCode },
+        {
+            $inc: { usageCount: -1 }, // Decrease total count
+            $pull: { usedBy: { user: userId } } // Remove usage record for this user
+        }
+    );
+};
+
 const PromoCode = mongoose.model('PromoCode', promoCodeSchema);
 
 module.exports = PromoCode;
