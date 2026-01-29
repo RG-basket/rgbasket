@@ -187,9 +187,11 @@ class OrderService {
       }
 
       // Find the specific weight variant ordered
-      // Assuming item.weight (from cart) matches one of the product.weights[].weight
-      // If no exact match, default to first weight variant
-      const productVariant = product.weights.find(w => w.weight === item.weight) || product.weights[0];
+      const productVariant = product.weights.find(w => w.weight === item.weight);
+
+      if (!productVariant) {
+        throw new AppError(`Invalid weight/variant "${item.weight}" for product ${product.name}`, 400);
+      }
 
       const price = productVariant.offerPrice || productVariant.price;
 

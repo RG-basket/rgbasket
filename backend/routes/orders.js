@@ -289,7 +289,8 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
 
       const tipAmount = updateData.tipAmount || (await Order.findById(orderId))?.tipAmount || 0;
       updateData.subtotal = Math.round(updateData.subtotal * 100) / 100;
-      updateData.totalAmount = Math.round((updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) + tipAmount - discount) * 100) / 100;
+      let calculatedTotal = (updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) + tipAmount - discount);
+      updateData.totalAmount = Math.max(0, Math.round(calculatedTotal * 100) / 100);
     }
 
     const order = await Order.findByIdAndUpdate(
