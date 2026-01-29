@@ -8,6 +8,7 @@ import OutOfStockWarning from './OutOfStockWarning';
 import DeliveryInstruction from './DeliveryInstruction';
 import PromoCodeSection from './PromoCodeSection';
 import { FaTimes } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 
 const OrderSummary = ({
     user,
@@ -165,10 +166,20 @@ const OrderSummary = ({
                                     value={customTipValue}
                                     onChange={(e) => {
                                         const val = e.target.value;
+                                        const numVal = Number(val);
+
+                                        if (numVal < 0) {
+                                            toast.error('Tip cannot be negative!');
+                                            setCustomTipValue('0');
+                                            setTipAmount(0);
+                                            return;
+                                        }
+
                                         setCustomTipValue(val);
-                                        setTipAmount(Number(val) || 0);
+                                        setTipAmount(numVal || 0);
                                     }}
                                     placeholder="Enter custom tip"
+                                    min="0"
                                     className="w-full bg-white border-2 border-green-200 rounded-xl py-3 pl-8 pr-4 text-sm font-bold focus:border-green-600 focus:ring-0 transition-colors"
                                 />
                             </div>
