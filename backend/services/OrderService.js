@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const PromoCode = require('../models/PromoCode');
 const ServiceArea = require('../models/ServiceArea');
+const Offer = require('../models/Offer');
 const TelegramService = require('./TelegramService');
 const AppError = require('../utils/AppError');
 
@@ -11,10 +12,16 @@ class OrderService {
    */
   async createOrder(orderData, userId) {
     try {
-      console.log('🛒 OrderService receiving data. Location present:', !!orderData.location);
-      if (orderData.location) {
-        console.log('📍 Location data details:', JSON.stringify(orderData.location, null, 2));
-      }
+      // 1. INPUT SANITIZATION & USER AUTH CHECK
+      const checkUserId = userId || orderData.user || orderData.userId;
+      if (!checkUserId) throw new AppError('Authentication required to place order', 401);
+
+      // Sanitize delivery instructions to prevent XSS/Injection
+      const instruction = orderData.instruction
+        ? orderData.instruction.toString().replace(/[<>]/g, '').slice(0, 1000)
+        : "";
+
+      console.log('🛒 OrderService receiving data. User:', checkUserId);
       // Validate products and inventory
       const { validatedItems, subtotal } = await this.validateOrderItems(orderData.items);
 
@@ -58,10 +65,27 @@ class OrderService {
         discountAmount = promoCodeDoc.calculateDiscount(subtotal);
       }
 
-      // Calculate pricing
+      // Calculate pricing (ignore client taxRate for security, use 0 or fetch from settings)
       const pincode = orderData.shippingAddress?.pincode;
-      const tipAmount = Number(orderData.tipAmount) || 0;
-      const pricing = await this.calculatePricing(subtotal, orderData.taxRate, discountAmount, pincode, tipAmount);
+      const tipAmount = Math.max(0, Number(orderData.tipAmount) || 0);
+      const pricing = await this.calculatePricing(subtotal, 0, discountAmount, pincode, tipAmount);
+
+      // Validate Free Gift (Anti-Cheat)
+      let finalSelectedGift = orderData.selectedGift;
+      if (finalSelectedGift) {
+        // Fetch valid offers for this subtotal
+        const validOffers = await Offer.find({
+          isActive: true,
+          minOrderValue: { $lte: pricing.subtotal }
+        });
+
+        const allValidGifts = validOffers.flatMap(o => o.options);
+
+        if (!allValidGifts.includes(finalSelectedGift)) {
+          console.warn(`[OrderService] Anti-Cheat: Blocked invalid gift "${finalSelectedGift}" for subtotal ₹${pricing.subtotal}`);
+          finalSelectedGift = null; // Strip the gift if they didn't earn it
+        }
+      }
 
       // Create order
       const order = new Order({
@@ -81,8 +105,9 @@ class OrderService {
         discountAmount: pricing.discount,
         originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount + pricing.tipAmount, // pre-discount
         finalTotal: pricing.totalAmount,
-        selectedGift: orderData.selectedGift || null,
-        tipAmount: pricing.tipAmount
+        selectedGift: finalSelectedGift || null,
+        tipAmount: pricing.tipAmount,
+        instruction: instruction // used the sanitized version
       });
 
 
@@ -154,6 +179,11 @@ class OrderService {
 
       if (product.stock < item.quantity) {
         throw new AppError(`Insufficient stock for ${product.name}. Available: ${product.stock}`, 400);
+      }
+
+      // Max item quantity anti-abuse (e.g. max 50 units per product per order)
+      if (item.quantity > 50) {
+        throw new AppError(`Quantity limit reached for ${product.name}. Max 50 units allowed.`, 400);
       }
 
       // Find the specific weight variant ordered
@@ -242,15 +272,16 @@ class OrderService {
     let freeDeliveryThreshold = 299;
 
     if (pincode) {
-      try {
-        const serviceArea = await ServiceArea.findOne({ pincode, isActive: true });
-        if (serviceArea) {
-          shippingFee = serviceArea.deliveryCharge !== undefined ? serviceArea.deliveryCharge : 29;
-          freeDeliveryThreshold = serviceArea.minOrderForFreeDelivery !== undefined ? serviceArea.minOrderForFreeDelivery : 299;
-        }
-      } catch (err) {
-        console.error('[OrderService] Error fetching service area for pricing:', err);
+      const serviceArea = await ServiceArea.findOne({ pincode, isActive: true });
+      if (serviceArea) {
+        shippingFee = serviceArea.deliveryCharge !== undefined ? serviceArea.deliveryCharge : 29;
+        freeDeliveryThreshold = serviceArea.minOrderForFreeDelivery !== undefined ? serviceArea.minOrderForFreeDelivery : 299;
+      } else {
+        // Strict Security: Do not allow orders to unserviced pincodes at the API level
+        throw new AppError(`We do not serve the pincode ${pincode} yet.`, 400);
       }
+    } else {
+      throw new AppError('Shipping pincode is required', 400);
     }
 
     const finalShippingFee = (subtotal > 0 && netValue < freeDeliveryThreshold) ? shippingFee : 0;

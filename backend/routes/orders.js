@@ -7,9 +7,22 @@ const cache = require('../services/redis').cache;
 const { authenticateAdmin, checkBanned } = require('../middleware/auth');
 
 const OrderService = require('../services/OrderService');
+const rateLimit = require('express-rate-limit');
+
+// Strict limiting for order placement
+const orderLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 3, // limit each IP to 3 orders per minute
+  message: {
+    success: false,
+    message: 'Too many orders placed from this IP. Please wait a minute.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Create new order from cart
-router.post('/', checkBanned, async (req, res) => {
+router.post('/', orderLimiter, checkBanned, async (req, res) => {
   try {
     console.log('🔍 Order creation request body:', JSON.stringify(req.body, null, 2));
 
@@ -275,7 +288,8 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
       }
 
       const tipAmount = updateData.tipAmount || (await Order.findById(orderId))?.tipAmount || 0;
-      updateData.totalAmount = updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) + tipAmount - discount;
+      updateData.subtotal = Math.round(updateData.subtotal * 100) / 100;
+      updateData.totalAmount = Math.round((updateData.subtotal + (updateData.shippingFee || 0) + (updateData.tax || 0) + tipAmount - discount) * 100) / 100;
     }
 
     const order = await Order.findByIdAndUpdate(

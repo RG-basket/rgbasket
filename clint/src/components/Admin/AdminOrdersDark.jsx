@@ -22,6 +22,10 @@ const statusIcons = {
 const recalculateOrderTotals = (order, serviceAreas = []) => {
   if (!order || !order.items) return order;
 
+  // If serviceAreas are still loading, don't attempt to "correct" or "validate" the order
+  // to avoid false warnings based on fallback values.
+  const isLoading = !serviceAreas || serviceAreas.length === 0;
+
   // Calculate subtotal from items (include customization charge)
   const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity) + (item.customizationCharge || 0), 0);
 
@@ -33,7 +37,12 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
 
   // Dynamic Shipping Fee based on Pincode
   const pincode = order.shippingAddress?.pincode;
-  const selectedArea = serviceAreas.find(area => area.pincode === pincode);
+  const selectedArea = serviceAreas.find(area => area.pincode === pincode && area.isActive);
+
+  // Only apply rules if area found OR we are NOT in loading state
+  // If we are loading, we skip calculation to avoid false warnings
+  if (isLoading) return order;
+
   const baseShippingFee = selectedArea ? (selectedArea.deliveryCharge ?? 0) : 29;
   const freeDeliveryThreshold = selectedArea ? (selectedArea.minOrderForFreeDelivery ?? 299) : 299;
 
@@ -45,16 +54,23 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
   // Tax (usually 0)
   const tax = order.tax || 0;
 
-  // Calculate final total
-  let totalAmount = subtotal + shippingFee + tax + tipAmount - discountAmount;
+  // Calculate final total with exact rounding to match backend
+  const roundedSubtotal = Math.round(subtotal * 100) / 100;
+  const roundedShipping = Math.round(shippingFee * 100) / 100;
+  const roundedTax = Math.round(tax * 100) / 100;
+  const roundedTip = Math.round(tipAmount * 100) / 100;
+  const roundedDiscount = Math.round(discountAmount * 100) / 100;
+
+  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount;
   if (totalAmount < 0) totalAmount = 0;
+  totalAmount = Math.round(totalAmount * 100) / 100;
 
   return {
     ...order,
-    subtotal,
-    shippingFee,
-    tax,
-    discountAmount,
+    subtotal: roundedSubtotal,
+    shippingFee: roundedShipping,
+    tax: roundedTax,
+    discountAmount: roundedDiscount,
     totalAmount
   };
 };
@@ -896,7 +912,7 @@ const AdminOrdersDark = () => {
 
   const getCurrentOrderTotals = () => {
     if (!editingOrder) return { subtotal: 0, shippingFee: 0, discountAmount: 0, totalAmount: 0 };
-    return recalculateOrderTotals(editingOrder);
+    return recalculateOrderTotals(editingOrder, serviceAreas);
   };
 
 
@@ -947,7 +963,7 @@ const AdminOrdersDark = () => {
       label: 'Amount',
       sortable: true,
       render: (amount, order) => {
-        const calculatedOrder = recalculateOrderTotals(order);
+        const calculatedOrder = recalculateOrderTotals(order, serviceAreas);
         return <span className={`font-medium ${tw.textPrimary}`}>₹{calculatedOrder.totalAmount?.toFixed(2)}</span>;
       }
     },
@@ -1209,7 +1225,7 @@ const AdminOrdersDark = () => {
         >
           {selectedOrder && (() => {
             // Recalculate totals for display (in case old orders have wrong totals)
-            const displayOrder = recalculateOrderTotals(selectedOrder);
+            const displayOrder = recalculateOrderTotals(selectedOrder, serviceAreas);
             const hasWrongTotal = Math.abs(displayOrder.totalAmount - selectedOrder.totalAmount) > 0.01;
 
             return (

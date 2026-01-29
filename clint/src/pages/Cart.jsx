@@ -171,7 +171,7 @@ const Cart = () => {
   const netValueForShipping = subtotal - discountAmount;
 
   // Dynamic Shipping Fee based on Pincode
-  const selectedArea = serviceAreas?.find(area => area.pincode === selectedAddress?.pincode);
+  const selectedArea = serviceAreas?.find(area => area.pincode === selectedAddress?.pincode && area.isActive);
   const baseShippingFee = selectedArea ? (selectedArea.deliveryCharge ?? 0) : 29;
   const freeDeliveryThreshold = selectedArea ? (selectedArea.minOrderForFreeDelivery ?? 299) : 299;
 
@@ -183,9 +183,16 @@ const Cart = () => {
 
   const tax = 0;
 
-  // Final Total Amount
-  let totalAmount = subtotal + shippingFee + tax + tipAmount - discountAmount;
+  // Final Total Amount with exact rounding to match backend
+  const roundedSubtotal = Math.round(subtotal * 100) / 100;
+  const roundedShipping = Math.round(shippingFee * 100) / 100;
+  const roundedTax = Math.round(tax * 100) / 100;
+  const roundedTip = Math.round(tipAmount * 100) / 100;
+  const roundedDiscount = Math.round(discountAmount * 100) / 100;
+
+  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount;
   if (totalAmount < 0) totalAmount = 0;
+  totalAmount = Math.round(totalAmount * 100) / 100;
 
 
   // Sync Global -> Local
