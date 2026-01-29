@@ -66,7 +66,7 @@ const CategoryStrip = () => {
   }, [location]);
 
   return (
-    <div className="w-full border-b border-gray-200 bg-gradient-to-r from-emerald-50 via-lime-50 to-white flex justify-center">
+    <div className="w-full border-b border-gray-200 bg-white/95 flex justify-center sticky top-[102px] md:top-[64px] z-30 backdrop-blur-md shadow-sm transform-gpu" style={{ backfaceVisibility: 'hidden' }}>
       <div
         className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory whitespace-nowrap px-4 md:px-6 py-3 space-x-4 md:space-x-6"
         style={{ WebkitOverflowScrolling: 'touch' }}
