@@ -162,13 +162,14 @@ const Cart = () => {
   const [tipAmount, setTipAmount] = useState(0);
 
   // --- CALCULATE TOTALS EARLY TO AVOID REFERENCE ERRORS ---
-  const subtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity + (item.customizationCharge || 0), 0);
-  const totalMRP = cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity + (item.customizationCharge || 0), 0);
-  const totalSavings = totalMRP - subtotal;
+  const rawSubtotal = cartArray.reduce((acc, item) => acc + (item.offerPrice ?? item.price) * item.quantity + (item.customizationCharge || 0), 0);
+  const subtotal = Math.round(rawSubtotal * 100) / 100;
+  const totalMRP = Math.round(cartArray.reduce((acc, item) => acc + (item.price || 0) * item.quantity + (item.customizationCharge || 0), 0) * 100) / 100;
+  const totalSavings = Math.round((totalMRP - subtotal) * 100) / 100;
 
-  // Calculate Net Total before shipping to determine if fee applies
-  // Convenience Fee (₹29) applies if (Subtotal - Discount) is strictly less than ₹299
-  const netValueForShipping = subtotal - discountAmount;
+  // Round discount to match backend before comparison
+  const roundedDiscountForShipping = Math.round(discountAmount * 100) / 100;
+  const netValueForShipping = subtotal - roundedDiscountForShipping;
 
   // Dynamic Shipping Fee based on Pincode
   const selectedArea = serviceAreas?.find(area => area.pincode === selectedAddress?.pincode && area.isActive);

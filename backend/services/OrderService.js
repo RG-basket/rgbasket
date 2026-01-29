@@ -86,15 +86,37 @@ class OrderService {
           finalSelectedGift = null; // Strip the gift if they didn't earn it
         }
       }
+      // 3. ATOMIC STOCK LOCKING
+      // We decrement stock BEFORE saving the order to ensure it's still there.
+      // If 10,000 people order at once, only those where stock >= quantity will pass.
+      const stockUpdated = await this.updateProductInventory(validatedItems, 'decrement');
+      if (!stockUpdated) {
+        throw new AppError('One or more items became out of stock during checkout. Please refresh your cart.', 400);
+      }
 
-      // Create order
+      // 4. ATOMIC PROMO LOCKING (Bank-Grade)
+      let promoAppliedSuccessfully = false;
+      if (promoCodeDoc) {
+        try {
+          await PromoCode.registerUsageAtomic(
+            promoCodeDoc._id,
+            checkUserId,
+            "PENDING_" + Date.now(), // Temporary ID since order isn't saved yet
+            pricing.discount
+          );
+          promoAppliedSuccessfully = true;
+        } catch (err) {
+          // If promo fail (user cheated or used concurrently), we MUST REVERT the stock we just took!
+          await this.updateProductInventory(validatedItems, 'increment');
+          throw new AppError('Promo code could not be applied. It may have been used in another tab.', 400);
+        }
+      }
+
+      // 5. CREATE AND SAVE ORDER
       const order = new Order({
         ...orderData,
-        user: userId,
+        user: checkUserId,
         items: validatedItems,
-        pricing, // Keeping for backward compat if used elsewhere
-
-        // Explicit Schema Fields
         subtotal: pricing.subtotal,
         shippingFee: pricing.shippingFee,
         tax: pricing.taxAmount,
@@ -107,50 +129,42 @@ class OrderService {
         finalTotal: pricing.totalAmount,
         selectedGift: finalSelectedGift || null,
         tipAmount: pricing.tipAmount,
-        instruction: instruction // used the sanitized version
+        instruction: instruction
       });
-
-
-      // Update product inventory
-      await this.updateProductInventory(validatedItems, 'decrement');
 
       const savedOrder = await order.save();
 
-      // Send Telegram Notification (Async - don't block response)
+      // Finalize promo order link (Atomic update of the reference)
+      if (promoAppliedSuccessfully) {
+        await PromoCode.updateOne(
+          { _id: promoCodeDoc._id, "usedBy.user": checkUserId },
+          { $set: { "usedBy.$.order": savedOrder._id } }
+        ).catch(e => console.error('[OrderService] Non-critical: Failed to link order ID to promo usage'));
+      }
+
+      // Send Telegram Notification (Async)
       TelegramService.sendOrderNotification(savedOrder).catch(err =>
         console.error('[OrderService] Telegram Notification failed:', err.message)
       );
 
-      // Update Promo Usage - SAFER IMPLEMENTATION
-      if (promoCodeDoc) {
-        console.log(`[OrderService] Attempting to update usage for code: ${promoCodeDoc.code}`);
-        // We do this asynchronously without awaiting to prevent blocking response if DB is slow/locked
-        // But we catch errors to ensure server doesn't crash
-        (async () => {
-          try {
-            // Fetch fresh doc to avoid version errors
-            const freshPromo = await PromoCode.findById(promoCodeDoc._id);
-            if (freshPromo) {
-              await freshPromo.updateUsage(
-                userId,
-                savedOrder._id,
-                pricing.discount,
-                savedOrder.totalAmount
-              );
-              console.log(`[OrderService] Successfully updated usage for ${freshPromo.code}`);
-            }
-          } catch (err) {
-            console.error(`[OrderService] BACKGROUND ERROR: Failed to update promo usage: ${err.message}`);
-          }
-        })();
-      }
-
       return this.formatOrderResponse(savedOrder);
 
     } catch (error) {
-      if (error.name === 'InventoryError') {
-        throw new AppError(`Insufficient inventory: ${error.message}`, 400);
+      console.error('[OrderService] Order creation error:', error);
+
+      // Safety Revert: If stock was taken but order failed to save, try to restore it
+      try {
+        if (typeof validatedItems !== 'undefined' && validatedItems.length > 0) {
+          await this.updateProductInventory(validatedItems, 'increment');
+        }
+
+        // If promo was taken, we ideally should pull it from `usedBy`, but it's non-trivial 
+        // without knowing exactly if it was pushed. For now, stock restoration is most critical.
+      } catch (revertError) {
+        console.error('[OrderService] Critical: Failed to revert stock after order failure!', revertError);
       }
+
+      if (error.statusCode) throw error; // Pass through AppErrors
       throw new AppError(`Order creation failed: ${error.message}`, 500);
     }
   }
@@ -267,7 +281,9 @@ class OrderService {
   /**
    * Calculate order pricing with tax and discounts
    */
-  async calculatePricing(subtotal, taxRate = 0, discount = 0, pincode = null, tipAmount = 0) {
+  async calculatePricing(rawSubtotal, taxRate = 0, rawDiscount = 0, pincode = null, tipAmount = 0) {
+    const subtotal = Math.round(rawSubtotal * 100) / 100;
+    const discount = Math.round(rawDiscount * 100) / 100;
     const netValue = subtotal - discount;
 
     let shippingFee = 29;
@@ -303,12 +319,29 @@ class OrderService {
   }
 
   /**
-   * Update product inventory
+   * Update product inventory with atomic stock checks
    */
   async updateProductInventory(items, operation) {
-    const bulkOperations = items.map(item => ({
+    if (!items || items.length === 0) return true;
+
+    // Merge quantities by productId to avoid multiple updates to same document in one bulkWrite
+    const mergedItems = items.reduce((acc, item) => {
+      const id = item.productId.toString();
+      if (!acc[id]) {
+        acc[id] = { productId: item.productId, quantity: 0 };
+      }
+      acc[id].quantity += item.quantity;
+      return acc;
+    }, {});
+
+    const itemsToUpdate = Object.values(mergedItems);
+
+    const bulkOperations = itemsToUpdate.map(item => ({
       updateOne: {
-        filter: { _id: item.productId },
+        filter: {
+          _id: item.productId,
+          ...(operation === 'decrement' ? { stock: { $gte: item.quantity } } : {})
+        },
         update: {
           $inc: {
             stock: operation === 'decrement' ? -item.quantity : item.quantity,
@@ -318,7 +351,14 @@ class OrderService {
       }
     }));
 
-    await Product.bulkWrite(bulkOperations);
+    const result = await Product.bulkWrite(bulkOperations);
+
+    // Check if all operations succeeded
+    const success = (result.modifiedCount || result.nModified) === itemsToUpdate.length;
+
+    // If partial failure occurred during decrement, we should ideally revert, 
+    // but without transactions, we at least prevent the order from being created.
+    return success;
   }
 
   /**

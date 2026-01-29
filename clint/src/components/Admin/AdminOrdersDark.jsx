@@ -27,10 +27,11 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
   const isLoading = !serviceAreas || serviceAreas.length === 0;
 
   // Calculate subtotal from items (include customization charge)
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity) + (item.customizationCharge || 0), 0);
+  const rawSubtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity) + (item.customizationCharge || 0), 0);
+  const subtotal = Math.round(rawSubtotal * 100) / 100;
 
   // Get discount amount (if any)
-  const discountAmount = order.discountAmount || 0;
+  const discountAmount = Math.round((order.discountAmount || 0) * 100) / 100;
 
   // Calculate net value for shipping (subtotal - discount)
   const netValueForShipping = subtotal - discountAmount;

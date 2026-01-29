@@ -80,22 +80,25 @@ promoCodeSchema.methods.calculateDiscount = function (totalAmount) {
     return Math.round(discount * 100) / 100;
 };
 
-promoCodeSchema.methods.updateUsage = async function (userId, orderId, discountAmount, orderTotal) {
-    console.log(`[PromoCode] updateUsage called. Code: ${this.code}, Route: ${this.influencerRoute}, \%: ${this.influencerPercentage}`);
-    this.usageCount += 1;
-    this.totalDiscountGiven += discountAmount;
+// Atomic update that prevents duplicate usage in high traffic
+promoCodeSchema.statics.registerUsageAtomic = async function (promoId, userId, orderId, discountAmount) {
+    const result = await this.findOneAndUpdate(
+        {
+            _id: promoId,
+            isActive: true,
+            'usedBy.user': { $ne: userId } // Critical: ensures user hasn't used it yet
+        },
+        {
+            $inc: { usageCount: 1, totalDiscountGiven: Math.round(discountAmount * 100) / 100 },
+            $push: { usedBy: { user: userId, order: orderId, usedAt: new Date() } }
+        },
+        { new: true }
+    );
 
-    // Influencer earnings are now calculated dynamically based on DELIVERED order status only.
-    // We do NOT add earnings here anymore to prevent earnings from pending/cancelled orders.
-    // if (this.influencerRoute && this.influencerPercentage > 0) { ... }
-
-    this.usedBy.push({
-        user: userId,
-        order: orderId
-    });
-
-    await this.save();
-    console.log(`[PromoCode] Stats saved.`);
+    if (!result) {
+        throw new Error('Promo code could not be applied. It may have been used or is inactive.');
+    }
+    return result;
 };
 
 const PromoCode = mongoose.model('PromoCode', promoCodeSchema);
