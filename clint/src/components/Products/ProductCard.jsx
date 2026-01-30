@@ -16,7 +16,9 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         getProductById,
         getProductStockStatus,
         selectedSlot,
-        checkProductAvailability
+        checkProductAvailability,
+        findNextAvailableSlotForProduct,
+        validateAndSetSlot
     } = useAppContext();
 
     const navigate = useNavigate();
@@ -30,6 +32,8 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const [imageError, setImageError] = useState(false);
     const [slotAvailability, setSlotAvailability] = useState(isAvailableForSlot);
     const [slotUnavailabilityReason, setSlotUnavailabilityReason] = useState(unavailabilityReason);
+    const [nextSlotInfo, setNextSlotInfo] = useState(null);
+    const [loadingNextSlot, setLoadingNextSlot] = useState(false);
     const checkTimeoutRef = useRef(null);
     const [isImageVisible, setIsImageVisible] = useState(false);
     const imageContainerRef = useRef(null);
@@ -138,8 +142,28 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     };
 
     // Product is available if it's in stock AND available for the selected slot
-    const isStockAvailable = stockStatus.inStock && stockStatus.stock > 0;
+    const isStockAvailable = (stockStatus.inStock && stockStatus.stock > 0);
     const isAvailable = isStockAvailable && slotAvailability;
+
+    // ✅ Find next available slot if current one is restricted
+    useEffect(() => {
+        if (!slotAvailability && isStockAvailable) {
+            const getNextSlot = async () => {
+                setLoadingNextSlot(true);
+                try {
+                    const next = await findNextAvailableSlotForProduct(product._id);
+                    setNextSlotInfo(next);
+                } catch (err) {
+                    console.error('Failed to find next slot:', err);
+                } finally {
+                    setLoadingNextSlot(false);
+                }
+            };
+            getNextSlot();
+        } else {
+            setNextSlotInfo(null);
+        }
+    }, [slotAvailability, product?._id, isStockAvailable]);
 
     const baseUrl = import.meta.env.VITE_API_URL;
     const imageUrl = product.images?.[0] ? product.images[0] : null;
@@ -340,6 +364,27 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                         </button>
                     )}
                 </div>
+
+                {/* Next Available Slot Action */}
+                {!slotAvailability && isStockAvailable && nextSlotInfo && (
+                    <div className="mt-2 p-1.5 bg-orange-50 rounded-lg border border-orange-100 flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1">
+                        <div>
+                            <p className="text-[10px] font-bold text-orange-800 uppercase tracking-wider">Next Available Delivery</p>
+                            <p className="text-xs font-extrabold text-orange-600">
+                                {nextSlotInfo.dayOfWeek}, {nextSlotInfo.date.split('-').reverse().join('/')} • {nextSlotInfo.timeSlot.split(' (')[0]}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => validateAndSetSlot(nextSlotInfo, true)}
+                            className="w-full py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-[9px] font-bold rounded-lg active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5 border-b-2 border-orange-800 uppercase tracking-wider"
+                        >
+                            <span>Select This Slot</span>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

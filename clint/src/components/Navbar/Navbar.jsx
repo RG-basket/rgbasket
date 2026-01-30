@@ -57,7 +57,7 @@ const Navbar = ({ onLocationClick }) => {
 
   return (
     <>
-      <header className="w-full bg-white shadow-md z-20 sticky top-0">
+      <header className="w-full bg-white shadow-md z-[100] sticky top-0">
 
         {/* Desktop Layout */}
         {!isMobile && (

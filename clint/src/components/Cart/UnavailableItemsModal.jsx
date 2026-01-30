@@ -214,18 +214,19 @@ const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
                             <button
                               key={slot._id}
                               onClick={() => handleSelectSlot(slot)}
-                              className="w-full bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-200 p-3 rounded-xl text-left transition-all group shadow-sm flex items-center justify-between"
+                              className="w-full bg-white hover:bg-emerald-50 border border-gray-100 border-b-2 hover:border-emerald-300 p-4 rounded-2xl text-left transition-all group flex items-center justify-between relative overflow-hidden active:translate-y-0.5"
                             >
+                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-transparent group-hover:bg-emerald-500 transition-colors"></div>
                               <div>
-                                <span className="block text-sm font-bold text-gray-800 group-hover:text-blue-700">
+                                <span className="block text-sm font-black text-gray-800 group-hover:text-emerald-900">
                                   {slot.name}
                                 </span>
-                                <span className="block text-xs text-gray-500 font-medium">
+                                <span className="block text-[10px] text-gray-400 group-hover:text-emerald-600 font-bold uppercase tracking-wider mt-0.5">
                                   {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                                 </span>
                               </div>
-                              <div className="bg-gray-50 group-hover:bg-blue-100 text-gray-400 group-hover:text-blue-600 p-1.5 rounded-lg transition-colors">
-                                <ArrowRight size={14} />
+                              <div className="bg-gray-50 group-hover:bg-emerald-500 text-gray-400 group-hover:text-white p-2 rounded-xl transition-all group-hover:scale-110">
+                                <ArrowRight size={16} strokeWidth={3} />
                               </div>
                             </button>
                           ))

@@ -718,6 +718,50 @@ export const AppContextProvider = ({ children }) => {
     };
   };
 
+  // Find the next nearest available slot for a specific product
+  const findNextAvailableSlotForProduct = async (productId) => {
+    try {
+      const today = getISTDate();
+      // Check next 7 days for availability
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() + i);
+        const dateStr = getISTDateString(checkDate);
+        const dayOfWeek = getDayOfWeek(dateStr);
+
+        // 1. Get all slots availability for this date
+        const resSlots = await axios.get(`${API_URL}/api/slots/availability?date=${dateStr}`);
+        const availableSlots = Array.isArray(resSlots.data) ? resSlots.data.filter(s => s.isAvailable) : [];
+
+        if (availableSlots.length === 0) continue;
+
+        // 2. Get product restrictions for this day of week
+        const resRestr = await axios.get(`${API_URL}/api/product-slot-availability/check/${productId}/${dayOfWeek}`);
+        const unavailableSlotNames = resRestr.data.unavailableSlots || [];
+
+        // 3. Find first available slot that doesn't have a product restriction
+        const firstMatchingSlot = availableSlots.find(slot => {
+          // Check if slot name (cleaned) is in the restricted list
+          const cleanName = slot.name.split(' (')[0].trim();
+          return !unavailableSlotNames.some(un => un.trim() === cleanName);
+        });
+
+        if (firstMatchingSlot) {
+          return {
+            date: dateStr,
+            timeSlot: `${firstMatchingSlot.name} (${formatTime(firstMatchingSlot.startTime)} - ${formatTime(firstMatchingSlot.endTime)})`,
+            slotId: firstMatchingSlot._id,
+            dayOfWeek
+          };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('📍 [AppContext] Error finding next slot for product:', error);
+      return null;
+    }
+  };
+
   const validateAndSetSlot = async (slotOrFn, manualSelection = false) => {
     // Support functional updates like setSelectedSlot(prev => ...)
     const slot = typeof slotOrFn === 'function' ? slotOrFn(selectedSlot) : slotOrFn;
@@ -996,6 +1040,8 @@ export const AppContextProvider = ({ children }) => {
     isSlotSelected,
     getFormattedSlot,
     getDayOfWeek,
+    findNextAvailableSlotForProduct,
+    userManuallySelectedSlot,
 
     // Constants
     CURRENCY,
