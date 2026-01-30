@@ -170,6 +170,24 @@ const Categories = () => {
       productsToFilter = products
     } else {
       productsToFilter = categoryProducts[categorySlug] || []
+
+      // Sync Intent to Backend (Browsed Category)
+      const syncCategoryIntent = async () => {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) return;
+        try {
+          const user = JSON.parse(userStr);
+          const userId = user.id || user._id;
+          await fetch(`${import.meta.env.VITE_API_URL}/api/users/${userId}/intent`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: categorySlug })
+          });
+        } catch (err) {
+          console.debug('Category intent sync skipped');
+        }
+      };
+      syncCategoryIntent();
     }
 
     applyFiltersAndSorting(productsToFilter)

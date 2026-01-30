@@ -180,6 +180,39 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+// Update user intent (Cart Snapshot & Browsed Category)
+app.patch('/api/users/:userId/intent', async (req, res) => {
+  try {
+    const { cartItems, category } = req.body;
+    const userId = req.params.userId;
+
+    const query = mongoose.isValidObjectId(userId)
+      ? { _id: userId }
+      : { googleId: userId };
+
+    const updateData = { lastActive: new Date() };
+
+    if (cartItems) {
+      updateData.lastCartSnapshot = {
+        items: cartItems,
+        updatedAt: new Date()
+      };
+    }
+
+    if (category) {
+      updateData.lastBrowsedCategory = category;
+      updateData.browsingActivity = new Date();
+    }
+
+    await User.findOneAndUpdate(query, updateData);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating user intent:', error);
+    res.status(500).json({ success: false });
+  }
+});
+
+
 // Update user profile
 app.put('/api/users/:userId', checkBanned, async (req, res) => {
   try {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock } from 'lucide-react';
+import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -114,6 +114,33 @@ const AdminUsersDark = () => {
         } catch (error) {
             console.error('Error toggling ban:', error);
             toast.error('Error updating user status');
+        }
+    };
+
+    const deleteAddress = async (addressId) => {
+        if (!window.confirm('Are you sure you want to delete this address? This cannot be undone.')) return;
+
+        try {
+            const token = localStorage.getItem('adminToken');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/addresses/${addressId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                toast.success('Address deleted successfully');
+                // Refresh the selected user data in the modal
+                const updatedAddresses = selectedUser.addresses.filter(a => a._id !== addressId);
+                setSelectedUser({ ...selectedUser, addresses: updatedAddresses });
+                // Also refresh the main table data to keep everything in sync
+                fetchUsers(page);
+            } else {
+                const data = await response.json();
+                toast.error(data.message || 'Failed to delete address');
+            }
+        } catch (error) {
+            console.error('Error deleting address:', error);
+            toast.error('Error deleting address');
         }
     };
 
@@ -410,6 +437,57 @@ const AdminUsersDark = () => {
                                 </div>
                             </div>
 
+                            {/* Behavioral Intent Section */}
+                            {(selectedUser.lastCartSnapshot?.items?.length > 0 || selectedUser.lastBrowsedCategory) && (
+                                <div className="space-y-4 pt-4 border-t border-[#414868]">
+                                    <h4 className={`font-medium ${tw.textPrimary} flex items-center gap-2`}>
+                                        <Clock className="w-4 h-4 text-emerald-400" /> Recent User Intent (Unordered)
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Abandoned Cart Snapshot */}
+                                        {selectedUser.lastCartSnapshot?.items?.length > 0 && (
+                                            <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <ShoppingBag className="w-5 h-5 text-emerald-400" />
+                                                    <span className="text-sm font-bold text-emerald-400">Items in Cart (Dropped)</span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {selectedUser.lastCartSnapshot.items.map((item, idx) => (
+                                                        <div key={idx} className="flex justify-between items-center text-xs">
+                                                            <span className="text-emerald-100">{item.name} ({item.weight || 'N/A'})</span>
+                                                            <span className="font-bold text-emerald-400">Qty: {item.quantity}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[10px] text-emerald-400/60 mt-3 italic border-t border-emerald-500/10 pt-2">
+                                                    Snapshot captured: {formatLastSeen(selectedUser.lastCartSnapshot.updatedAt)}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Browsing Intent */}
+                                        {selectedUser.lastBrowsedCategory && (
+                                            <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/5">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Search className="w-5 h-5 text-blue-400" />
+                                                    <span className="text-sm font-bold text-blue-400">Interested In</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-blue-100 font-medium">Browsed Category:</span>
+                                                    <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                        {selectedUser.lastBrowsedCategory}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10px] text-blue-400/60 mt-3 italic border-t border-blue-500/10 pt-2">
+                                                    Last browse active: {formatLastSeen(selectedUser.browsingActivity)}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+
                             {/* Global Last Known Location (from Orders) */}
                             {(!selectedUser.addresses?.some(a => a.location?.coordinates) &&
                                 selectedUser.orders?.some(o => o.location?.coordinates?.latitude)) && (
@@ -455,10 +533,22 @@ const AdminUsersDark = () => {
                                         {selectedUser.addresses.map((addr, idx) => (
                                             <div key={idx} className={`p-3 rounded-lg border ${tw.borderPrimary} ${tw.bgInput}`}>
                                                 <div className="flex justify-between items-start mb-1">
-                                                    <span className={`text-xs font-bold uppercase ${tw.textSecondary}`}>{addr.type || 'Address'}</span>
-                                                    {addr.isDefault && (
-                                                        <span className="text-[10px] bg-[#7aa2f7]/20 text-[#7aa2f7] px-1.5 py-0.5 rounded">DEFAULT</span>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-xs font-bold uppercase ${tw.textSecondary}`}>{addr.type || 'Address'}</span>
+                                                        {addr.isDefault && (
+                                                            <span className="text-[10px] bg-[#7aa2f7]/20 text-[#7aa2f7] px-1.5 py-0.5 rounded">DEFAULT</span>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            deleteAddress(addr._id);
+                                                        }}
+                                                        className="p-1 hover:bg-red-500/10 text-red-400 rounded transition-colors"
+                                                        title="Delete Address"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
                                                 </div>
                                                 <p className={`text-sm ${tw.textPrimary}`}>{addr.fullName}</p>
                                                 <p className={`text-xs ${tw.textSecondary} mt-1`}>

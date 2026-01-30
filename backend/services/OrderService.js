@@ -4,6 +4,7 @@ const PromoCode = require('../models/PromoCode');
 const ServiceArea = require('../models/ServiceArea');
 const Offer = require('../models/Offer');
 const TelegramService = require('./TelegramService');
+const User = require('../models/User');
 const AppError = require('../utils/AppError');
 
 class OrderService {
@@ -146,6 +147,11 @@ class OrderService {
       TelegramService.sendOrderNotification(savedOrder).catch(err =>
         console.error('[OrderService] Telegram Notification failed:', err.message)
       );
+
+      // 6. CLEAR INTENT DATA (Cleanup after order)
+      User.findByIdAndUpdate(checkUserId, {
+        $set: { "lastCartSnapshot.items": [] }
+      }).catch(e => console.error('[OrderService] Non-critical: Failed to clear user cart snapshot after order'));
 
       return this.formatOrderResponse(savedOrder);
 

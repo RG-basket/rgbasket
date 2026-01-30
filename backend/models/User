@@ -49,13 +49,25 @@ const UserSchema = new mongoose.Schema({
     default: ''
   },
   // Last seen/activity timestamp
-  lastActive: {
+  // Behavior & Intent Tracking (Storage Optimized)
+  lastCartSnapshot: {
+    items: [{
+      productId: String,
+      name: String,
+      quantity: Number,
+      price: Number,
+      weight: String
+    }],
+    updatedAt: { type: Date, default: Date.now }
+  },
+  lastBrowsedCategory: {
+    type: String,
+    default: ''
+  },
+  browsingActivity: {
     type: Date,
     default: Date.now
   }
-  // You can add more fields relevant to your app later
-  // defaultAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'Address' },
-  // createdAt, etc.
 }, {
   timestamps: true // This automatically adds `createdAt` and `updatedAt` fields
 });

@@ -101,7 +101,10 @@ router.get('/users', authenticateAdmin, async (req, res) => {
           lastActive: 1,
           addresses: 1,
           orders: 1,
-          orderCount: { $size: '$orders' }
+          orderCount: { $size: '$orders' },
+          lastCartSnapshot: 1,
+          lastBrowsedCategory: 1,
+          browsingActivity: 1
         }
       }
     ]);

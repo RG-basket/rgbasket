@@ -599,6 +599,38 @@ const Cart = () => {
     }
   }, [cartArray]);
 
+  // Sync Cart Intent to Backend (Behavioral Tracking)
+  useEffect(() => {
+    const syncCartIntent = async () => {
+      if (!user) return;
+
+      try {
+        const userId = user.id || user._id;
+        // If cart is empty, send empty items to clear the snapshot
+        const cartSnapshot = cartArray.map(item => ({
+          productId: item._id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.offerPrice || item.price,
+          weight: item.weight
+        }));
+
+        await fetch(`${import.meta.env.VITE_API_URL}/api/users/${userId}/intent`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cartItems: cartSnapshot })
+        });
+      } catch (err) {
+        // Silent error to avoid bothering user
+        console.debug('Intent sync skipped');
+      }
+    };
+
+    const timer = setTimeout(syncCartIntent, 2000); // 2 second debounce
+    return () => clearTimeout(timer);
+  }, [cartArray, user]);
+
+
   // Fetch gift offers
   useEffect(() => {
     const fetchOffers = async () => {

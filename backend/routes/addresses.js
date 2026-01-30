@@ -171,8 +171,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete address
-router.delete('/:id', async (req, res) => {
+// Delete address (for admin/user)
+router.delete('/:id', authenticateAdmin, async (req, res) => {
   try {
     const address = await UserAddress.findByIdAndDelete(req.params.id);
 
