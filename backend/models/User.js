@@ -43,12 +43,21 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  role: {
+    type: String,
+    default: 'user',
+    enum: ['user', 'admin']
+  },
   // Phone number (optional)
   phone: {
     type: String,
     default: ''
   },
   // Last seen/activity timestamp
+  lastActive: {
+    type: Date,
+    default: Date.now
+  },
   // Behavior & Intent Tracking (Storage Optimized)
   lastCartSnapshot: {
     items: [{

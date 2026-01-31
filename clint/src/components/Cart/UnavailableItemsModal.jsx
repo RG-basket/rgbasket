@@ -69,25 +69,44 @@ const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
 
           if (Array.isArray(data)) {
             const openSlots = data.filter(s => s.isAvailable);
+            if (openSlots.length === 0) continue;
 
-            // Filter compatible slots
-            const filteredSlots = await Promise.all(openSlots.map(async (slot) => {
-              const slotFullName = `${slot.name} (${slot.startTime} - ${slot.endTime})`;
-              const checks = await Promise.all(itemsList.map(async (item) => {
-                const pid = item.product?._id || item._id || item.productId;
-                if (!pid) return true;
-                const result = await checkProductAvailability(pid, dateStr, slotFullName);
-                return result.available;
-              }));
-              return checks.every(r => r) ? slot : null;
+            // OPTIMIZATION: Fetch product blocked slots for this day once, instead of per slot
+            const dateObj = new Date(dateStr);
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayOfWeekName = days[dateObj.getDay()];
+
+            // Get distinct product IDs
+            const uniqueProductIds = [...new Set(itemsList.map(item => item.product?._id || item._id || item.productId).filter(Boolean))];
+
+            // Fetch restrictions for all products in parallel
+            const productRestrictions = await Promise.all(uniqueProductIds.map(async (pid) => {
+              try {
+                const r = await fetch(`${API_URL}/api/product-slot-availability/check/${pid}/${dayOfWeekName}`);
+                const rData = await r.json();
+                if (rData.success && Array.isArray(rData.unavailableSlots)) {
+                  return rData.unavailableSlots;
+                }
+              } catch (e) { console.error("Error fetching restrictions", e); }
+              return [];
             }));
 
-            const validDaySlots = filteredSlots
-              .filter(s => s !== null)
-              .map(s => ({
-                ...s,
-                date: dateStr
-              }));
+            // Collect all blocked slot names for this cart on this day
+            const blockedSlotNames = new Set();
+            productRestrictions.forEach(slots => {
+              slots.forEach(s => {
+                if (s) blockedSlotNames.add(s.trim());
+              });
+            });
+
+            // Filter compatible slots
+            const validDaySlots = openSlots.filter(slot => {
+              const cleanName = slot.name.split('(')[0].trim();
+              return !blockedSlotNames.has(cleanName);
+            }).map(s => ({
+              ...s,
+              date: dateStr
+            }));
 
             allValidSlots.push(...validDaySlots);
           }

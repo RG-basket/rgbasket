@@ -25,7 +25,9 @@ const NewArrivals = () => {
   const fetchNewArrivals = () => {
     try {
       if (contextProducts && contextProducts.length > 0) {
-        const recentProducts = contextProducts.slice(0, 16);
+        const recentProducts = contextProducts
+          .filter(p => p.active !== false && p.inStock === true && p.stock > 0)
+          .slice(0, 16);
         setAllProducts(recentProducts);
         setDisplayProducts({
           row1: recentProducts.slice(0, 8),
@@ -266,6 +268,7 @@ const NewArrivals = () => {
                   showBadge={true}
                   badgeText="New"
                   badgeColor="emerald"
+                  hideIfUnavailable={true}
                 />
               </div>
             </div>

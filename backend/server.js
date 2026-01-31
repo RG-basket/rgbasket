@@ -180,6 +180,35 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+// ✅ DAU FIX: Status heartbeat endpoint
+app.get('/api/auth/status/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const query = mongoose.isValidObjectId(userId) ? { _id: userId } : { googleId: userId };
+
+    // Update lastActive timestamp on every heartbeat
+    const user = await User.findOneAndUpdate(
+      query,
+      { lastActive: new Date() },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      lastActive: user.lastActive,
+      isBanned: user.isBanned || false,
+      message: 'Status updated'
+    });
+  } catch (error) {
+    console.error("Status check error:", error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Update user intent (Cart Snapshot & Browsed Category)
 app.patch('/api/users/:userId/intent', async (req, res) => {
   try {

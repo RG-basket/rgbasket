@@ -227,9 +227,21 @@ export const AppContextProvider = ({ children }) => {
       if (document.visibilityState === 'visible') throttledCheck();
     });
 
+    const intervalId = setInterval(() => {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser);
+          // Ping server to keep status online
+          checkUserStatus(userData.id || userData._id);
+        } catch (e) { console.error("Error parsing user for heartbeat", e); }
+      }
+    }, 4 * 60 * 1000); // 4 minutes
+
     return () => {
       window.removeEventListener('focus', throttledCheck);
       document.removeEventListener('visibilitychange', throttledCheck);
+      clearInterval(intervalId);
     };
   }, []);
 

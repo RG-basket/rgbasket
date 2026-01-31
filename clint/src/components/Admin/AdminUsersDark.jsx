@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2 } from 'lucide-react';
+import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -278,18 +278,31 @@ const AdminUsersDark = () => {
                                     'Manage registered customers'}
                         </p>
                     </div>
-                    {activeFilter !== 'all' && (
+                    <div className="flex items-center gap-3">
                         <AdminButtonDark
-                            variant="outline"
+                            variant="secondary"
                             size="sm"
+                            icon={RefreshCcw}
                             onClick={() => {
-                                setActiveFilter('all');
-                                fetchUsers(1, null, 'all');
+                                toast.success('Refreshing data...');
+                                fetchUsers(page);
                             }}
                         >
-                            Reset Filters
+                            Refresh
                         </AdminButtonDark>
-                    )}
+                        {activeFilter !== 'all' && (
+                            <AdminButtonDark
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    setActiveFilter('all');
+                                    fetchUsers(1, null, 'all');
+                                }}
+                            >
+                                Reset Filters
+                            </AdminButtonDark>
+                        )}
+                    </div>
                 </div>
 
                 {/* Stats */}

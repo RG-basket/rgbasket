@@ -7,7 +7,7 @@ import { FaShoppingCart } from "react-icons/fa";
 const slotAvailabilityCache = new Map();
 const CACHE_DURATION = 60000; // 1 minute cache
 
-const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = true, unavailabilityReason = '' }) => {
+const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = true, unavailabilityReason = '', hideIfUnavailable = false }) => {
     const {
         currency,
         addToCart,
@@ -49,7 +49,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                     }
                 });
             },
-            { rootMargin: '50px' } // Start loading 50px before entering viewport
+            { rootMargin: '200px' } // Start loading 200px before entering viewport
         );
 
         if (imageContainerRef.current) {
@@ -144,6 +144,8 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     // Product is available if it's in stock AND available for the selected slot
     const isStockAvailable = (stockStatus.inStock && stockStatus.stock > 0);
     const isAvailable = isStockAvailable && slotAvailability;
+
+    if (hideIfUnavailable && !isAvailable) return null;
 
     // ✅ Find next available slot if current one is restricted
     useEffect(() => {

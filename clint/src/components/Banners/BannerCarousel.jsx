@@ -107,6 +107,8 @@ const BannerCarousel = ({ fallbackBanner }) => {
                             <img
                                 src={activeBanner.imageUrl}
                                 alt={activeBanner.altText || 'Banner'}
+                                loading="eager"
+                                fetchPriority="high"
                                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                             />
                             <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent"></div>

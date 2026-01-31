@@ -45,7 +45,12 @@ const authenticateAdminOr404 = (req, res, next) => {
 const checkBanned = async (req, res, next) => {
   try {
     const User = require('../models/User');
-    const userId = req.body.userId || req.body.user || req.params.userId || req.query.userId;
+    // Safety check for body/params existence
+    const body = req.body || {};
+    const params = req.params || {};
+    const queryParams = req.query || {};
+
+    const userId = body.userId || body.user || params.userId || queryParams.userId;
 
     if (!userId) {
       return next();

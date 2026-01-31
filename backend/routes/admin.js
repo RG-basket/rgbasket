@@ -128,7 +128,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
         totalActive,
         onlineNow,
         dau,
-        totalAdmins: await User.countDocuments({ role: 'admin' })
+        totalAdmins: await User.countDocuments({ $or: [{ role: 'admin' }, { isAdmin: true }] })
       },
       pagination: {
         total,
