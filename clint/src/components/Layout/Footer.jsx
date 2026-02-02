@@ -1,6 +1,11 @@
 import React from "react";
 import { motion } from "framer-motion";
-import Logo from "../../assets/favicon.svg"
+import { Link } from "react-router-dom";
+import Logo from "../../assets/favicon.svg";
+import { FaInstagram, FaFacebookF, FaYoutube, FaWhatsapp } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
+import { MapPin, Phone, Mail, ArrowRight, Heart } from "lucide-react";
+
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -19,50 +24,35 @@ const itemVariants = {
   },
 };
 
-const logoVariants = {
-  hidden: { scale: 0, rotate: -180 },
-  visible: {
-    scale: 1,
-    rotate: 0,
-    transition: { type: "spring", stiffness: 120, damping: 10, duration: 0.8 },
-  },
-};
-
-const textGlow = {
-  initial: { textShadow: "0 0 0px rgba(0, 86, 80, 0)" },
-  hover: {
-    textShadow: [
-      "0 0 0px rgba(0, 86, 80, 0)",
-      "0 0 10px rgba(0, 86, 80, 0.3)",
-      "0 0 20px rgba(0, 86, 80, 0.2)",
-      "0 0 0px rgba(0, 86, 80, 0)",
-    ],
-    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-  },
+const socialHover = {
+  hover: { scale: 1.1, rotate: 5, transition: { type: "spring", stiffness: 400 } },
+  tap: { scale: 0.95 },
 };
 
 const pulseAnimation = {
-  initial: { scale: 1 },
+  initial: { scale: 1, filter: "brightness(100%)" },
   pulse: {
-    scale: [1, 1.05, 1],
-    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+    scale: [1, 1.15, 1],
+    filter: ["brightness(100%)", "brightness(110%)", "brightness(100%)"],
+    transition: { duration: 3, repeat: Infinity, ease: "easeInOut" },
   },
 };
 
 const Footer = () => {
-  // Inline footer links
+  const currentYear = new Date().getFullYear();
+
   const footerLinks = [
     {
-      title: "Quick Links",
+      title: "Explore",
       links: [
         { text: "Home", url: "/" },
-        { text: "Shop", url: "/products/all" },
+        { text: "Shop All", url: "/products/all" },
         { text: "About Us", url: "/about" },
         { text: "Contact", url: "/contact-us" },
       ],
     },
     {
-      title: "Need Help?",
+      title: "Customer Care",
       links: [
         { text: "FAQs", url: "/faq" },
         { text: "Shipping & Returns", url: "/order" },
@@ -70,195 +60,176 @@ const Footer = () => {
         { text: "Terms of Service", url: "/terms" },
       ],
     },
-    {
-      title: "Contact Us",
-      links: [
-        { text: "Email: rgbasket.com@gmail.com", url: "mailto:rgbasket.com@gmail.com" },
-        { text: "WhatsApp: +91 9078771530", url: "https://wa.me/919078771530" },
-        { text: "Address: Cuttack, Odisha", url: "#" },
-      ],
-    },
-    {
-      title: "Follow Us",
-      links: [
-        { text: "Instagram", url: "https://www.instagram.com/rg.basket?igsh=MW5peWhqeXIybWdhNA==" },
-        { text: "X", url: "https://x.com/Rgbasket?t=7aE40eFefW7o51PgcFJk5Q&s=08" },
-        { text: "Facebook", url: "#" },
-        { text: "YouTube", url: "https://youtube.com/@rgbasket?si=8p36hGcaKuzr32C-" },
-      ],
-    },
   ];
 
   return (
-    <motion.div
-      className="w-full overflow-x-auto border-b border-gray-200 bg-gradient-to-r from-emerald-50 via-lime-50 to-white px-6 md:px-16 lg:px-24 xl:px-32 relative overflow-hidden"
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: "-100px" }}
-      variants={containerVariants}
-    >
-      {/* Animated Background Elements */}
-      <motion.div
-        className="absolute top-10 left-10 w-20 h-20 bg-[#005650] rounded-full opacity-5"
-        animate={{ scale: [1, 1.5, 1], opacity: [0.05, 0.1, 0.05] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-20 right-20 w-16 h-16 bg-[#00857a] rounded-full opacity-5"
-        animate={{ scale: [1, 1.8, 1], opacity: [0.05, 0.08, 0.05] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-      />
-
-      <div className="flex flex-col md:flex-row items-start justify-between gap-10 py-16 border-b border-gray-500/20 text-gray-600 relative z-10">
-        {/* Logo and Description Section */}
-        <motion.div className="flex-1" variants={itemVariants}>
-          <motion.div className="flex items-center mb-6" variants={logoVariants}>
-            <motion.img
-              src={Logo}
-              alt="Logo"
-              className="w-14 h-14 object-contain select-none"
-              draggable={false}
-              whileHover={{
-                scale: 1.1,
-                rotate: 5,
-                transition: { type: "spring", stiffness: 300 },
-              }}
-            />
-            <motion.span
-              className="ml-4 text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#005650] to-[#00857a] select-none"
-              variants={textGlow}
-              initial="initial"
-              whileHover="hover"
-            >
-              RG Basket
-            </motion.span>
-          </motion.div>
-
-          <motion.p
-            className="max-w-[450px] text-lg leading-relaxed"
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <strong>RG Basket</strong> is Odisha's homegrown farm-to-fork platform, delivering
-            fresh essentials directly from trusted local producers to households
-            across <strong>Cuttack</strong> and <strong>Bhubaneswar</strong>. We believe in transparency, quality,
-            and community—cutting out middlemen to ensure fair prices for farmers
-            and fresh, reliable products for you.
-          </motion.p>
-        </motion.div>
-
-        {/* Links Section */}
+    <footer className="relative bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 pt-12 md:pt-20 pb-28 md:pb-10 overflow-hidden border-t border-emerald-100/50">
+      {/* Decorative Background Blobs */}
+      {/* Decorative Background Blobs */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <motion.div
-          className="flex flex-wrap justify-between w-full md:w-[50%] gap-8"
-          variants={containerVariants}
-        >
-          {footerLinks.map((section, index) => (
-            <motion.div
-              key={index}
-              className="min-w-[140px]"
-              variants={itemVariants}
-              whileHover={{ y: -5 }}
-            >
-              <motion.h3
-                className="font-bold text-lg text-gray-900 mb-6 flex items-center gap-2"
-                whileHover={{ x: 5 }}
-              >
-                {section.title}
-              </motion.h3>
-              <ul className="space-y-3">
-                {section.links.map((link, i) => (
-                  <motion.li
-                    key={i}
-                    whileHover={{ x: 5, transition: { type: "spring", stiffness: 400 } }}
-                  >
-                    <motion.a
-                      href={link.url}
-                      className="text-base hover:text-[#005650] transition-all duration-300 flex items-center gap-2 group"
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      <motion.span
-                        className="opacity-0 group-hover:opacity-100"
-                        initial={{ scale: 0 }}
-                        whileHover={{ scale: 1 }}
-                      >
-                        →
-                      </motion.span>
-                      {link.text}
-                    </motion.a>
-                  </motion.li>
-                ))}
-              </ul>
-            </motion.div>
-          ))}
-        </motion.div>
+          className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl opacity-60"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-1/2 right-0 w-64 h-64 bg-lime-100/40 rounded-full blur-3xl opacity-60"
+          animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        />
       </div>
 
-      {/* Footer Bottom */}
-      <motion.div
-        className="py-6 text-center relative z-10"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ delay: 0.8 }}
-      >
-        <motion.p
-          className="text-sm md:text-base text-gray-500/80"
-          variants={pulseAnimation}
-          initial="initial"
-          animate="pulse"
-        >
-          Copyright {new Date().getFullYear()} ©{" "}
-          <motion.a
-            href="#"
-            className="font-bold text-[#005650] hover:text-[#00857a] transition-colors"
-            whileHover={{ scale: 1.1 }}
-          >
-            RG Basket
-          </motion.a>{" "}
-          All Rights Reserved. 🚀
-        </motion.p>
+      <div className="container mx-auto px-6 md:px-12 lg:px-20 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-8 mb-8 md:mb-16">
 
-        {/* Social Media Icons */}
-        <motion.div
-          className="flex justify-center gap-6 mt-4"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
-        >
-          {["Instagram", "Twitter", "Facebook", "YouTube"].map((platform, index) => (
-            <motion.a
-              key={platform}
-              href={
-                platform === "Instagram"
-                  ? "https://www.instagram.com/rg.basket?igsh=MW5peWhqeXIybWdhNA=="
-                  : platform === "Twitter"
-                    ? "https://x.com/Rgbasket?t=7aE40eFefW7o51PgcFJk5Q&s=08"
-                    : platform === "Facebook"
-                      ? "https://facebook.com/rgbasket"
-                      : "https://youtube.com/@rgbasket?si=iPzE8I-Tm6ieZCLR"
-              }
-              aria-label={`Follow RG Basket on ${platform}`}
-              className="w-10 h-10 bg-white/50 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-600 hover:text-[#005650] border border-white/20 shadow-lg"
-              whileHover={{
-                scale: 1.2,
-                backgroundColor: "rgba(0, 86, 80, 0.1)",
-                transition: { type: "spring", stiffness: 400 },
-              }}
-              whileTap={{ scale: 0.9 }}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1 + index * 0.1 }}
-            >
-              {platform === "Instagram" && "📷"}
-              {platform === "Twitter" && "🐦"}
-              {platform === "Facebook" && "👥"}
-              {platform === "YouTube" && "🎥"}
-            </motion.a>
-          ))}
-        </motion.div>
-      </motion.div>
-    </motion.div>
+          {/* Brand Column */}
+          <div className="lg:col-span-5 space-y-6">
+            <Link to="/" className="inline-flex items-center gap-3 group">
+              <motion.img
+                src={Logo}
+                alt="RG Basket Logo"
+                className="w-12 h-12 object-contain drop-shadow-sm"
+                variants={pulseAnimation}
+                initial="initial"
+                animate="pulse"
+                whileHover={{ scale: 1.2, rotate: 10, transition: { duration: 0.3 } }}
+              />
+              <span className="text-2xl font-black tracking-tight transition-all duration-300">
+                <span className="text-black">RG</span> <span className="text-emerald-600">Basket</span>
+              </span>
+            </Link>
+
+            <p className="text-gray-600 leading-relaxed max-w-md text-[15px]">
+              Empowering local farmers, delivering freshness.
+              <strong className="text-emerald-700 font-semibold"> RG Basket</strong> connects you directly with
+              Odisha's finest produce, ensuring quality from farm to your fork.
+              Fresh. Transparency. Community.
+            </p>
+
+            <div className="flex items-center gap-4 pt-2">
+              <SocialButton
+                href="https://www.instagram.com/rg.basket?igsh=MW5peWhqeXIybWdhNA=="
+                icon={<FaInstagram className="text-xl" />}
+                label="Instagram"
+                customClass="text-pink-600 bg-pink-50 border-pink-100 md:bg-white md:border-gray-100 md:text-gray-500 md:hover:bg-pink-50 md:hover:text-pink-600 md:hover:border-pink-100"
+              />
+              <SocialButton
+                href="https://x.com/Rgbasket?t=7aE40eFefW7o51PgcFJk5Q&s=08"
+                icon={<FaXTwitter className="text-xl" />}
+                label="X (Twitter)"
+                customClass="text-slate-900 bg-slate-50 border-slate-200 md:bg-white md:border-gray-100 md:text-gray-500 md:hover:bg-slate-100 md:hover:text-slate-900 md:hover:border-slate-200"
+              />
+              <SocialButton
+                href="https://facebook.com/rgbasket"
+                icon={<FaFacebookF className="text-xl" />}
+                label="Facebook"
+                customClass="text-blue-600 bg-blue-50 border-blue-100 md:bg-white md:border-gray-100 md:text-gray-500 md:hover:bg-blue-50 md:hover:text-blue-600 md:hover:border-blue-100"
+              />
+              <SocialButton
+                href="https://youtube.com/@rgbasket?si=8p36hGcaKuzr32C-"
+                icon={<FaYoutube className="text-xl" />}
+                label="YouTube"
+                customClass="text-red-600 bg-red-50 border-red-100 md:bg-white md:border-gray-100 md:text-gray-500 md:hover:bg-red-50 md:hover:text-red-600 md:hover:border-red-100"
+              />
+            </div>
+          </div>
+
+          {/* Links Columns */}
+          <div className="lg:col-span-4 grid grid-cols-2 gap-8">
+            {footerLinks.map((section, idx) => (
+              <div key={idx}>
+                <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2 text-lg">
+                  {section.title}
+                </h3>
+                <ul className="space-y-3">
+                  {section.links.map((link, i) => (
+                    <li key={i}>
+                      <Link
+                        to={link.url}
+                        className="text-gray-500 hover:text-emerald-600 transition-colors duration-200 text-sm font-medium flex items-center gap-1 group"
+                      >
+                        <ArrowRight className="w-3 h-3 opacity-0 -ml-3 group-hover:opacity-100 group-hover:ml-0 transition-all text-emerald-500" />
+                        {link.text}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {/* Contact Column */}
+          <div className="lg:col-span-3 space-y-6">
+            <h3 className="font-bold text-gray-900 text-lg mb-6">Contact Us</h3>
+            <ul className="space-y-4">
+              <ContactItem
+                icon={<MapPin className="w-5 h-5 text-emerald-600" />}
+                text="Cuttack, Odisha"
+                href="#"
+              />
+              <ContactItem
+                icon={<Mail className="w-5 h-5 text-emerald-600" />}
+                text="rgbasket.com@gmail.com"
+                href="mailto:rgbasket.com@gmail.com"
+              />
+              <ContactItem
+                icon={<FaWhatsapp className="w-5 h-5 text-emerald-600" />}
+                text="+91 9078771530"
+                href="https://wa.me/919078771530"
+              />
+            </ul>
+          </div>
+        </div>
+
+        {/* Footer Bottom */}
+        <div className="border-t border-emerald-100 pt-6 md:pt-8 mt-4 md:mt-8 flex flex-col-reverse md:flex-row items-center justify-between gap-4 text-sm text-gray-600 relative z-20">
+          <motion.p
+            className="text-center md:text-left font-medium"
+            variants={pulseAnimation}
+            initial="initial"
+            animate="pulse"
+          >
+            © {currentYear} <span className="font-bold text-emerald-700">RG Basket</span>. All rights reserved.
+          </motion.p>
+          <div className="flex items-center justify-center gap-1.5 font-medium bg-emerald-50/50 px-4 py-2 rounded-full border border-emerald-100/50 backdrop-blur-sm">
+            <span>Made with</span>
+            <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
+            <span>in Odisha</span>
+          </div>
+        </div>
+      </div>
+    </footer>
   );
 };
+
+// Helper Components
+const SocialButton = ({ href, icon, label, customClass }) => (
+  <motion.a
+    href={href}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label={label}
+    className={`w-10 h-10 rounded-full border shadow-sm flex items-center justify-center transition-all duration-300 ${customClass} hover:shadow-md hover:-translate-y-1`}
+    whileHover="hover"
+    whileTap="tap"
+    variants={socialHover}
+  >
+    {icon}
+  </motion.a>
+);
+
+const ContactItem = ({ icon, text, href }) => (
+  <li className="flex items-start gap-3 group">
+    <div className="mt-0.5 p-2 rounded-full bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+      {icon}
+    </div>
+    <a
+      href={href}
+      className="text-gray-600 hover:text-emerald-700 transition-colors text-sm font-medium pt-1.5 break-all"
+    >
+      {text}
+    </a>
+  </li>
+);
 
 export default Footer;
