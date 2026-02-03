@@ -8,7 +8,8 @@ import {
   CartItemsList,
   OrderSummary,
   UnavailableItemsModal,
-  ExclusivityModal
+  ExclusivityModal,
+  StaleCartModal
 
 } from "../components/Cart";
 import OfferSelectionModal from "../components/Cart/OfferSelectionModal";
@@ -74,6 +75,11 @@ const Cart = () => {
   const [orderLocation, setOrderLocation] = useState(null);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [isGeoBlocked, setIsGeoBlocked] = useState(false);
+
+  // Stale Cart Detection State
+  const [staleCartItems, setStaleCartItems] = useState([]);
+  const [showStaleCartModal, setShowStaleCartModal] = useState(false);
+
 
   // Promo Code State
   const [promoCode, setPromoCode] = useState(null);
@@ -318,6 +324,107 @@ const Cart = () => {
     return outOfStock.length === 0;
   };
 
+  // Comprehensive Stale Cart Validation
+  const validateStaleCart = async () => {
+    if (cartArray.length === 0) return { isValid: true, staleItems: [] };
+
+    const staleItems = [];
+    let cartWasModified = false;
+
+    for (const cartItem of cartArray) {
+      // Fetch fresh product data from backend
+      const freshProduct = products.find(p => p._id === cartItem._id);
+
+      if (!freshProduct) {
+        // Product no longer exists
+        staleItems.push({
+          ...cartItem,
+          reason: 'inactive',
+          message: 'Product no longer available'
+        });
+        continue;
+      }
+
+      // Check if product is inactive
+      if (freshProduct.active === false) {
+        staleItems.push({
+          ...cartItem,
+          reason: 'inactive',
+          message: 'Product has been removed from our catalog'
+        });
+        continue;
+      }
+
+      // Find the specific weight variant
+      const variantIndex = freshProduct.weights?.findIndex(
+        w => w.weight === cartItem.weight && w.unit === cartItem.unit
+      );
+
+      if (variantIndex === -1) {
+        // Variant no longer exists
+        staleItems.push({
+          ...cartItem,
+          reason: 'inactive',
+          message: 'This variant is no longer available'
+        });
+        continue;
+      }
+
+      const freshVariant = freshProduct.weights[variantIndex];
+
+      // Check stock availability
+      if (!freshProduct.inStock || freshProduct.stock <= 0) {
+        staleItems.push({
+          ...cartItem,
+          reason: 'out_of_stock',
+          message: 'Currently out of stock'
+        });
+        continue;
+      }
+
+      // Check if cart quantity exceeds available stock
+      if (cartItem.quantity > freshProduct.stock) {
+        // Auto-adjust quantity to available stock
+        const cartKey = cartItem.cartKey;
+        const newQuantity = freshProduct.stock;
+
+        // Update cart silently
+        updateCartItem(cartKey, newQuantity);
+        cartWasModified = true;
+
+        staleItems.push({
+          ...cartItem,
+          reason: 'quantity_adjusted',
+          requestedQuantity: cartItem.quantity,
+          availableQuantity: newQuantity,
+          message: `Only ${newQuantity} available (you had ${cartItem.quantity})`
+        });
+      }
+
+      // Check maxOrderQuantity if set
+      if (freshProduct.maxOrderQuantity > 0 && cartItem.quantity > freshProduct.maxOrderQuantity) {
+        const cartKey = cartItem.cartKey;
+        updateCartItem(cartKey, freshProduct.maxOrderQuantity);
+        cartWasModified = true;
+
+        staleItems.push({
+          ...cartItem,
+          reason: 'quantity_adjusted',
+          requestedQuantity: cartItem.quantity,
+          availableQuantity: freshProduct.maxOrderQuantity,
+          message: `Maximum ${freshProduct.maxOrderQuantity} per order`
+        });
+      }
+    }
+
+    return {
+      isValid: staleItems.length === 0,
+      staleItems,
+      cartWasModified
+    };
+  };
+
+
   // Validate cart against selected slot
   const validateCart = async () => {
     if (!selectedSlot || !selectedSlot.date || !selectedSlot.timeSlot) {
@@ -448,6 +555,28 @@ const Cart = () => {
       return;
     }
 
+    // Validate stale cart before placing order
+    const staleValidation = await validateStaleCart();
+    if (!staleValidation.isValid) {
+      const criticalIssues = staleValidation.staleItems.filter(
+        item => item.reason === 'out_of_stock' || item.reason === 'inactive'
+      );
+
+      if (criticalIssues.length > 0) {
+        setStaleCartItems(staleValidation.staleItems);
+        setShowStaleCartModal(true);
+        toast.error("Some items in your cart need attention before checkout.");
+        return;
+      }
+
+      // If only quantity adjustments, show modal but allow to continue after acknowledgment
+      if (staleValidation.staleItems.length > 0) {
+        setStaleCartItems(staleValidation.staleItems);
+        setShowStaleCartModal(true);
+        return;
+      }
+    }
+
     if (!checkStockStatus()) {
       toast.error("Some items in your cart are out of stock. Please remove them to continue.");
       return;
@@ -457,6 +586,7 @@ const Cart = () => {
       toast.error("Some items are unavailable for the selected slot. Please remove them to continue.");
       return;
     }
+
 
     // Nudge for location one last time if missing
     if (!orderLocation && !isGeoBlocked) {
@@ -598,6 +728,25 @@ const Cart = () => {
       checkStockStatus();
     }
   }, [cartArray]);
+
+  // Validate stale cart on page load and when products update
+  useEffect(() => {
+    const performStaleCartCheck = async () => {
+      if (cartArray.length > 0 && products.length > 0) {
+        const validation = await validateStaleCart();
+
+        if (!validation.isValid && validation.staleItems.length > 0) {
+          setStaleCartItems(validation.staleItems);
+          setShowStaleCartModal(true);
+        }
+      }
+    };
+
+    // Run check after a short delay to ensure products are loaded
+    const timer = setTimeout(performStaleCartCheck, 500);
+    return () => clearTimeout(timer);
+  }, [cartArray.length, products.length]);
+
 
   // Sync Cart Intent to Backend (Behavioral Tracking)
   useEffect(() => {
@@ -843,6 +992,30 @@ const Cart = () => {
     // toast.success('Promo code removed'); // Optional
   };
 
+  // Stale Cart Modal Handlers
+  const handleRemoveStaleItems = () => {
+    const itemsToRemove = staleCartItems.filter(
+      item => item.reason === 'out_of_stock' || item.reason === 'inactive'
+    );
+
+    itemsToRemove.forEach(item => {
+      removeCartItem(item.cartKey);
+    });
+
+    if (itemsToRemove.length > 0) {
+      toast.success(`${itemsToRemove.length} unavailable item(s) removed from cart`);
+    }
+
+    setShowStaleCartModal(false);
+    setStaleCartItems([]);
+  };
+
+  const handleContinueShopping = () => {
+    setShowStaleCartModal(false);
+    setStaleCartItems([]);
+  };
+
+
   // Check if there are any unavailable items (out of stock or slot unavailable)
   const hasUnavailableItems = outOfStockItems.length > 0 || Object.keys(unavailableItems).length > 0;
 
@@ -873,8 +1046,18 @@ const Cart = () => {
         />
       )}
 
+      {/* Stale Cart Modal */}
+      <StaleCartModal
+        isOpen={showStaleCartModal}
+        onClose={handleContinueShopping}
+        staleItems={staleCartItems}
+        onRemoveStale={handleRemoveStaleItems}
+        onContinueShopping={handleContinueShopping}
+      />
+
       {/* Unavailable Items Modal */}
       <UnavailableItemsModal
+
         isOpen={showUnavailableModal}
         onClose={() => setShowUnavailableModal(false)}
         onRemove={removeAllUnavailableItems}

@@ -13,3 +13,4 @@ export { default as PricingSummary } from './PricingSummary';
 export { default as PlaceOrderButton } from './PlaceOrderButton';
 export { default as PromoCodeSection } from './PromoCodeSection';
 export { default as ExclusivityModal } from './ExclusivityModal';
+export { default as StaleCartModal } from './StaleCartModal';
