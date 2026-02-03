@@ -136,7 +136,15 @@ const ProductDetails = () => {
       const filtered = products.filter(
         (item) => item.category === product.category && item._id !== product._id
       );
-      setRelatedProducts(filtered.slice(0, 5));
+      setRelatedProducts(
+        filtered
+          .sort((a, b) => {
+            const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
+            const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
+            return bAvailable - aAvailable;
+          })
+          .slice(0, 5)
+      );
     }
   }, [products, product]);
 

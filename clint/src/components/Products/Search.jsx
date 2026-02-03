@@ -216,7 +216,11 @@ export default function Search({ mobile = false }) {
 
     const productMatches = products.filter((prod) =>
       prod.name.toLowerCase().includes(value)
-    );
+    ).sort((a, b) => {
+      const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
+      const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
+      return bAvailable - aAvailable;
+    });
 
     const combined = [
       ...categoryMatches.map((c) => ({

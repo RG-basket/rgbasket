@@ -57,6 +57,16 @@ const ProductsCategory = () => {
 
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
+    // Primary Sort: Availability (In Stock items first)
+    // We assume 'inStock' is true and 'stock' > 0 for available items.
+    const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
+    const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
+
+    if (aAvailable !== bAvailable) {
+      return bAvailable - aAvailable; // Descending: Available (1) before Unavailable (0)
+    }
+
+    // Secondary Sort: User Selection
     switch (sortBy) {
       case 'price-asc':
         return (a.weights[0]?.offerPrice || 0) - (b.weights[0]?.offerPrice || 0);

@@ -12,7 +12,14 @@ const BestSeller = () => {
 
   // Memoize the filtered products to avoid recalculating on every render
   const inStockProducts = useMemo(() =>
-    products.filter((product) => product.inStock).slice(0, 8),
+    products
+      .filter((product) => product.active !== false)
+      .slice(0, 8)
+      .sort((a, b) => {
+        const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
+        const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
+        return bAvailable - aAvailable;
+      }),
     [products]
   );
 

@@ -26,8 +26,13 @@ const NewArrivals = () => {
     try {
       if (contextProducts && contextProducts.length > 0) {
         const recentProducts = contextProducts
-          .filter(p => p.active !== false && p.inStock === true && p.stock > 0)
-          .slice(0, 16);
+          .filter(p => p.active !== false)
+          .slice(0, 16)
+          .sort((a, b) => {
+            const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
+            const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
+            return bAvailable - aAvailable;
+          });
         setAllProducts(recentProducts);
         setDisplayProducts({
           row1: recentProducts.slice(0, 8),
@@ -268,7 +273,6 @@ const NewArrivals = () => {
                   showBadge={true}
                   badgeText="New"
                   badgeColor="emerald"
-                  hideIfUnavailable={true}
                 />
               </div>
             </div>
