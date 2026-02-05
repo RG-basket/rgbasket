@@ -91,10 +91,12 @@ const ScrollToTop = () => {
 
 import BanScreen from "./components/Auth/BanScreen.jsx";
 
+import BlinkitLoader from "./components/Common/BlinkitLoader.jsx";
+
 const App = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
-  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user } = useAppContext();
+  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady } = useAppContext();
 
   // console.log('Current User in App:', user);
 
@@ -104,6 +106,9 @@ const App = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-between">
+      {/* GLOBAL BLINKIT-STYLE LOADER */}
+      <BlinkitLoader isAppReady={isAppReady} />
+
       {/* GLOBAL BAN OVERLAY */}
       {user && user.isBanned === true && !isAdminPath && (
         <BanScreen user={user} />

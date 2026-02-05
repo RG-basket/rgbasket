@@ -73,6 +73,7 @@ export const AppContextProvider = ({ children }) => {
   const [categoriesCache, setCategoriesCache] = useState(null);
   const [slotsCache, setSlotsCache] = useState(null);
   const [serviceAreas, setServiceAreas] = useState([]);
+  const [isAppReady, setIsAppReady] = useState(false);
 
   // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
   const formatTime = (timeStr) => {
@@ -582,6 +583,7 @@ export const AppContextProvider = ({ children }) => {
       if (showToast) toast.error('Failed to fetch products');
     } finally {
       setLoading(false);
+      setIsAppReady(true);
     }
   };
 
@@ -1062,7 +1064,8 @@ export const AppContextProvider = ({ children }) => {
 
     // Service Areas
     serviceAreas,
-    fetchServiceAreas
+    fetchServiceAreas,
+    isAppReady
   };
 
   return (
