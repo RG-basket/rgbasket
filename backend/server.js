@@ -145,6 +145,7 @@ app.use('/api/offers', offerRoutes);
 app.use('/api/service-areas', serviceAreaRoutes);
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/feeds', require('./routes/feeds'));
+app.use('/api/sitemap', require('./routes/sitemap'));
 
 
 // Your existing routes

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import AddressForm from "../components/Address/AddressForm";
 import toast from "react-hot-toast";
@@ -46,7 +47,6 @@ const Cart = () => {
     cartItems,
     removeCartItem,
     updateCartItem,
-    navigate,
     getCartTotal,
     getCartAmount,
     user,
@@ -58,6 +58,8 @@ const Cart = () => {
     getCustomizationCharge,
     serviceAreas
   } = useAppContext();
+  const navigate = useNavigate();
+  const summaryRef = useRef(null);
 
   const [cartArray, setCartArray] = useState([]);
   const [addresses, setAddresses] = useState([]);
@@ -680,7 +682,7 @@ const Cart = () => {
         setInstruction("");
 
         setTimeout(() => {
-          window.location.href = '/order-success';
+          navigate('/order-success', { state: { order: data.order } });
         }, 1000);
 
       } else {
@@ -1102,12 +1104,41 @@ const Cart = () => {
 
       {/* Cart Items Section */}
       <div className="flex-1">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-gray-800">
-          Shopping Cart
-          <span className="text-xs sm:text-sm text-green-600 ml-2">
-            ({Object.values(cartItems).reduce((sum, qty) => sum + qty, 0)} Items)
-          </span>
-        </h1>
+        <div className="flex flex-col mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">
+            Shopping Cart
+            <span className="text-xs sm:text-sm text-green-600 font-medium ml-2 opacity-60">
+              {Object.values(cartItems).reduce((sum, qty) => sum + qty, 0)} Items
+            </span>
+          </h1>
+
+          {/* Smart & Perfectly Aligned Micro-Bill for Mobile */}
+          {cartArray.length > 0 && (
+            <div
+              onClick={() => summaryRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className="lg:hidden flex items-center justify-between bg-emerald-600/5 border border-emerald-600/10 px-4 py-3 rounded-2xl cursor-pointer active:scale-[0.98] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-emerald-800/60 uppercase tracking-widest leading-none mb-1">Total Bill</span>
+                  <span className="text-xl font-black text-gray-900 leading-none">{currencySymbol}{totalAmount}</span>
+                </div>
+                {totalSavings > 0 && (
+                  <div className="hidden xs:flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-emerald-100 shadow-sm">
+                    <span className="text-[10px] font-bold text-emerald-600 whitespace-nowrap">Saved {currencySymbol}{totalSavings}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-emerald-200/50">
+                <span>Checkout</span>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Remove Unavailable Items Button */}
         {hasUnavailableItems && (
@@ -1187,46 +1218,48 @@ const Cart = () => {
 
       {/* Order Summary Section */}
       {cartArray.length > 0 && (
-        <OrderSummary
-          user={user}
-          addresses={addresses}
-          selectedAddress={selectedAddress}
-          loadingAddresses={loadingAddresses}
-          setShowAddressForm={setShowAddressForm}
-          paymentOption={paymentOption}
-          setPaymentOption={setPaymentOption}
-          deliveryDate={selectedSlot?.date || ""}
-          setDeliveryDate={(date) => setSelectedSlot(prev => ({ ...prev, date }))}
-          deliverySlot={selectedSlot?.timeSlot || ""}
-          setDeliverySlot={(timeSlot) => setSelectedSlot(prev => ({ ...prev, timeSlot }))}
-          subtotal={subtotal}
-          totalMRP={totalMRP}
-          totalSavings={totalSavings}
-          shippingFee={shippingFee}
-          tax={tax}
-          totalAmount={totalAmount}
-          currencySymbol={currencySymbol}
-          placeOrder={placeOrder}
-          isPlacingOrder={isPlacingOrder}
-          outOfStockItems={outOfStockItems}
-          unavailableItems={unavailableItems}
-          hasUnavailableItems={hasUnavailableItems}
-          instruction={instruction}
-          setInstruction={setInstruction}
-          selectedGift={selectedGift}
-          removeGift={removeGift}
-          // Promo Props
+        <div ref={summaryRef} className="w-full lg:max-w-md">
+          <OrderSummary
+            user={user}
+            addresses={addresses}
+            selectedAddress={selectedAddress}
+            loadingAddresses={loadingAddresses}
+            setShowAddressForm={setShowAddressForm}
+            paymentOption={paymentOption}
+            setPaymentOption={setPaymentOption}
+            deliveryDate={selectedSlot?.date || ""}
+            setDeliveryDate={(date) => setSelectedSlot(prev => ({ ...prev, date }))}
+            deliverySlot={selectedSlot?.timeSlot || ""}
+            setDeliverySlot={(timeSlot) => setSelectedSlot(prev => ({ ...prev, timeSlot }))}
+            subtotal={subtotal}
+            totalMRP={totalMRP}
+            totalSavings={totalSavings}
+            shippingFee={shippingFee}
+            tax={tax}
+            totalAmount={totalAmount}
+            currencySymbol={currencySymbol}
+            placeOrder={placeOrder}
+            isPlacingOrder={isPlacingOrder}
+            outOfStockItems={outOfStockItems}
+            unavailableItems={unavailableItems}
+            hasUnavailableItems={hasUnavailableItems}
+            instruction={instruction}
+            setInstruction={setInstruction}
+            selectedGift={selectedGift}
+            removeGift={removeGift}
+            // Promo Props
 
-          applyPromo={applyPromoCode}
-          removePromo={removePromoCode}
-          promoCode={promoCode}
-          discountAmount={discountAmount}
-          baseShippingFee={baseShippingFee}
-          tipAmount={tipAmount}
-          setTipAmount={setTipAmount}
-          standardFee={standardFee}
-          distanceSurcharge={distanceSurcharge}
-        />
+            applyPromo={applyPromoCode}
+            removePromo={removePromoCode}
+            promoCode={promoCode}
+            discountAmount={discountAmount}
+            baseShippingFee={baseShippingFee}
+            tipAmount={tipAmount}
+            setTipAmount={setTipAmount}
+            standardFee={standardFee}
+            distanceSurcharge={distanceSurcharge}
+          />
+        </div>
       )}
       {/* Location Prompt Modal */}
       <LocationPrompt

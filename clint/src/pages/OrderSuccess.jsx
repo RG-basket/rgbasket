@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const OrderSuccess = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const order = location.state?.order;
 
   useEffect(() => {
     // Clear cart items once order is placed
@@ -12,15 +14,45 @@ const OrderSuccess = () => {
     localStorage.removeItem('cartInstruction');
     localStorage.removeItem('cartAppliedOfferThreshold');
 
+    // Google Customer Reviews Integration
+    if (order && order.userInfo?.email) {
+      const script = document.createElement('script');
+      script.src = "https://apis.google.com/js/platform.js?onload=renderOptIn";
+      script.async = true;
+      script.defer = true;
 
-    // Redirect after 3 seconds
+      window.renderOptIn = function () {
+        window.gapi.load('surveyoptin', function () {
+          const deliveryDate = new Date(order.deliveryDate || Date.now());
+          const dateString = deliveryDate.toISOString().split('T')[0];
+
+          window.gapi.surveyoptin.render({
+            "merchant_id": 5701308546,
+            "order_id": order._id || order.id,
+            "email": order.userInfo.email,
+            "delivery_country": "IN",
+            "estimated_delivery_date": dateString,
+            "products": (order.items || []).map(item => ({ "gtin": item.gtin || "" }))
+          });
+        });
+      };
+
+      document.head.appendChild(script);
+    }
+
+    // Redirect after 5 seconds to give user time to see the review opt-in
     const timer = setTimeout(() => {
       navigate('/orders');
-    }, 3000);
+    }, 5000);
 
     // Cleanup timer if component unmounts
-    return () => clearTimeout(timer);
-  }, [navigate]);
+    return () => {
+      clearTimeout(timer);
+      const script = document.querySelector('script[src*="apis.google.com/js/platform.js"]');
+      if (script) script.remove();
+      delete window.renderOptIn;
+    };
+  }, [navigate, order]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white text-[#26544a] px-6">

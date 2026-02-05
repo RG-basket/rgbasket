@@ -157,6 +157,51 @@ const ProductDetails = () => {
     }
   }, [product]);
 
+  // Inject Structured Data (JSON-LD) for Google Shopping
+  useEffect(() => {
+    if (!product) return;
+
+    const defaultVariant = product.weights?.[0] || {};
+    const price = defaultVariant.offerPrice || defaultVariant.price || 0;
+    const availability = product.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
+
+    const structuredData = {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": product.name,
+      "image": (product.images || []).map(img => img.startsWith('http') ? img : `https://rgbasket.vercel.app${img.startsWith('/') ? '' : '/'}${img}`),
+      "description": Array.isArray(product.description) ? product.description.join(' ') : product.description,
+      "brand": {
+        "@type": "Brand",
+        "name": "RG Basket"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": window.location.href,
+        "priceCurrency": "INR",
+        "price": price,
+        "availability": availability,
+        "itemCondition": "https://schema.org/NewCondition"
+      }
+    };
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = 'product-json-ld';
+    script.innerHTML = JSON.stringify(structuredData);
+    document.head.appendChild(script);
+
+    // Update Meta Tags
+    document.title = `${product.name} | RG Basket`;
+
+    return () => {
+      const existingScript = document.getElementById('product-json-ld');
+      if (existingScript) {
+        document.head.removeChild(existingScript);
+      }
+    };
+  }, [product]);
+
   // Calculate derived values
   const selectedWeight = product?.weights?.[selectedWeightIndex] || {};
   // Use weightIndex for cart key to match AppContext

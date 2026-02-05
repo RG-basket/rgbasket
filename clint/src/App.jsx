@@ -26,6 +26,7 @@ const Complaint = lazy(() => import("./pages/Complaint.jsx"));
 const AdminComplaints = lazy(() => import("./components/Admin/AdminComplaintsDark.jsx"));
 
 const TermsOfService = lazy(() => import("./pages/TermsOfService.jsx"));
+const PrivacyPolicy = lazy(() => import("./pages/LegalPrivacy.jsx"));
 
 // Admin Pages - Lazy Loaded
 const AdminLogin = lazy(() => import("./components/Admin/AdminLogin.jsx"));
@@ -200,6 +201,7 @@ const App = () => {
             <Route path="/order" element={<ShippingReturns />} />
 
             <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
 
             {/* Admin Routes - Note: AdminLayout is integrated within each admin component */}
             <Route path="/admin/login" element={<AdminLogin />} />

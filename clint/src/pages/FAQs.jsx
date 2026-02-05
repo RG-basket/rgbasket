@@ -1,117 +1,65 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const FAQs = () => {
+  const [openIndex, setOpenIndex] = useState(null);
+
   const faqCategories = [
     {
-      category: "Ordering & Account",
+      category: "Delivery & Areas",
       questions: [
         {
-          question: "How do I create an account?",
-          answer: "Click on the 'Login' button in the top right corner and choose 'Create Account'. You can sign up using your email or Google account. Account creation takes less than 2 minutes."
-        },
-        {
-          question: "Can I order without creating an account?",
-          answer: "Yes, you can place orders as a guest. However, creating an account allows you to track orders, save addresses, and get personalized recommendations."
-        },
-        {
-          question: "How do I reset my password?",
-          answer: "Click 'Forgot Password' on the login page. Enter your registered email address and we'll send you a password reset link valid for 1 hour."
-        },
-        {
-          question: "Can I modify my order after placing it?",
-          answer: "You can modify your order within 30 minutes of placing it. After that, orders enter our processing system and changes may not be possible. Contact customer support for assistance."
-        }
-      ]
-    },
-    {
-      category: "Delivery & Shipping",
-      questions: [
-        {
-          question: "What are your delivery areas?",
-          answer: "We deliver to 5000+ pincodes across major cities. Check serviceability by entering your pincode on the homepage. We're constantly expanding our delivery network."
+          question: "Where do you deliver?",
+          answer: "We currently deliver specifically to Cuttack city and its immediate surrounding areas. Enter your pincode on the home page to check if we serve your exact location."
         },
         {
           question: "What are the delivery charges?",
-          answer: "We charge ₹29 for all orders. Free delivery is available on orders above ₹499. Delivery charges cover packaging, handling, and transportation costs."
+          answer: "We charge a standard delivery fee of ₹29. The free delivery threshold depends on your location Please check the delivery details in your cart after entering your address."
         },
         {
-          question: "Can I change my delivery address?",
-          answer: "Yes, you can change your delivery address within 1 hour of order placement. After that, contact customer support. Address changes are subject to delivery area availability."
-        },
-        {
-          question: "What are your delivery time slots?",
-          answer: "We offer five slots daily: Morning - First Half (7:00-8:30 AM), Morning - Second Half (8:30-10:00 AM), Noon (12:00-2:00 PM), Night - First Half (5:00-6:30 PM), and Night - Second Half (6:30-8:00 PM). Next-day delivery is available for orders placed before 8:00 PM."
+          question: "What are your delivery slots?",
+          answer: "We offer multiple daily slots: Morning, Noon, and Evening. For 'Quick Commerce' items, we aim to deliver within 60 minutes depending on your location."
         }
       ]
     },
     {
-      category: "Payments & Refunds",
+      category: "Ordering & Returns",
       questions: [
-        {
-          question: "What payment methods do you accept?",
-          answer: "We accept Credit/Debit Cards, UPI, Net Banking, and Cash on Delivery. All online payments are secured with 128-bit SSL encryption."
-        },
-        {
-          question: "Is Cash on Delivery available?",
-          answer: "Yes, COD is available for orders up to ₹5000. Please keep exact change ready for the delivery executive."
-        },
-        {
-          question: "How long do refunds take?",
-          answer: "Refunds are processed within 3-5 business days. For online payments, it takes 5-7 days to reflect in your account. COD refunds are processed via bank transfer."
-        },
-        {
-          question: "My payment failed but amount was deducted?",
-          answer: "Don't worry! The amount will be automatically refunded within 24 hours. If not, contact our support with transaction details for immediate assistance."
-        }
-      ]
-    },
-    {
-      category: "Products & Quality",
-      questions: [
-        {
-          question: "How do you ensure product quality?",
-          answer: "We source directly from farmers and certified suppliers. All products undergo quality checks. We maintain proper storage and cold chain for perishables."
-        },
-        {
-          question: "What if I receive damaged products?",
-          answer: "Report damaged items within 6 hours of delivery with photos. We'll arrange replacement or refund. Our quality team investigates all complaints."
-        },
-        {
-          question: "Do you have organic products?",
-          answer: "Yes, we have a dedicated 'Organic' section with certified organic fruits, vegetables, and groceries. Look for the organic badge on products."
-        },
-        {
-          question: "Can I request specific ripeness for fruits?",
-          answer: "Yes! During checkout, you can add special instructions for fruit ripeness. We'll do our best to accommodate your preferences."
-        }
-      ]
-    },
-    {
-      category: "Returns & Cancellations",
-      questions: [
-        {
-          question: "What is your return policy?",
-          answer: "We accept returns within 24 hours for eligible products. Fresh produce returns must be reported within 6 hours. Packaged goods can be returned within 7 days if unopened."
-        },
-        {
-          question: "How do I return an item?",
-          answer: "Go to 'My Orders', select the order, and click 'Return Item'. Our executive will collect during next delivery. Refunds processed after verification."
-        },
-        {
-          question: "What items cannot be returned?",
-          answer: "Fresh fruits/vegetables (unless spoiled), dairy products, frozen foods, personalized items, and opened packaged goods for hygiene reasons."
-        },
         {
           question: "Can I cancel my order?",
-          answer: "You can cancel orders within 1 hour of placement. After processing begins, cancellation may not be possible. Contact support for urgent cancellations."
+          answer: "Orders can be cancelled anytime BEFORE they are marked as 'Out for Delivery'. Once our delivery partner is on the way, we are unable to process cancellations."
+        },
+        {
+          question: "What is your return policy?",
+          answer: "We offer a 2-day (48-hour) window for quality-related returns. For fresh items, we encourage checking them at the door; if you're not completely satisfied, you can return them immediately to our delivery executive."
+        },
+        {
+          question: "What if I receive the wrong item?",
+          answer: "If we make a mistake, please let us know with photos of the product and original packaging within 6 hours. We are committed to resolving your concern within 48 hours."
+        }
+      ]
+    },
+    {
+      category: "Payments & Safety",
+      questions: [
+        {
+          question: "Is Cash on Delivery (COD) available?",
+          answer: "Yes, we happily accept COD! To keep our services fair for everyone, we monitor for repeated order refusals. Consistently declining COD orders without a valid quality reason may lead to service restrictions."
+        },
+        {
+          question: "Are my online payments secure?",
+          answer: "Absolutely. We use industry-standard security to ensure your payment details are protected and 100% safe."
+        },
+        {
+          question: "Why do my fresh items look slightly different from the photos?",
+          answer: "Natural produce is unique! Variations in shape and color are normal for fresh harvest, but we always guarantee the quality and taste are premium."
         }
       ]
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -123,101 +71,89 @@ const FAQs = () => {
             Frequently Asked Questions
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Find quick answers to common questions about RG Basket
+            Find quick answers to common questions about RG Basket.
           </p>
         </motion.div>
 
-        {/* Search Bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-12"
-        >
-          <div className="relative max-w-2xl mx-auto">
-            <input
-              type="text"
-              placeholder="Search for answers..."
-              className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-lg"
-            />
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <span className="text-gray-400">🔍</span>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* FAQ Categories */}
+        {/* FAQ Categories & Questions */}
         <div className="space-y-12">
-          {faqCategories.map((category, categoryIndex) => (
-            <motion.div
-              key={categoryIndex}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: categoryIndex * 0.1 }}
-            >
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-orange-200">
+          {faqCategories.map((category, catIdx) => (
+            <div key={catIdx}>
+              <h2 className="text-2xl font-bold text-green-800 mb-6 border-b-2 border-green-200 pb-2">
                 {category.category}
               </h2>
               <div className="space-y-4">
-                {category.questions.map((faq, faqIndex) => (
-                  <motion.div
-                    key={faqIndex}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: (categoryIndex * 0.1) + (faqIndex * 0.05) }}
-                    className="bg-white rounded-xl shadow-md border border-orange-100 overflow-hidden hover:shadow-lg transition-shadow"
-                  >
-                    <div className="p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-start">
-                        <span className="flex-shrink-0 w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-1">
-                          Q
+                {category.questions.map((faq, qIdx) => {
+                  const globalIdx = `${catIdx}-${qIdx}`;
+                  return (
+                    <motion.div
+                      key={globalIdx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: qIdx * 0.05 }}
+                      className="bg-white rounded-xl shadow-sm border border-green-100 overflow-hidden"
+                    >
+                      <button
+                        onClick={() => setOpenIndex(openIndex === globalIdx ? null : globalIdx)}
+                        className="w-full p-5 text-left flex justify-between items-center hover:bg-green-50/50 transition-colors"
+                      >
+                        <span className="text-lg font-semibold text-gray-900 leading-tight">
+                          {faq.question}
                         </span>
-                        {faq.question}
-                      </h3>
-                      <div className="flex">
-                        <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-1">
-                          A
-                        </span>
-                        <p className="text-gray-700 leading-relaxed">
-                          {faq.answer}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                        <motion.span
+                          animate={{ rotate: openIndex === globalIdx ? 180 : 0 }}
+                          className="ml-4 text-green-600"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </motion.span>
+                      </button>
+
+                      <AnimatePresence>
+                        {openIndex === globalIdx && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                          >
+                            <div className="px-5 pb-5 border-t border-gray-50 pt-4">
+                              <p className="text-gray-700 leading-relaxed">
+                                {faq.answer}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
 
-        {/* Contact Section */}
+        {/* Support Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-16 bg-orange-50 border border-orange-200 rounded-2xl p-8"
+          transition={{ delay: 0.5 }}
+          className="mt-16 bg-green-50 border border-green-200 rounded-2xl p-8 text-center shadow-sm"
         >
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">
-            Still Need Help?
-          </h2>
-          <p className="text-gray-700 text-center mb-6">
-            Our customer support team is here to assist you
-          </p>
-          <div className="grid md:grid-cols-3 gap-6 text-center">
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">📞 Call Us</h3>
-              <p className="text-gray-700">+91-6370810878, 9556137807</p>
-              <p className="text-sm text-gray-600">7:00 AM - 10:00 PM</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Still Have Questions?</h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-white/60 p-5 rounded-2xl border border-green-100">
+              <div className="text-3xl mb-3">📞</div>
+              <h3 className="font-bold text-gray-900 mb-1">Call Support</h3>
+              <p className="text-emerald-700 font-semibold">+91-6370810878</p>
+              <p className="text-sm text-gray-500">7:00 AM - 10:00 PM</p>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">✉️ Email</h3>
-              <p className="text-gray-700">support@rgbasket.com</p>
-              <p className="text-sm text-gray-600">Response within 2 hours</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">💬 Live Chat</h3>
-              <p className="text-gray-700">Available on website</p>
-              <p className="text-sm text-gray-600">24/7 Support</p>
+            <div className="bg-white/60 p-5 rounded-2xl border border-green-100">
+              <div className="text-3xl mb-3">✉️</div>
+              <h3 className="font-bold text-gray-900 mb-1">Email Us</h3>
+              <p className="text-emerald-700 font-semibold">rgbasketbusiness@gmail.com</p>
+              <p className="text-sm text-gray-500">Quick response within 2 hours</p>
             </div>
           </div>
         </motion.div>
