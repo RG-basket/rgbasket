@@ -310,7 +310,7 @@ const ScheduledDeliverySelector = ({
                         }`}>
                         {slot.available ? 'Available' : 'Unavailable'}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 hidden">
                         {slot.booked}/{slot.capacity} booked
                       </div>
                     </div>
