@@ -261,7 +261,7 @@ const NewArrivals = () => {
           {displayProducts.row1.map((product, index) => (
             <div
               key={`top-original-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
                 } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}
@@ -282,7 +282,7 @@ const NewArrivals = () => {
           {displayProducts.row1.map((product, index) => (
             <div
               key={`top-duplicate-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
                 } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}
@@ -316,7 +316,7 @@ const NewArrivals = () => {
           {displayProducts.row2.map((product, index) => (
             <div
               key={`bottom-original-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
                 } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}
@@ -337,7 +337,7 @@ const NewArrivals = () => {
           {displayProducts.row2.map((product, index) => (
             <div
               key={`bottom-duplicate-${product._id}-${index}`}
-              className={`flex-shrink-0 w-[180px] md:w-[200px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
                 } hover:scale-105`}
               onClick={handleUserInteraction}
               onMouseDown={handleUserInteraction}

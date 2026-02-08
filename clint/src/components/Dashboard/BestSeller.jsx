@@ -47,7 +47,7 @@ const BestSeller = () => {
         >
           {inStockProducts.length > 0 ? (
             inStockProducts.map((product) => (
-              <div key={product._id} className="flex-none w-48">
+              <div key={product._id} className="flex-none w-40 sm:w-48">
                 <MemoizedProductCard product={product} />
               </div>
             ))

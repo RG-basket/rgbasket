@@ -395,7 +395,7 @@ const Categories = () => {
               <button onClick={() => { setActiveTab('all'); setShowOutOfStock(true); }} className='bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-emerald-100 active:scale-95 transition-all'>Clear Filter</button>
             </div>
           ) : (
-            <motion.div layout className='grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3'>
+            <motion.div layout className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-4 md:gap-6">
               {filteredProducts.map((product) => (
                 <ProductCard key={product._id} productId={product._id} />
               ))}

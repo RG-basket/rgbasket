@@ -221,7 +221,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     };
 
     return (
-        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale-[0.3]' : 'hover:border-emerald-200 hover:scale-[1.02]'}`}>
+        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] h-full flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale-[0.3]' : 'hover:border-emerald-200 hover:scale-[1.02]'}`}>
             {/* Badges Container - Top Right */}
             <div className="absolute top-1.5 right-1.5 z-10 flex flex-col gap-1 pointer-events-none">
                 {!isStockAvailable ? (
@@ -261,7 +261,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
             </div>
 
             {/* Product Info */}
-            <div className="space-y-1.5">
+            <div className="flex-grow flex flex-col space-y-1.5">
                 {/* Product Name */}
                 <h3
                     className="text-xs font-semibold text-gray-900 line-clamp-2 h-8 leading-tight cursor-pointer hover:text-emerald-600 transition-colors"
@@ -319,7 +319,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                 </div>
 
                 {/* Add to Cart Button */}
-                <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                <div className="mt-auto pt-1.5" onClick={(e) => e.stopPropagation()}>
                     {quantity > 0 ? (
                         <div className={`flex items-center justify-between border rounded-xl h-7 px-1 transition-all ${!isAvailable
                             ? 'bg-gray-100 border-gray-200'
