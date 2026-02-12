@@ -3,6 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { useParams } from 'react-router-dom';
 import ProductCard from '../components/Products/ProductCard';
 import { ChevronDown, ArrowUpDown, ArrowDownAz, ArrowUpAz, ArrowDown01, ArrowUp01, TrendingUp } from 'lucide-react';
+import SEO from '../components/SEO/SEO.jsx';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -120,6 +121,13 @@ const ProductsCategory = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-10 px-4 md:px-8 lg:px-16 pb-12">
+      {searchCategory && (
+        <SEO
+          title={`${searchCategory.name} - Fresh Grocery Delivery`}
+          description={`Order fresh ${searchCategory.name} online from RGBasket. Best quality and fast delivery in Cuttack.`}
+          keywords={`${searchCategory.name} online, ${searchCategory.name} delivery Cuttack, RG Basket`}
+        />
+      )}
       <div className="max-w-7xl mx-auto">
         {/* Compact Glassmorphism Header */}
         <div className="mb-6">

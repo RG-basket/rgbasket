@@ -8,10 +8,16 @@ import OurServices from './OurServices.jsx';
 import PWAInstallBanner from '../components/User/PWAInstallBanner.jsx';
 import NewArrivals from '../components/Dashboard/NewArrivals.jsx';
 import ShareApp from '../components/Dashboard/ShareAppBanner.jsx';
+import SEO from '../components/SEO/SEO.jsx';
 
 const Home = () => {
     return (
         <div className='mt-0'>
+            <SEO
+                title="Best Online Grocery Delivery in Cuttack | Fresh & Fast"
+                description="Order fresh vegetables, fruits, dairy, and daily essentials from RGBasket. The #1 smart grocery delivery service in Cuttack with scheduled delivery slots."
+                keywords="RGBasket, RG Basket, grocery delivery Cuttack, online grocery Cuttack, fresh vegetables Cuttack"
+            />
             {/* 🔍 HIDDEN SEO SECTION - USERS WON'T SEE */}
             <div style={{
                 position: 'absolute',

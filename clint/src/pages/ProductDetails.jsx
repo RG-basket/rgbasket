@@ -6,6 +6,7 @@ import { assets } from '../assets/assets';
 import ProductCard from '../components/Products/ProductCard';
 import toast from 'react-hot-toast';
 import { ChevronDown, ChevronUp, ShoppingCart, Zap, AlertCircle } from 'lucide-react';
+import SEO from '../components/SEO/SEO.jsx';
 
 // Animation variants
 const containerVariants = {
@@ -185,19 +186,59 @@ const ProductDetails = () => {
       }
     };
 
+    const breadcrumbData = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://rgbasket.vercel.app"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Products",
+          "item": "https://rgbasket.vercel.app/products/all"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": product.category,
+          "item": `https://rgbasket.vercel.app/products/${product.category?.toLowerCase()?.replace(/\s+/g, '-')}`
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": product.name,
+          "item": window.location.href
+        }
+      ]
+    };
+
     const script = document.createElement('script');
     script.type = 'application/ld+json';
     script.id = 'product-json-ld';
     script.innerHTML = JSON.stringify(structuredData);
     document.head.appendChild(script);
 
-    // Update Meta Tags
-    document.title = `${product.name} | RG Basket`;
+    const bScript = document.createElement('script');
+    bScript.type = 'application/ld+json';
+    bScript.id = 'breadcrumb-json-ld';
+    bScript.innerHTML = JSON.stringify(breadcrumbData);
+    document.head.appendChild(bScript);
+
+    // Update Meta Tags removed - handled by SEO component
 
     return () => {
       const existingScript = document.getElementById('product-json-ld');
+      const existingBScript = document.getElementById('breadcrumb-json-ld');
       if (existingScript) {
         document.head.removeChild(existingScript);
+      }
+      if (existingBScript) {
+        document.head.removeChild(existingBScript);
       }
     };
   }, [product]);
@@ -286,6 +327,13 @@ const ProductDetails = () => {
       variants={containerVariants}
       className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20"
     >
+      <SEO
+        title={product.name}
+        description={Array.isArray(product.description) ? product.description.join(' ').slice(0, 160) : (product.description || '').slice(0, 160)}
+        keywords={`${product.name}, ${product.category}, RG Basket, grocery Cuttack`}
+        ogImage={product.images?.[0] || product.image?.[0]}
+        ogType="product"
+      />
       {/* Breadcrumbs */}
       <motion.div variants={itemVariants} className="mb-8">
         <p className="text-sm text-gray-500">

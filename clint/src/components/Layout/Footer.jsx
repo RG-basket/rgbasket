@@ -45,19 +45,19 @@ const Footer = () => {
     {
       title: "Explore",
       links: [
-        { text: "Home", url: "/" },
-        { text: "Shop All", url: "/products/all" },
-        { text: "About Us", url: "/about" },
-        { text: "Contact", url: "/contact-us" },
+        { text: "Home", url: "/", title: "Back to Home" },
+        { text: "Shop All", url: "/products/all", title: "Browse all products" },
+        { text: "About Us", url: "/about", title: "Learn more about RG Basket" },
+        { text: "Contact", url: "/contact-us", title: "Get in touch with us" },
       ],
     },
     {
       title: "Customer Care",
       links: [
-        { text: "FAQs", url: "/faq" },
-        { text: "Shipping & Returns", url: "/order" },
-        { text: "Privacy Policy", url: "/privacy" },
-        { text: "Terms of Service", url: "/terms" },
+        { text: "FAQs", url: "/faq", title: "Frequently Asked Questions" },
+        { text: "Shipping & Returns", url: "/order", title: "Our Shipping and Returns Policy" },
+        { text: "Privacy Policy", url: "/privacy", title: "Privacy Policy" },
+        { text: "Terms of Service", url: "/terms", title: "Terms and Conditions" },
       ],
     },
   ];
@@ -146,6 +146,7 @@ const Footer = () => {
                     <li key={i}>
                       <Link
                         to={link.url}
+                        title={link.title}
                         className="text-gray-500 hover:text-emerald-600 transition-colors duration-200 text-sm font-medium flex items-center gap-1 group"
                       >
                         <ArrowRight className="w-3 h-3 opacity-0 -ml-3 group-hover:opacity-100 group-hover:ml-0 transition-all text-emerald-500" />
