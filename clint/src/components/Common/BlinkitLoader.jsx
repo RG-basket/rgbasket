@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const BlinkitLoader = ({ isAppReady }) => {
     const [show, setShow] = useState(true);
-    const emojis = ['🥦', '🍎', '🥕', '🥛', '🥚', '🍞', '🧺', '🚚', '🛒', '🍍', '🥑', '🍓', '🌽'];
+    const emojis = ['🥦', '🐔', '🐟', '🍇', '🥚', '🥩', '🧺', '🚚'];
     const [emojiIndex, setEmojiIndex] = useState(0);
 
     // Cycle emojis with a relaxed, high-end timing
