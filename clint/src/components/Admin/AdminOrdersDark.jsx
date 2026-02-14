@@ -109,9 +109,65 @@ const AdminOrdersDark = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [bulkStatusUpdating, setBulkStatusUpdating] = useState(false);
   const [serverStatusCounts, setServerStatusCounts] = useState({
     all: 0, pending: 0, confirmed: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0
   });
+
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrderIds(prev =>
+      prev.includes(orderId)
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedOrderIds(orders.map(o => o._id));
+    } else {
+      setSelectedOrderIds([]);
+    }
+  };
+
+  const handleBulkStatusUpdate = async (newStatus) => {
+    if (selectedOrderIds.length === 0) return;
+
+    if (!confirm(`Are you sure you want to update ${selectedOrderIds.length} orders to ${newStatus}?`)) {
+      return;
+    }
+
+    try {
+      setBulkStatusUpdating(true);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/admin/orders/bulk-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          orderIds: selectedOrderIds,
+          status: newStatus
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message);
+        setSelectedOrderIds([]);
+        fetchOrders(page);
+      } else {
+        toast.error(data.message || 'Failed to update orders');
+      }
+    } catch (error) {
+      console.error('Error in bulk update:', error);
+      toast.error('Error updating orders');
+    } finally {
+      setBulkStatusUpdating(false);
+    }
+  };
 
   // Product Search State
   const [products, setProducts] = useState([]);
@@ -193,6 +249,7 @@ const AdminOrdersDark = () => {
       if (data.success) {
         const processedOrders = (data.orders || []).map(order => recalculateOrderTotals(order, serviceAreas));
         setOrders(processedOrders);
+        setSelectedOrderIds([]); // Clear selection on new data fetch
 
         if (data.statusCounts) {
           setServerStatusCounts(data.statusCounts);
@@ -923,6 +980,31 @@ const AdminOrdersDark = () => {
 
   const columns = [
     {
+      key: 'selection',
+      label: (
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={orders.length > 0 && selectedOrderIds.length === orders.length}
+            onChange={handleSelectAll}
+            onClick={(e) => e.stopPropagation()}
+            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#7aa2f7] focus:ring-[#7aa2f7] cursor-pointer"
+          />
+        </div>
+      ),
+      render: (_, order) => (
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={selectedOrderIds.includes(order._id)}
+            onChange={() => handleSelectOrder(order._id)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#7aa2f7] focus:ring-[#7aa2f7] cursor-pointer"
+          />
+        </div>
+      )
+    },
+    {
       key: '_id',
       label: 'Order ID',
       render: (id, order) => (
@@ -1177,6 +1259,45 @@ const AdminOrdersDark = () => {
             </div>
           </div>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedOrderIds.length > 0 && (
+          <div className={`${tw.bgSecondary} p-4 rounded-xl border border-[#7aa2f7]/50 bg-[#7aa2f7]/5 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4`}>
+            <div className="flex items-center gap-3">
+              <div className="bg-[#7aa2f7] text-[#1a1b26] px-3 py-1 rounded-full text-sm font-bold">
+                {selectedOrderIds.length} Selected
+              </div>
+              <p className={`text-sm ${tw.textPrimary}`}>Update status for selected orders:</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { key: 'confirmed', label: 'Confirmed', icon: Package },
+                { key: 'processing', label: 'Processing', icon: Package },
+                { key: 'shipped', label: 'Shipped', icon: Truck },
+                { key: 'delivered', label: 'Delivered', icon: CheckCircle },
+                { key: 'cancelled', label: 'Cancelled', icon: XCircle }
+              ].map((status) => (
+                <button
+                  key={status.key}
+                  disabled={bulkStatusUpdating}
+                  onClick={() => handleBulkStatusUpdate(status.key)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${statusColors[status.key]} hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <status.icon className="w-3.5 h-3.5" />
+                  {status.label}
+                </button>
+              ))}
+              <AdminButtonDark
+                variant="ghost"
+                size="sm"
+                className="text-gray-400 hover:text-white"
+                onClick={() => setSelectedOrderIds([])}
+              >
+                Cancel
+              </AdminButtonDark>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <AdminTableDark

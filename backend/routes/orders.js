@@ -93,6 +93,99 @@ router.get('/user/:userId', checkBanned, async (req, res) => {
   }
 });
 
+// Bulk update order status (for admin)
+router.put('/admin/orders/bulk-status', authenticateAdmin, async (req, res) => {
+  try {
+    const { orderIds, status } = req.body;
+
+    console.log(`🔄 Bulk updating ${orderIds?.length} orders status to:`, status);
+
+    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status'
+      });
+    }
+
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No order IDs provided'
+      });
+    }
+
+    const results = [];
+    const errors = [];
+
+    // Import required services if status is 'cancelled'
+    let orderSvc, promoModel;
+    if (status === 'cancelled') {
+      orderSvc = require('../services/OrderService');
+      promoModel = require('../models/PromoCode');
+    }
+
+    for (const orderId of orderIds) {
+      try {
+        const updateData = { status };
+        if (status === 'delivered') {
+          updateData.deliveredAt = new Date();
+        }
+
+        const oldOrder = await Order.findById(orderId);
+        if (!oldOrder) {
+          errors.push({ orderId, message: 'Order not found' });
+          continue;
+        }
+
+        // Handle Stock & Promo reversion if status is changing TO 'cancelled' from a non-cancelled status
+        if (status === 'cancelled' && oldOrder.status !== 'cancelled') {
+          try {
+            // Revert Stock
+            const itemsToRevert = oldOrder.items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity
+            }));
+            if (itemsToRevert.length > 0) {
+              await orderSvc.updateProductInventory(itemsToRevert, 'increment');
+            }
+
+            // Revert Promo Usage
+            if (oldOrder.promoCode) {
+              await promoModel.revertUsageAtomic(oldOrder.promoCode, oldOrder.user, orderId);
+            }
+          } catch (ResourceError) {
+            console.error(`[Bulk-Admin] Resource reversion failed for ${orderId}:`, ResourceError.message);
+            // Non-critical, continue update
+          }
+        }
+
+        await Order.findByIdAndUpdate(orderId, updateData);
+        results.push(orderId);
+      } catch (err) {
+        console.error(`Error in bulk update for order ${orderId}:`, err);
+        errors.push({ orderId, message: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully updated ${results.length} orders. ${errors.length} failed.`,
+      updatedCount: results.length,
+      failedCount: errors.length,
+      errors
+    });
+
+  } catch (error) {
+    console.error('💥 Error in bulk order status update:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error in bulk order status update: ' + error.message
+    });
+  }
+});
+
 // Get all orders (for admin) - WITH PAGINATION
 router.get('/admin/orders', authenticateAdmin, async (req, res) => {
   try {
