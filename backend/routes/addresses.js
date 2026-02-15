@@ -17,10 +17,14 @@ router.post('/admin/capture', authenticateAdmin, async (req, res) => {
 
     // Fetch user to get details for the dummy address
     let user = null;
-    if (userId.match(/^[0-9a-fA-F]{24}$/)) {
-      user = await User.findById(userId);
-    } else {
-      user = await User.findOne({ googleId: userId });
+    try {
+      if (userId && userId.match(/^[0-9a-fA-F]{24}$/)) {
+        user = await User.findById(userId);
+      } else if (userId) {
+        user = await User.findOne({ googleId: userId });
+      }
+    } catch (e) {
+      console.warn('User lookup failed during location capture:', e.message);
     }
 
     const phoneNumber = (user && user.phone) ? user.phone : '9999999999';
@@ -51,17 +55,20 @@ router.post('/admin/capture', authenticateAdmin, async (req, res) => {
 
     // If capture is tied to a specific order, update that order's location too
     if (orderId) {
+      const locData = {
+        coordinates: {
+          latitude: coordinates.lat,
+          longitude: coordinates.lng
+        },
+        timestamp: new Date(),
+        accuracy: coordinates.accuracy || 0,
+        source: 'admin'
+      };
+
       await Order.findByIdAndUpdate(orderId, {
-        location: {
-          coordinates: {
-            latitude: coordinates.lat,
-            longitude: coordinates.lng
-          },
-          timestamp: new Date(),
-          accuracy: coordinates.accuracy || 0
-        }
+        deliveryLocation: locData
       });
-      console.log(`✅ Updated location for Order: ${orderId}`);
+      console.log(`✅ Updated deliveryLocation for Order: ${orderId}`);
     }
 
     res.json({

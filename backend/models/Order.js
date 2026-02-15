@@ -149,13 +149,22 @@ const OrderSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  location: {
+  liveLocation: {
     coordinates: {
       latitude: { type: Number },
       longitude: { type: Number }
     },
     accuracy: { type: Number },
     timestamp: { type: Date }
+  },
+  deliveryLocation: {
+    coordinates: {
+      latitude: { type: Number },
+      longitude: { type: Number }
+    },
+    accuracy: { type: Number },
+    timestamp: { type: Date },
+    source: { type: String, enum: ['live', 'saved', 'admin', 'historical'], default: 'live' }
   },
   instruction: {
     type: String,
@@ -169,6 +178,11 @@ const OrderSchema = new mongoose.Schema({
   tipAmount: {
     type: Number,
     default: 0
+  },
+  // Keep legacy location field for backward compatibility (prevents data stripping)
+  location: {
+    type: Object,
+    default: null
   }
 }, {
   timestamps: true,
@@ -202,26 +216,33 @@ OrderSchema.methods.cancelOrder = async function (reason = 'Cancelled by user') 
 // Indexes for performance
 OrderSchema.index({ user: 1 });
 OrderSchema.index({ status: 1 });
-OrderSchema.index({ 'location.coordinates.latitude': 1, 'location.coordinates.longitude': 1 });
+OrderSchema.index({ 'deliveryLocation.coordinates.latitude': 1, 'deliveryLocation.coordinates.longitude': 1 });
+OrderSchema.index({ 'liveLocation.coordinates.latitude': 1, 'liveLocation.coordinates.longitude': 1 });
 OrderSchema.index({ promoCode: 1 });
 
-// Virtual for Google Maps URL
-OrderSchema.virtual('location.googleMapsUrl').get(function () {
-  if (this.location?.coordinates?.latitude && this.location?.coordinates?.longitude) {
-    return `https://www.google.com/maps?q=${this.location.coordinates.latitude},${this.location.coordinates.longitude}`;
+OrderSchema.virtual('deliveryLocation.googleMapsUrl').get(function () {
+  if (this.deliveryLocation?.coordinates?.latitude && this.deliveryLocation?.coordinates?.longitude) {
+    return `https://www.google.com/maps?q=${this.deliveryLocation.coordinates.latitude},${this.deliveryLocation.coordinates.longitude}`;
   }
   return null;
 });
 
-// Optional: Coordinate validation
-OrderSchema.path('location.coordinates.latitude').validate(function (value) {
+OrderSchema.virtual('liveLocation.googleMapsUrl').get(function () {
+  if (this.liveLocation?.coordinates?.latitude && this.liveLocation?.coordinates?.longitude) {
+    return `https://www.google.com/maps?q=${this.liveLocation.coordinates.latitude},${this.liveLocation.coordinates.longitude}`;
+  }
+  return null;
+});
+
+// Coordinate validation for deliveryLocation
+OrderSchema.path('deliveryLocation.coordinates.latitude').validate(function (value) {
   if (value !== undefined && value !== null) {
     return value >= -90 && value <= 90;
   }
   return true;
 }, 'Latitude must be between -90 and 90');
 
-OrderSchema.path('location.coordinates.longitude').validate(function (value) {
+OrderSchema.path('deliveryLocation.coordinates.longitude').validate(function (value) {
   if (value !== undefined && value !== null) {
     return value >= -180 && value <= 180;
   }

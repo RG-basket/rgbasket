@@ -113,7 +113,68 @@ class OrderService {
         }
       }
 
-      // 5. CREATE AND SAVE ORDER
+      // 5. LOCATION RESOLUTION (Scenario 1 & 2)
+      let liveLocation = null;
+      let deliveryLocation = null;
+
+      // Capture Live GPS if provided
+      if (orderData.location && (orderData.location.coordinates || (orderData.location.latitude && orderData.location.longitude))) {
+        const coords = orderData.location.coordinates || { latitude: orderData.location.latitude, longitude: orderData.location.longitude };
+        liveLocation = {
+          coordinates: coords,
+          accuracy: orderData.location.accuracy || 0,
+          timestamp: new Date()
+        };
+      }
+
+      // Resolve Delivery Location: Priority (Saved/Admin > Live GPS > Historical Fallback)
+      try {
+        const UserAddress = require('../models/UserAddress');
+        // If addressText is "Admin Captured", it's a special saved spot
+        const addressMatch = await UserAddress.findOne({
+          user: checkUserId,
+          street: orderData.shippingAddress.street,
+          pincode: orderData.shippingAddress.pincode,
+          'location.coordinates': { $exists: true, $ne: [] }
+        }).sort({ updatedAt: -1 });
+
+        if (addressMatch) {
+          // Priority 1: Use Saved/Admin Verified location from this specific address
+          deliveryLocation = {
+            coordinates: {
+              latitude: addressMatch.location.coordinates[1],
+              longitude: addressMatch.location.coordinates[0]
+            },
+            accuracy: addressMatch.location.accuracy || 0,
+            timestamp: addressMatch.location.capturedAt || addressMatch.updatedAt,
+            source: addressMatch.savedByAdmin ? 'admin' : 'saved'
+          };
+          console.log(`[OrderService] Using ${deliveryLocation.source} location for address matching: ${addressMatch._id}`);
+        } else if (liveLocation) {
+          // Priority 2: Use current Live GPS
+          deliveryLocation = { ...liveLocation, source: 'live' };
+          console.log('[OrderService] No saved address location, falling back to Live GPS');
+        } else {
+          // Priority 3: Last Resort - Look for ANY previous order from this user with a location (Historical Fallback)
+          const lastOrderWithLoc = await Order.findOne({
+            user: checkUserId,
+            'deliveryLocation.coordinates.latitude': { $exists: true }
+          }).sort({ createdAt: -1 });
+
+          if (lastOrderWithLoc) {
+            deliveryLocation = {
+              ...lastOrderWithLoc.deliveryLocation,
+              source: 'historical'
+            };
+            console.log(`[OrderService] Historical Fallback: Using GPS from last known order ${lastOrderWithLoc._id}`);
+          }
+        }
+      } catch (locError) {
+        console.error('[OrderService] Location resolution failed, using live as fallback:', locError.message);
+        if (liveLocation) deliveryLocation = { ...liveLocation, source: 'live' };
+      }
+
+      // 6. CREATE AND SAVE ORDER (Now with Dual Locations)
       const order = new Order({
         ...orderData,
         user: checkUserId,
@@ -130,7 +191,11 @@ class OrderService {
         finalTotal: pricing.totalAmount,
         selectedGift: finalSelectedGift || null,
         tipAmount: pricing.tipAmount,
-        instruction: instruction
+        instruction: instruction,
+
+        // Dual Location Fields
+        liveLocation: liveLocation,
+        deliveryLocation: deliveryLocation
       });
 
       const savedOrder = await order.save();
@@ -453,7 +518,9 @@ class OrderService {
       isCancellable: orderObj.isCancellable,
       instruction: orderObj.instruction,
       selectedGift: orderObj.selectedGift,
-      location: orderObj.location,
+      liveLocation: orderObj.liveLocation || null,
+      deliveryLocation: orderObj.deliveryLocation || orderObj.location || null,
+      location: orderObj.location || null,
       subtotal: orderObj.subtotal,
       shippingFee: orderObj.shippingFee,
       tax: orderObj.tax,

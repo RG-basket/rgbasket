@@ -1102,24 +1102,23 @@ const AdminOrdersDark = () => {
             Edit
           </AdminButtonDark>
           {/* Location Button - Show if order has valid coordinates */}
-          {order.location && (
-            (order.location.coordinates?.latitude && order.location.coordinates?.longitude) ||
-            (order.location.lat && order.location.lng)
-          ) && (
-              <AdminButtonDark
-                variant="ghost"
-                size="sm"
-                icon={MapPin}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedLocation(order.location);
-                  setShowLocationModal(true);
-                }}
-                title="View Delivery Location"
-              >
-                Location
-              </AdminButtonDark>
-            )}
+          {(order.deliveryLocation?.coordinates || order.liveLocation?.coordinates || order.location?.coordinates || order.location?.lat) && (
+            <AdminButtonDark
+              variant="ghost"
+              size="sm"
+              icon={MapPin}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Prioritize: Verified Delivery Spot > Live GPS > Legacy Capture
+                const loc = order.deliveryLocation || order.liveLocation || order.location;
+                setSelectedLocation(loc);
+                setShowLocationModal(true);
+              }}
+              title="View Delivery Location"
+            >
+              Location
+            </AdminButtonDark>
+          )}
         </div>
       )
     }
@@ -1447,46 +1446,100 @@ const AdminOrdersDark = () => {
                 )}
 
 
-                {/* Geolocation Information */}
-                {selectedOrder.location && (selectedOrder.location.coordinates || (selectedOrder.location.lat && selectedOrder.location.lng)) && (
-                  <div className={`p-4 rounded-lg border border-[#7aa2f7]/30 bg-[#7aa2f7]/10`}>
-                    <h3 className={`font-medium text-[#7aa2f7] mb-3 flex items-center gap-2`}>
-                      <span>📍</span>
-                      Delivery Location (GPS)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className={tw.textSecondary}>Coordinates:</p>
-                        <p className={`font-mono text-[#7aa2f7] font-medium`}>
-                          {selectedOrder.location.coordinates
-                            ? `${selectedOrder.location.coordinates.latitude.toFixed(6)}, ${selectedOrder.location.coordinates.longitude.toFixed(6)}`
-                            : `${selectedOrder.location.lat.toFixed(6)}, ${selectedOrder.location.lng.toFixed(6)}`
-                          }
-                        </p>
+                {/* Dual Location Information */}
+                {(selectedOrder.liveLocation || selectedOrder.deliveryLocation) && (
+                  <div className="space-y-4">
+                    {/* 1. Delivery / Shipping GPS (Priority) */}
+                    {selectedOrder.deliveryLocation && (
+                      <div className={`p-4 rounded-lg border border-[#9ece6a]/30 bg-[#9ece6a]/10`}>
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className={`font-medium text-[#9ece6a] flex items-center gap-2`}>
+                            <span>🏠</span>
+                            Delivery Location (Shipping Spot)
+                          </h3>
+                          <span className="text-[10px] bg-[#9ece6a] text-[#1a1b26] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                            {selectedOrder.deliveryLocation.source || 'verified'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className={tw.textSecondary}>Coordinates:</p>
+                            <p className={`font-mono text-[#9ece6a] font-medium`}>
+                              {selectedOrder.deliveryLocation.coordinates
+                                ? `${selectedOrder.deliveryLocation.coordinates.latitude.toFixed(6)}, ${selectedOrder.deliveryLocation.coordinates.longitude.toFixed(6)}`
+                                : selectedOrder.deliveryLocation.lat
+                                  ? `${selectedOrder.deliveryLocation.lat.toFixed(6)}, ${selectedOrder.deliveryLocation.lng.toFixed(6)}`
+                                  : 'N/A'
+                              }
+                            </p>
+                          </div>
+                          <div>
+                            <p className={tw.textSecondary}>Source:</p>
+                            <p className={`font-medium ${tw.textPrimary} uppercase text-xs italic`}>
+                              {selectedOrder.deliveryLocation.source === 'admin' ? '📍 Admin Hand-Picked' :
+                                selectedOrder.deliveryLocation.source === 'saved' ? '💾 Saved Address' :
+                                  selectedOrder.deliveryLocation.source === 'historical' ? '🕒 Previous Order Fallback' : '📡 Live GPS'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className={tw.textSecondary}>Captured At:</p>
+                            <p className={`font-medium ${tw.textPrimary}`}>
+                              {selectedOrder.deliveryLocation.timestamp ? new Date(selectedOrder.deliveryLocation.timestamp).toLocaleString() : 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <a
+                            href={`https://www.google.com/maps?q=${selectedOrder.deliveryLocation.coordinates ? selectedOrder.deliveryLocation.coordinates.latitude : selectedOrder.deliveryLocation.lat},${selectedOrder.deliveryLocation.coordinates ? selectedOrder.deliveryLocation.coordinates.longitude : selectedOrder.deliveryLocation.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 bg-[#9ece6a] text-[#1a1b26] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#b0df7c] transition-colors"
+                          >
+                            🗺️ Navigate to Delivery Spot
+                          </a>
+                        </div>
                       </div>
-                      <div>
-                        <p className={tw.textSecondary}>Accuracy:</p>
-                        <p className={`font-medium ${tw.textPrimary}`}>
-                          {selectedOrder.location.accuracy ? Math.round(selectedOrder.location.accuracy) + 'm' : 'N/A'}
-                        </p>
+                    )}
+
+                    {/* 2. LIVE Location (At time of order) */}
+                    {selectedOrder.liveLocation && selectedOrder.liveLocation.coordinates && (
+                      <div className={`p-4 rounded-lg border border-[#7aa2f7]/30 bg-[#7aa2f7]/5`}>
+                        <h3 className={`font-medium text-[#7aa2f7] mb-3 flex items-center gap-2`}>
+                          <span>📍</span>
+                          Customer's Live Position (During Order)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className={tw.textSecondary}>Current GPS:</p>
+                            <p className={`font-mono ${tw.textPrimary}`}>
+                              {selectedOrder.liveLocation.coordinates.latitude.toFixed(6)}, {selectedOrder.liveLocation.coordinates.longitude.toFixed(6)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className={tw.textSecondary}>Device Accuracy:</p>
+                            <p className={`font-medium ${tw.textPrimary}`}>
+                              ±{selectedOrder.liveLocation.accuracy ? Math.round(selectedOrder.liveLocation.accuracy) + 'm' : 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className={tw.textSecondary}>Capture Time:</p>
+                            <p className={`font-medium ${tw.textPrimary}`}>
+                              {selectedOrder.liveLocation.timestamp ? new Date(selectedOrder.liveLocation.timestamp).toLocaleTimeString() : 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <a
+                            href={`https://www.google.com/maps?q=${selectedOrder.liveLocation.coordinates.latitude},${selectedOrder.liveLocation.coordinates.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-[#7aa2f7] hover:underline flex items-center gap-1"
+                          >
+                            � View Customer's live spot on Map
+                          </a>
+                        </div>
                       </div>
-                      <div>
-                        <p className={tw.textSecondary}>Captured:</p>
-                        <p className={`font-medium ${tw.textPrimary}`}>
-                          {selectedOrder.location.timestamp ? new Date(selectedOrder.location.timestamp).toLocaleString() : 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <a
-                        href={`https://www.google.com/maps?q=${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.latitude : selectedOrder.location.lat},${selectedOrder.location.coordinates ? selectedOrder.location.coordinates.longitude : selectedOrder.location.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-[#7aa2f7] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#658cdf] transition-colors"
-                      >
-                        🗺️ View on Google Maps
-                      </a>
-                    </div>
+                    )}
                   </div>
                 )}
 

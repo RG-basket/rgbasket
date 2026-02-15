@@ -56,9 +56,14 @@ ${order.shippingAddress.landmark ? `<b>Landmark:</b> ${order.shippingAddress.lan
 📝 <b>Note:</b> ${order.instruction || 'None'}
 
 📍 <b>GPS LOCATION:</b>
-${order.location?.coordinates
-                    ? `<a href="https://www.google.com/maps?q=${order.location.coordinates.latitude},${order.location.coordinates.longitude}">📍 View on Google Maps</a>`
+------------------------------------
+${(order.deliveryLocation?.coordinates || order.location?.coordinates || (order.location?.lat && order.location))
+                    ? `<a href="https://www.google.com/maps?q=${order.deliveryLocation?.coordinates?.latitude || order.location?.coordinates?.latitude || order.location?.lat},${order.deliveryLocation?.coordinates?.longitude || order.location?.coordinates?.longitude || order.location?.lng}">🏠 Delivery Spot</a>`
                     : 'Not captured'}
+
+${order.liveLocation?.coordinates
+                    ? `<a href="https://www.google.com/maps?q=${order.liveLocation.coordinates.latitude},${order.liveLocation.coordinates.longitude}">📍 Live Position (at order)</a>`
+                    : ''}
 
 ------------------------------------
 ✅ <b>STATUS:</b> #NEW_ORDER
