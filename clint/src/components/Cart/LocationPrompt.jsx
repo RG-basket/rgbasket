@@ -49,9 +49,9 @@ const LocationPrompt = ({ isOpen, onAccept, onDismiss, isBlocked }) => {
 
                                 <button
                                     onClick={onDismiss}
-                                    className="w-full py-3 text-gray-500 font-medium hover:bg-gray-50 rounded-xl transition-colors"
+                                    className="w-full py-3 text-emerald-700 bg-emerald-50/50 font-semibold hover:bg-emerald-50 rounded-xl transition-all border border-emerald-100"
                                 >
-                                    {isBlocked ? 'Close' : "Not now, I'll type it manually"}
+                                    {isBlocked ? 'Close' : "Continue with Manual Address"}
                                 </button>
                             </div>
                         </div>

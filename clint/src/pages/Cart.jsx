@@ -590,20 +590,27 @@ const Cart = () => {
     }
 
 
-    // Nudge for location one last time if missing
+    // Optional nudge for location if missing - but NEVER block the order
     if (!orderLocation && !isGeoBlocked) {
-      setShowLocationPrompt(true);
-      toast.error("Please enable location for delivery status!");
-      return;
+      // We'll proceed with the order, but we can attempt a silent capture in the background
+      console.log("No location captured, attempting silent fallback during placement.");
     }
 
     setIsPlacingOrder(true);
 
     try {
-      // Use existing captured location or capture now if not yet allowed
+      // Use existing captured location or attempt a very fast final capture
       console.log('📍 Getting location data for order...');
-      const locationData = orderLocation || await captureLocation();
-      console.log('📍 Location data ready:', locationData);
+      let locationData = orderLocation;
+
+      if (!locationData) {
+        // Try a fast 3-second capture if we don't have it yet
+        locationData = await Promise.race([
+          captureLocation(),
+          new Promise(resolve => setTimeout(() => resolve(null), 3000))
+        ]);
+      }
+      console.log('📍 Location data resolved (or timed out):', locationData);
 
       const orderItems = cartArray.map(item => ({
         productId: item._id,
