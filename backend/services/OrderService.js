@@ -117,29 +117,47 @@ class OrderService {
       let liveLocation = null;
       let deliveryLocation = null;
 
-      // Capture Live GPS if provided
-      if (orderData.location && (orderData.location.coordinates || (orderData.location.latitude && orderData.location.longitude))) {
-        const coords = orderData.location.coordinates || { latitude: orderData.location.latitude, longitude: orderData.location.longitude };
-        liveLocation = {
-          coordinates: coords,
-          accuracy: orderData.location.accuracy || 0,
-          timestamp: new Date()
-        };
+      // Capture Live GPS if provided - STRICT VALIDATION
+      const incomingLoc = orderData.location;
+      if (incomingLoc) {
+        const coords = incomingLoc.coordinates || { latitude: incomingLoc.latitude, longitude: incomingLoc.longitude };
+
+        // Ensure we actually have numbers for latitude and longitude
+        if (coords && typeof coords.latitude === 'number' && typeof coords.longitude === 'number') {
+          liveLocation = {
+            coordinates: {
+              latitude: coords.latitude,
+              longitude: coords.longitude
+            },
+            accuracy: incomingLoc.accuracy || 0,
+            timestamp: new Date()
+          };
+        }
       }
 
-      // Resolve Delivery Location: Priority (Saved/Admin > Live GPS > Historical Fallback)
+      // Resolve Delivery Location: Priority Level 1: Smart Address Matching
       try {
         const UserAddress = require('../models/UserAddress');
-        // If addressText is "Admin Captured", it's a special saved spot
-        const addressMatch = await UserAddress.findOne({
+
+        // Try Exact Match first (User + Street + Pincode)
+        let addressMatch = await UserAddress.findOne({
           user: checkUserId,
           street: orderData.shippingAddress.street,
           pincode: orderData.shippingAddress.pincode,
           'location.coordinates': { $exists: true, $ne: [] }
         }).sort({ updatedAt: -1 });
 
-        if (addressMatch) {
-          // Priority 1: Use Saved/Admin Verified location from this specific address
+        // If no exact street match, try "Loose Match" (User + Pincode + ANY saved location)
+        if (!addressMatch) {
+          addressMatch = await UserAddress.findOne({
+            user: checkUserId,
+            pincode: orderData.shippingAddress.pincode,
+            'location.coordinates': { $exists: true, $ne: [] }
+          }).sort({ updatedAt: -1 });
+          if (addressMatch) console.log(`[OrderService] Using Loose Address Match for ${checkUserId}`);
+        }
+
+        if (addressMatch && addressMatch.location?.coordinates?.length === 2) {
           deliveryLocation = {
             coordinates: {
               latitude: addressMatch.location.coordinates[1],
@@ -149,24 +167,51 @@ class OrderService {
             timestamp: addressMatch.location.capturedAt || addressMatch.updatedAt,
             source: addressMatch.savedByAdmin ? 'admin' : 'saved'
           };
-          console.log(`[OrderService] Using ${deliveryLocation.source} location for address matching: ${addressMatch._id}`);
-        } else if (liveLocation) {
-          // Priority 2: Use current Live GPS
+          console.log(`[OrderService] Found ${deliveryLocation.source} location for address matching: ${addressMatch._id}`);
+        } else if (liveLocation && liveLocation.coordinates?.latitude && liveLocation.coordinates?.longitude) {
+          // Priority Level 2: Use current Live GPS
           deliveryLocation = { ...liveLocation, source: 'live' };
-          console.log('[OrderService] No saved address location, falling back to Live GPS');
+          console.log('[OrderService] Using Live GPS for delivery spot');
         } else {
-          // Priority 3: Last Resort - Look for ANY previous order from this user with a location (Historical Fallback)
+          // Priority 3: Historical Fallback - Look for ANY previous order from this user with a location
+          // Search in BOTH legacy and new fields
           const lastOrderWithLoc = await Order.findOne({
             user: checkUserId,
-            'deliveryLocation.coordinates.latitude': { $exists: true }
+            $or: [
+              { 'deliveryLocation.coordinates.latitude': { $exists: true, $ne: null } },
+              { 'location.coordinates.latitude': { $exists: true, $ne: null } },
+              { 'location.lat': { $exists: true, $ne: null } }
+            ]
           }).sort({ createdAt: -1 });
 
           if (lastOrderWithLoc) {
-            deliveryLocation = {
-              ...lastOrderWithLoc.deliveryLocation,
-              source: 'historical'
-            };
-            console.log(`[OrderService] Historical Fallback: Using GPS from last known order ${lastOrderWithLoc._id}`);
+            // Check new field first
+            if (lastOrderWithLoc.deliveryLocation?.coordinates?.latitude) {
+              deliveryLocation = {
+                ...lastOrderWithLoc.deliveryLocation,
+                source: 'historical'
+              };
+            }
+            // Then fallback to legacy field structure
+            else if (lastOrderWithLoc.location) {
+              const loc = lastOrderWithLoc.location;
+              const coords = loc.coordinates || { latitude: loc.lat, longitude: loc.lng };
+
+              if (coords.latitude || coords.lat) {
+                deliveryLocation = {
+                  coordinates: {
+                    latitude: coords.latitude || coords.lat,
+                    longitude: coords.longitude || coords.lng
+                  },
+                  accuracy: loc.accuracy || 0,
+                  timestamp: loc.timestamp || loc.capturedAt || lastOrderWithLoc.createdAt,
+                  source: 'historical'
+                };
+              }
+            }
+            if (deliveryLocation) {
+              console.log(`[OrderService] Historical Fallback: Using GPS from last known order ${lastOrderWithLoc._id}`);
+            }
           }
         }
       } catch (locError) {
@@ -519,7 +564,9 @@ class OrderService {
       instruction: orderObj.instruction,
       selectedGift: orderObj.selectedGift,
       liveLocation: orderObj.liveLocation || null,
-      deliveryLocation: orderObj.deliveryLocation || orderObj.location || null,
+      deliveryLocation: (orderObj.deliveryLocation?.coordinates?.latitude || orderObj.deliveryLocation?.lat)
+        ? orderObj.deliveryLocation
+        : (orderObj.location || null),
       location: orderObj.location || null,
       subtotal: orderObj.subtotal,
       shippingFee: orderObj.shippingFee,
