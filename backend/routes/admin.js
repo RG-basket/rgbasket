@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { adminLogin, getAdminDashboard } = require('../controllers/adminController');
 const { authenticateAdmin } = require('../middleware/auth');
+const XLSX = require('xlsx');
 
 // Public route - Admin login
 router.post('/login', adminLogin);
@@ -37,6 +38,24 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     } else if (filter === 'dau') {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       baseFilter.lastActive = { $gte: twentyFourHoursAgo };
+    } else if (filter === 'no_phone') {
+      baseFilter.$or = [
+        { phone: "" },
+        { phone: { $exists: false } },
+        { phone: null }
+      ];
+    } else if (filter === 'any_phone') {
+      baseFilter.phone = { $ne: "", $exists: true };
+    } else if (filter === 'both_email_phone') {
+      baseFilter.email = { $ne: "", $exists: true };
+      baseFilter.phone = { $ne: "", $exists: true };
+    } else if (filter === 'only_email') {
+      baseFilter.email = { $ne: "", $exists: true };
+      baseFilter.$or = [
+        { phone: "" },
+        { phone: { $exists: false } },
+        { phone: null }
+      ];
     }
 
     // Use aggregation for high performance
@@ -144,6 +163,100 @@ router.get('/users', authenticateAdmin, async (req, res) => {
       success: false,
       message: 'Error fetching users'
     });
+  }
+});
+
+// Export all users to Excel
+router.get('/export-users/excel', authenticateAdmin, async (req, res) => {
+  try {
+    const User = require('../models/User');
+
+    // Aggregation to get users with their addresses and order count
+    const users = await User.aggregate([
+      {
+        $lookup: {
+          from: 'useraddresses',
+          let: { userIdStr: { $toString: '$_id' }, googleId: '$googleId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$user', '$$userIdStr'] },
+                    { $eq: ['$user', '$$googleId'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'addresses'
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          let: { userIdStr: { $toString: '$_id' }, googleId: '$googleId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$user', '$$userIdStr'] },
+                    { $eq: ['$user', '$$googleId'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'orders'
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          addressCount: { $size: '$addresses' },
+          orderCount: { $size: '$orders' },
+          addresses: 1
+        }
+      }
+    ]);
+
+    // Format data for Excel
+    const data = users.map(user => {
+      // Get primary address or format all addresses
+      const addressString = user.addresses && user.addresses.length > 0
+        ? user.addresses.map(a => `${a.fullName}, ${a.street}, ${a.locality}, ${a.city}, ${a.state} - ${a.pincode}`).join(' | ')
+        : 'N/A';
+
+      return {
+        'Name': user.name || 'N/A',
+        'Email': user.email || 'N/A',
+        'WhatsApp Primary': user.phone || 'N/A',
+        'Address Phone': user.addresses?.[0]?.phoneNumber || 'N/A',
+        'Alt Phone': user.addresses?.[0]?.alternatePhone || 'N/A',
+        'Total Orders': user.orderCount || 0,
+        'Addresses': addressString,
+        'Joined Date': user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'
+      };
+    });
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+    // Buffer to send
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=RG_Basket_Users.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ success: false, message: 'Failed to export users' });
   }
 });
 

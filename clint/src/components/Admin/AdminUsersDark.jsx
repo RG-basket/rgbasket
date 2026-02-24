@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw } from 'lucide-react';
+import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw, FileDown, Filter } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -80,6 +80,34 @@ const AdminUsersDark = () => {
     }, [searchQuery]);
 
     const filteredUsers = users;
+
+    const handleExport = async () => {
+        try {
+            toast.loading('Preparing Excel sheet...', { id: 'export-users' });
+            const token = localStorage.getItem('adminToken');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/export-users/excel`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `RG_Basket_Users_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                toast.success('Excel sheet downloaded successfully!', { id: 'export-users' });
+            } else {
+                toast.error('Failed to export users', { id: 'export-users' });
+            }
+        } catch (error) {
+            console.error('Export error:', error);
+            toast.error('Error exporting data', { id: 'export-users' });
+        }
+    };
 
     const toggleBan = async (userId, currentBanStatus) => {
         try {
@@ -290,6 +318,15 @@ const AdminUsersDark = () => {
                         >
                             Refresh
                         </AdminButtonDark>
+                        <AdminButtonDark
+                            variant="outline"
+                            size="sm"
+                            icon={FileDown}
+                            className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                            onClick={handleExport}
+                        >
+                            Export Excel
+                        </AdminButtonDark>
                         {activeFilter !== 'all' && (
                             <AdminButtonDark
                                 variant="outline"
@@ -342,8 +379,8 @@ const AdminUsersDark = () => {
                     />
                 </div>
 
-                {/* Search */}
-                <div className={`${tw.bgSecondary} p-4 rounded-xl border ${tw.borderPrimary}`}>
+                {/* Search & Filters */}
+                <div className={`${tw.bgSecondary} p-4 rounded-xl border ${tw.borderPrimary} space-y-4`}>
                     <div className="relative max-w-md">
                         <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${tw.textSecondary}`} />
                         <input
@@ -353,6 +390,33 @@ const AdminUsersDark = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className={`w-full pl-10 pr-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
                         />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#414868]/30">
+                        <div className="flex items-center gap-2 mr-2 text-xs font-bold text-[#565f89] uppercase tracking-wider">
+                            <Filter className="w-3 h-3" /> Quick Filters:
+                        </div>
+                        {[
+                            { id: 'no_phone', label: 'No WhatsApp', icon: Phone },
+                            { id: 'any_phone', label: 'With WhatsApp', icon: Phone },
+                            { id: 'both_email_phone', label: 'Email & WhatsApp', icon: Mail },
+                            { id: 'only_email', label: 'Only Email', icon: Mail },
+                        ].map((f) => (
+                            <button
+                                key={f.id}
+                                onClick={() => {
+                                    setActiveFilter(f.id);
+                                    fetchUsers(1, null, f.id);
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border ${activeFilter === f.id
+                                    ? 'bg-[#bb9af7]/20 border-[#bb9af7] text-[#bb9af7]'
+                                    : 'bg-[#1a1b26] border-[#414868] text-[#9ab1fe] hover:border-[#7aa2f7] hover:text-[#7aa2f7]'
+                                    }`}
+                            >
+                                <f.icon className="w-3 h-3" />
+                                {f.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -426,14 +490,23 @@ const AdminUsersDark = () => {
                                 </div>
                                 <div className={`p-4 rounded-lg border ${tw.borderPrimary} ${tw.bgInput}`}>
                                     <div className="flex items-center gap-3 mb-2">
-                                        <Phone className={`w-5 h-5 ${tw.textSecondary}`} />
-                                        <span className={`text-sm ${tw.textSecondary}`}>Phone</span>
+                                        <Phone className={`w-5 h-5 text-[#bb9af7]`} />
+                                        <span className={`text-sm ${tw.textSecondary}`}>Primary (WhatsApp)</span>
                                     </div>
                                     <p className={`font-medium ${tw.textPrimary}`}>
-                                        {selectedUser.phone ||
-                                            selectedUser.addresses?.[0]?.phoneNumber ||
+                                        {selectedUser.phone || 'Not Provided'}
+                                    </p>
+                                </div>
+                                <div className={`p-4 rounded-lg border ${tw.borderPrimary} ${tw.bgInput}`}>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <MapPin className={`w-5 h-5 text-[#7aa2f7]`} />
+                                        <span className={`text-sm ${tw.textSecondary}`}>Address Contact</span>
+                                    </div>
+                                    <p className={`font-medium ${tw.textPrimary}`}>
+                                        {selectedUser.addresses?.[0]?.phoneNumber ||
                                             selectedUser.orders?.find(o => o.userInfo?.phone)?.userInfo?.phone ||
-                                            'N/A'}
+                                            'Not Provided'}
+                                        {selectedUser.addresses?.[0]?.alternatePhone && ` / ${selectedUser.addresses[0].alternatePhone}`}
                                     </p>
                                 </div>
                                 <div className={`p-4 rounded-lg border ${tw.borderPrimary} ${tw.bgInput}`}>
@@ -564,6 +637,13 @@ const AdminUsersDark = () => {
                                                     </button>
                                                 </div>
                                                 <p className={`text-sm ${tw.textPrimary}`}>{addr.fullName}</p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <Phone className="w-3 h-3 text-[#bb9af7]" />
+                                                    <p className={`text-xs font-medium text-[#bb9af7]`}>{addr.phoneNumber}</p>
+                                                    {addr.alternatePhone && (
+                                                        <span className={`text-[10px] ${tw.textSecondary}`}>Alt: {addr.alternatePhone}</span>
+                                                    )}
+                                                </div>
                                                 <p className={`text-xs ${tw.textSecondary} mt-1`}>
                                                     {addr.street}, {addr.locality}, {addr.city}
                                                 </p>
