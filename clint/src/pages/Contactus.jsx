@@ -5,7 +5,9 @@ const ContactUs = () => {
   const phoneNumber = '6370810878';
   const partnerNumber = '9556137807';
   const whatsappNumber = '9078771530';
-  const email = 'rgbasket.com@gmail.com';
+  const email1 = 'rgbasket.com@gmail.com';
+  const email2 = 'rgbasketbusiness@gmail.com';
+  const address = "Cuttack, Odisha, India"; // You can replace this with a full street address if needed
 
   const handleCall = (num) => {
     window.open(`tel:${num}`);
@@ -17,7 +19,7 @@ const ContactUs = () => {
   };
 
   const handleEmail = () => {
-    window.open(`mailto:${email}?subject=Inquiry from RG Basket Website&body=Hello RG Basket Team,`);
+    window.open(`mailto:${email1}?subject=Inquiry from RG Basket Website&body=Hello RG Basket Team,`);
   };
 
   const containerVariants = {
@@ -187,15 +189,37 @@ const ContactUs = () => {
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">Email</h3>
             <p className="text-gray-600 mb-4">Send us your detailed queries</p>
-            <div className="text-purple-600 font-semibold text-lg break-all">{email}</div>
+            <div className="text-purple-600 font-semibold text-sm break-all">
+              <p>{email1}</p>
+              <p>{email2}</p>
+            </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors w-full"
+              onClick={() => window.open(`mailto:${email1}`)}
             >
               Send Email
             </motion.button>
           </motion.div>
+        </motion.div>
+
+        {/* Address & Business Info */}
+        <motion.div
+          variants={itemVariants}
+          initial="hidden"
+          animate="visible"
+          className="mb-16 bg-white rounded-2xl shadow-lg border border-emerald-200 p-8 text-center max-w-2xl mx-auto"
+        >
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">Registered Address</h3>
+          <p className="text-gray-600 font-medium">{address}</p>
+          <p className="text-xs text-gray-400 mt-2 italic shadow-sm bg-gray-50 inline-block px-3 py-1 rounded-full">RG Basket is a unit of our local farmer community initiatives in Odisha.</p>
         </motion.div>
 
         {/* Additional Information Section */}

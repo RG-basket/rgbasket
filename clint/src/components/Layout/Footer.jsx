@@ -55,7 +55,8 @@ const Footer = () => {
       title: "Customer Care",
       links: [
         { text: "FAQs", url: "/faq", title: "Frequently Asked Questions" },
-        { text: "Shipping & Returns", url: "/order", title: "Our Shipping and Returns Policy" },
+        { text: "Shipping Policy", url: "/shipping-policy", title: "Our Shipping and Delivery Policy" },
+        { text: "Refund & Cancellation", url: "/refund-policy", title: "Our Refund and Cancellation Policy" },
         { text: "Privacy Policy", url: "/privacy", title: "Privacy Policy" },
         { text: "Terms of Service", url: "/terms", title: "Terms and Conditions" },
       ],
@@ -165,13 +166,18 @@ const Footer = () => {
             <ul className="space-y-4">
               <ContactItem
                 icon={<MapPin className="w-5 h-5 text-emerald-600" />}
-                text="Cuttack, Odisha"
+                text="Cuttack, Odisha, India"
                 href="#"
               />
               <ContactItem
                 icon={<Mail className="w-5 h-5 text-emerald-600" />}
                 text="rgbasket.com@gmail.com"
                 href="mailto:rgbasket.com@gmail.com"
+              />
+              <ContactItem
+                icon={<Mail className="w-5 h-5 text-emerald-600" />}
+                text="rgbasketbusiness@gmail.com"
+                href="mailto:rgbasketbusiness@gmail.com"
               />
               <ContactItem
                 icon={<FaWhatsapp className="w-5 h-5 text-emerald-600" />}

@@ -27,6 +27,9 @@ const AdminComplaints = lazy(() => import("./components/Admin/AdminComplaintsDar
 
 const TermsOfService = lazy(() => import("./pages/TermsOfService.jsx"));
 const PrivacyPolicy = lazy(() => import("./pages/LegalPrivacy.jsx"));
+const AboutUs = lazy(() => import("./pages/AboutUs.jsx"));
+const RefundPolicy = lazy(() => import("./pages/RefundPolicy.jsx"));
+const ShippingPolicy = lazy(() => import("./pages/ShippingPolicy.jsx"));
 
 // Admin Pages - Lazy Loaded
 const AdminLogin = lazy(() => import("./components/Admin/AdminLogin.jsx"));
@@ -106,8 +109,8 @@ const App = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-between">
-      {/* GLOBAL BLINKIT-STYLE LOADER */}
-      <BlinkitLoader isAppReady={isAppReady} />
+      {/* GLOBAL BLINKIT-STYLE LOADER - Hidden on Admin Paths */}
+      {!isAdminPath && <BlinkitLoader isAppReady={isAppReady} />}
 
       {/* GLOBAL BAN OVERLAY */}
       {user && user.isBanned === true && !isAdminPath && (
@@ -207,6 +210,9 @@ const App = () => {
 
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/shipping-policy" element={<ShippingPolicy />} />
 
             {/* Admin Routes - Note: AdminLayout is integrated within each admin component */}
             <Route path="/admin/login" element={<AdminLogin />} />

@@ -1,39 +1,79 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Shield, Lock, Eye, FileText, Smartphone, Globe } from 'lucide-react';
 
 const PrivacyPolicy = () => {
+    const sections = [
+        {
+            title: "Information We Collect",
+            icon: <Eye className="w-6 h-6 text-emerald-600" />,
+            content: "We collect personal information that you provide to us, such as your name, delivery address, phone number, and email. We also collect usage data (IP address, browser type) to improve our service experience."
+        },
+        {
+            title: "How We Use Your Data",
+            icon: <Smartphone className="w-6 h-6 text-emerald-600" />,
+            content: "Your data is primarily used to process orders, manage your account, and provide customer support. We may send transactional updates via WhatsApp or SMS to keep you informed about your delivery status."
+        },
+        {
+            title: "Data Security",
+            icon: <Lock className="w-6 h-6 text-emerald-600" />,
+            content: "We implement robust security measures including SSL encryption to protect your data. We do not store your credit card or payment information on our servers; all payments are processed through secure third-party gateways like Razorpay."
+        },
+        {
+            title: "Third-Party Sharing",
+            icon: <Globe className="w-6 h-6 text-emerald-600" />,
+            content: "We do not sell or rent your personal information. We only share necessary data with trusted delivery partners to fulfill your orders and with payment processors to handle transactions."
+        }
+    ];
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-4xl mx-auto px-4 py-20"
-        >
-            <h1 className="text-3xl font-bold text-gray-900 mb-8">Privacy Policy</h1>
+        <div className="min-h-screen bg-gray-50/50 py-16 px-6">
+            <div className="max-w-4xl mx-auto">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-[2rem] p-8 md:p-12 shadow-xl shadow-emerald-900/5 border border-emerald-100"
+                >
+                    <div className="flex items-center gap-4 mb-8">
+                        <div className="p-3 bg-emerald-50 rounded-2xl">
+                            <Shield className="w-8 h-8 text-emerald-600" />
+                        </div>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Privacy Policy</h1>
+                    </div>
 
-            <div className="prose prose-emerald max-w-none text-gray-600 space-y-6">
-                <section>
-                    <h2 className="text-xl font-semibold text-gray-800">1. Information We Collect</h2>
-                    <p>We collect information you provide directly to us when you create an account, place an order, or contact us. This includes your name, email address, phone number, and delivery address.</p>
-                </section>
+                    <p className="text-gray-600 leading-relaxed mb-12 font-medium bg-emerald-50/50 p-6 rounded-2xl border-l-4 border-emerald-500">
+                        At RG Basket, we value your trust and are committed to protecting your personal data. This policy explains how we collect, use, and safeguard your information when you use our platform.
+                    </p>
 
-                <section>
-                    <h2 className="text-xl font-semibold text-gray-800">2. How We Use Your Information</h2>
-                    <p>We use the information we collect to process your orders, provide customer support, and send you updates about your delivery. We do not sell your personal data to third parties.</p>
-                </section>
+                    <div className="grid gap-10">
+                        {sections.map((section, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, x: -20 }}
+                                whileInView={{ opacity: 1, x: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: index * 0.1 }}
+                                className="relative pl-8"
+                            >
+                                <div className="absolute left-0 top-0 w-1 h-full bg-emerald-100 rounded-full" />
+                                <div className="flex items-center gap-3 mb-3">
+                                    {section.icon}
+                                    <h2 className="text-xl font-bold text-gray-900">{section.title}</h2>
+                                </div>
+                                <p className="text-gray-600 font-medium leading-relaxed">
+                                    {section.content}
+                                </p>
+                            </motion.div>
+                        ))}
+                    </div>
 
-                <section>
-                    <h2 className="text-xl font-semibold text-gray-800">3. Google Data</h2>
-                    <p>If you login using your Google account, we only access your basic profile information (name, email, and profile photo) to create and manage your account on RG Basket.</p>
-                </section>
-
-                <section>
-                    <h2 className="text-xl font-semibold text-gray-800">4. Data Security</h2>
-                    <p>We implement industry-standard security measures to protect your personal information from unauthorized access or disclosure.</p>
-                </section>
-
-                <p className="text-sm pt-8 border-t font-medium text-emerald-700">Last updated: February 2026</p>
+                    <div className="mt-16 pt-8 border-t border-gray-100 italic text-sm text-gray-400 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Last updated: March 2026
+                    </div>
+                </motion.div>
             </div>
-        </motion.div>
+        </div>
     );
 };
 
