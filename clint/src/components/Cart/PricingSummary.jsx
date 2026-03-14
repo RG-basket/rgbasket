@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaChevronDown } from 'react-icons/fa';
 
 const PricingSummary = ({
@@ -16,9 +16,30 @@ const PricingSummary = ({
     distanceSurcharge = 0,
     tipAmount = 0
 }) => {
-    const [isExpanded, setIsExpanded] = React.useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const summaryRef = useRef(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsExpanded(true);
+                    // Disconnect after expanding once automatically
+                    observer.disconnect();
+                }
+            },
+            { threshold: 0.1 } // Trigger when 10% visible to catch it easily
+        );
+
+        if (summaryRef.current) {
+            observer.observe(summaryRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
     return (
-        <div className="text-gray-700 space-y-2 sm:space-y-3 mb-4 sm:mb-6 text-sm">
+        <div ref={summaryRef} className="text-gray-700 space-y-2 sm:space-y-3 mb-4 sm:mb-6 text-sm">
             {/* Collapsible Pricing Details */}
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                 {/* Total MRP */}
@@ -110,8 +131,8 @@ const PricingSummary = ({
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all duration-300 ${isExpanded
-                                ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                : 'bg-green-100 text-green-700 hover:bg-green-600 hover:text-white hover:shadow-lg hover:shadow-green-100'
+                            ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            : 'bg-green-100 text-green-700 hover:bg-green-600 hover:text-white hover:shadow-lg hover:shadow-green-100'
                             }`}
                     >
                         <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>

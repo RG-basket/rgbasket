@@ -1128,7 +1128,14 @@ const Cart = () => {
               <div className="flex items-center gap-3">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-emerald-800/60 uppercase tracking-widest leading-none mb-1">Total Bill</span>
-                  <span className="text-xl font-black text-gray-900 leading-none">{currencySymbol}{totalAmount}</span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xl font-black text-gray-900 leading-none">{currencySymbol}{totalAmount}</span>
+                    {shippingFee > 0 && (
+                      <span className="text-[10px] font-semibold text-gray-500 whitespace-nowrap tracking-tight">
+                        ({currencySymbol}{roundedSubtotal - roundedDiscount} + {currencySymbol}{roundedShipping} Delivery)
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {totalSavings > 0 && (
                   <div className="hidden xs:flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-emerald-100 shadow-sm">
