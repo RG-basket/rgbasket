@@ -190,7 +190,7 @@ const StaleCartModal = ({ isOpen, onClose, staleItems, onRemoveStale, onContinue
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }

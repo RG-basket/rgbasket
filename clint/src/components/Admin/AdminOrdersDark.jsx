@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus } from 'lucide-react';
+import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus, Trash2, ExternalLink, CameraOff, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -114,6 +114,8 @@ const AdminOrdersDark = () => {
   const [serverStatusCounts, setServerStatusCounts] = useState({
     all: 0, pending: 0, confirmed: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0
   });
+  const [partners, setPartners] = useState([]);
+  const [assigningRider, setAssigningRider] = useState(false);
 
   const handleSelectOrder = (orderId) => {
     setSelectedOrderIds(prev =>
@@ -296,6 +298,25 @@ const AdminOrdersDark = () => {
     fetchServiceAreas();
   }, []);
 
+  // Fetch Delivery Partners
+  useEffect(() => {
+    const fetchPartners = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/admin`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPartners(data.partners || []);
+        }
+      } catch (error) {
+        console.error('Error fetching partners:', error);
+      }
+    };
+    fetchPartners();
+  }, []);
+
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       setUpdatingStatus(true);
@@ -321,6 +342,44 @@ const AdminOrdersDark = () => {
       toast.error('Error updating order status');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleAssignRider = async (orderId, partnerId) => {
+    if (!partnerId) return;
+    try {
+      setAssigningRider(true);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/admin/assign-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ orderId, partnerId })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`Rider assigned successfully!`);
+        // Update local state for the selected order if it's open
+        if (selectedOrder && selectedOrder._id === orderId) {
+          const assignedPartner = partners.find(p => p._id === partnerId);
+          setSelectedOrder(prev => ({
+            ...prev,
+            status: 'shipped',
+            deliveryPartner: assignedPartner
+          }));
+        }
+        fetchOrders(page);
+      } else {
+        toast.error(data.message || 'Failed to assign rider');
+      }
+    } catch (error) {
+      console.error('Error assigning rider:', error);
+      toast.error('Error assigning rider');
+    } finally {
+      setAssigningRider(false);
     }
   };
 
@@ -375,6 +434,49 @@ const AdminOrdersDark = () => {
     } catch (error) {
       console.error('Error updating order:', error);
       toast.error('Error updating order');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm('CRITICAL: Permanent Delete?\nThis will revert stock and promo code usage. This action CANNOT be undone.')) return;
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/admin/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Order permanently deleted');
+        setOrders(orders.filter(o => o._id !== orderId));
+        setShowOrderModal(false); // Assuming setShowOrderModal is the correct one for closing the details modal
+      } else {
+        toast.error(data.message);
+      }
+    } catch (err) {
+      toast.error('Network Error during deletion');
+    }
+  };
+
+  const handleDeleteProof = async (orderId) => {
+    if (!window.confirm('Delete this proof of delivery image? This will save storage space.')) return;
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/admin/orders/${orderId}/proof`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Proof of delivery deleted');
+        // Update local state
+        setOrders(orders.map(o => o._id === orderId ? { ...o, proofOfDelivery: { image: '', capturedAt: null } } : o));
+        setSelectedOrder({ ...selectedOrder, proofOfDelivery: { image: '', capturedAt: null } });
+      } else {
+        toast.error(data.message);
+      }
+    } catch (err) {
+      toast.error('Error deleting proof');
     }
   };
 
@@ -1075,6 +1177,22 @@ const AdminOrdersDark = () => {
       )
     },
     {
+      key: 'rider',
+      label: 'Rider',
+      render: (_, order) => (
+        <div className="text-xs">
+          {order.deliveryPartner ? (
+            <div className="flex flex-col">
+              <span className={`font-bold ${tw.textPrimary}`}>{order.deliveryPartner.name}</span>
+              <span className={tw.textSecondary}>{order.deliveryPartner.phone}</span>
+            </div>
+          ) : (
+            <span className="text-gray-500 italic">Not assigned</span>
+          )}
+        </div>
+      )
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (_, order) => (
@@ -1119,6 +1237,18 @@ const AdminOrdersDark = () => {
               Location
             </AdminButtonDark>
           )}
+          <AdminButtonDark
+            variant="ghost"
+            size="sm"
+            className="text-rose-500 hover:bg-rose-500/10"
+            icon={Trash2}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteOrder(order._id);
+            }}
+          >
+            Delete
+          </AdminButtonDark>
         </div>
       )
     }
@@ -1332,8 +1462,30 @@ const AdminOrdersDark = () => {
                   <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
+
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs ${tw.textSecondary} whitespace-nowrap`}>Assign Rider:</span>
+                  <select
+                    value={selectedOrder?.deliveryPartner?._id || ''}
+                    onChange={(e) => handleAssignRider(selectedOrder._id, e.target.value)}
+                    disabled={assigningRider}
+                    className={`${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
+                  >
+                    <option value="">Select Rider</option>
+                    {partners.filter(p => p.isActive).map(p => (
+                      <option key={p._id} value={p._id}>{p.name} ({p.phone})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex gap-3">
+                <AdminButtonDark
+                  variant="danger"
+                  icon={Trash2}
+                  onClick={() => handleDeleteOrder(selectedOrder._id)}
+                >
+                  Delete
+                </AdminButtonDark>
                 <AdminButtonDark onClick={printOrderBill}>
                   Print Bill
                 </AdminButtonDark>
@@ -1535,11 +1687,101 @@ const AdminOrdersDark = () => {
                             rel="noopener noreferrer"
                             className="text-xs text-[#7aa2f7] hover:underline flex items-center gap-1"
                           >
-                            � View Customer's live spot on Map
+                            View Customer's live spot on Map
                           </a>
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+
+                {/* Proof of Delivery (POD) Section */}
+                {(selectedOrder.proofOfDelivery?.image || selectedOrder.status === 'delivered') && (
+                  <div className={`p-4 rounded-lg border ${selectedOrder.proofOfDelivery?.image ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-gray-700 bg-gray-800/50'}`}>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className={`font-black ${selectedOrder.proofOfDelivery?.image ? 'text-emerald-500' : 'text-gray-400'} flex items-center gap-2 uppercase tracking-widest text-xs italic`}>
+                        <span>📸</span>
+                        {selectedOrder.proofOfDelivery?.image ? 'Verified Proof of Delivery' : 'Completion Audit (No Image)'}
+                      </h3>
+                      {selectedOrder.proofOfDelivery?.image && (
+                        <button
+                          onClick={() => handleDeleteProof(selectedOrder._id)}
+                          className="bg-rose-500/10 text-rose-500 p-1.5 rounded-lg hover:bg-rose-500 hover:text-white transition-all border border-rose-500/20"
+                          title="Delete Proof"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="relative group">
+                        {selectedOrder.proofOfDelivery?.image ? (
+                          <>
+                            <img
+                              src={selectedOrder.proofOfDelivery.image}
+                              alt="Proof of Delivery"
+                              className="w-full h-48 object-cover rounded-xl border border-emerald-500/20 shadow-lg cursor-zoom-in group-hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(selectedOrder.proofOfDelivery.image, '_blank')}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <Eye className="text-white w-8 h-8 drop-shadow-lg" />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full h-48 bg-[#1a1b26] rounded-xl border border-gray-700 flex flex-col items-center justify-center text-gray-600">
+                            <CameraOff size={32} className="mb-2" />
+                            <p className="text-[10px] font-bold uppercase tracking-widest">No Image Captured</p>
+                            <p className="text-[8px] mt-1 text-gray-700 text-center px-4">Hand-delivered / Security Handover</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col justify-center space-y-3">
+                        <div className="bg-[#1a1b26] p-3 rounded-xl border border-gray-700/50">
+                          <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Captured Timestamp</p>
+                          <p className="text-xs text-emerald-400 font-mono font-bold">
+                            {selectedOrder.proofOfDelivery?.capturedAt ? new Date(selectedOrder.proofOfDelivery.capturedAt).toLocaleString() : 'N/A (Audited)'}
+                          </p>
+                        </div>
+                        <div className="bg-[#1a1b26] p-3 rounded-xl border border-gray-700/50">
+                          <p className="text-[10px] text-gray-400 font-black uppercase mb-1">Status</p>
+                          <p className={`text-xs ${selectedOrder.proofOfDelivery?.image ? 'text-emerald-500' : 'text-gray-400'} flex items-center gap-1.5 font-bold`}>
+                            {selectedOrder.proofOfDelivery?.image ? <CheckCircle size={14} /> : <Info size={14} />}
+                            {selectedOrder.proofOfDelivery?.image ? 'Legitimate Delivery Confirmed' : 'Delivery Audited (No Image)'}
+                          </p>
+                        </div>
+
+                        {selectedOrder.proofOfDelivery.location?.latitude && (
+                          <div className="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
+                            <p className="text-[10px] text-emerald-400 font-black uppercase mb-1 flex items-center gap-1">
+                              <MapPin size={10} /> GPS Audit Spot
+                            </p>
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedOrder.proofOfDelivery.location.latitude},${selectedOrder.proofOfDelivery.location.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-white hover:underline font-mono"
+                            >
+                              Coord: {selectedOrder.proofOfDelivery.location.latitude.toFixed(5)}, {selectedOrder.proofOfDelivery.location.longitude.toFixed(5)}
+                            </a>
+                            <p className={`text-[9px] mt-1 italic font-bold uppercase tracking-wider ${selectedOrder.proofOfDelivery.isForcefullyDelivered ? 'text-amber-500' : 'text-emerald-500/60'}`}>
+                              {selectedOrder.proofOfDelivery.isForcefullyDelivered ? '⚠️ FORCEFULLY DELIVERED (OUTSIDE GEOFENCE)' : '✓ Geofence Verified Match'}
+                            </p>
+                          </div>
+                        )}
+                        {selectedOrder.proofOfDelivery?.image && (
+                          <AdminButtonDark
+                            size="sm"
+                            variant="outline"
+                            icon={ExternalLink}
+                            className="w-full justify-center text-[10px] h-10"
+                            onClick={() => window.open(selectedOrder.proofOfDelivery.image, '_blank')}
+                          >
+                            View Full Quality Image
+                          </AdminButtonDark>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 

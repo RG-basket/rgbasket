@@ -8,6 +8,7 @@ const { authenticateAdmin, checkBanned } = require('../middleware/auth');
 
 const OrderService = require('../services/OrderService');
 const rateLimit = require('express-rate-limit');
+const { deleteFromCloudinary } = require('../services/cloudinary');
 
 // Strict limiting for order placement
 const orderLimiter = rateLimit({
@@ -74,6 +75,7 @@ router.get('/user/:userId', checkBanned, async (req, res) => {
     }
 
     const orders = await Order.find({ user: userId })
+      .populate('deliveryPartner', 'name phone')
       .sort({ createdAt: -1 });
 
     console.log(`📦 Found ${orders.length} orders for user ${userId}`);
@@ -128,15 +130,31 @@ router.put('/admin/orders/bulk-status', authenticateAdmin, async (req, res) => {
 
     for (const orderId of orderIds) {
       try {
+        const oldOrder = await Order.findById(orderId);
+        if (!oldOrder) {
+          errors.push({ orderId, message: 'Order not found' });
+          continue;
+        }
+
         const updateData = { status };
         if (status === 'delivered') {
           updateData.deliveredAt = new Date();
         }
 
-        const oldOrder = await Order.findById(orderId);
-        if (!oldOrder) {
-          errors.push({ orderId, message: 'Order not found' });
-          continue;
+        // --- RESET PROCESS LOGIC ---
+        if (oldOrder.status === 'delivered' && status !== 'delivered') {
+          // Physical deletion to save storage
+          if (oldOrder.proofOfDelivery?.image) {
+            await deleteFromCloudinary(oldOrder.proofOfDelivery.image);
+          }
+
+          updateData.deliveredAt = null;
+          updateData.proofOfDelivery = {
+            image: '',
+            capturedAt: null,
+            location: oldOrder.proofOfDelivery?.location || null,
+            isForcefullyDelivered: false
+          };
         }
 
         // Handle Stock & Promo reversion if status is changing TO 'cancelled' from a non-cancelled status
@@ -246,6 +264,7 @@ router.get('/admin/orders', authenticateAdmin, async (req, res) => {
     console.log(`🔍 Admin: Fetching orders page ${page}, limit ${limit}, filters applied`);
 
     const orders = await Order.find(query)
+      .populate('deliveryPartner', 'name phone')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -312,6 +331,11 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
       });
     }
 
+    const oldOrder = await Order.findById(orderId);
+    if (!oldOrder) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
     const updateData = { status };
 
     // If marking as delivered, set deliveredAt timestamp
@@ -319,9 +343,23 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
       updateData.deliveredAt = new Date();
     }
 
-    const oldOrder = await Order.findById(orderId);
-    if (!oldOrder) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+    // --- RESET PROCESS LOGIC ---
+    // If moving AWAY from delivered, clear the proof and completion data 
+    // This ensures the Rider Portal "Resets the process" as requested.
+    if (oldOrder.status === 'delivered' && status !== 'delivered') {
+      // Physical deletion to save storage
+      if (oldOrder.proofOfDelivery?.image) {
+        await deleteFromCloudinary(oldOrder.proofOfDelivery.image);
+      }
+
+      updateData.deliveredAt = null;
+      updateData.proofOfDelivery = {
+        image: '',
+        capturedAt: null,
+        location: oldOrder.proofOfDelivery?.location || null,
+        isForcefullyDelivered: false
+      };
+      console.log(`[Admin] Resetting delivery data and deleting Cloudinary image for order ${orderId}`);
     }
 
     // Handle Stock & Promo reversion if status is changing TO 'cancelled' from a non-cancelled status
@@ -588,6 +626,62 @@ router.get('/:orderId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching order: ' + error.message
+    });
+  }
+});
+
+// Delete order completely (for admin)
+router.delete('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    console.log(`🗑️ Admin deleting order ${orderId}`);
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Optional: Revert resources if order wasn't already cancelled
+    if (order.status !== 'cancelled') {
+      try {
+        const OrderService = require('../services/OrderService');
+        const PromoCode = require('../models/PromoCode');
+
+        // Revert Stock
+        const itemsToRevert = order.items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity
+        }));
+        if (itemsToRevert.length > 0) {
+          await OrderService.updateProductInventory(itemsToRevert, 'increment');
+        }
+
+        // Revert Promo Usage
+        if (order.promoCode) {
+          await PromoCode.revertUsageAtomic(order.promoCode, order.user, orderId);
+        }
+
+        // Delete Proof Image if exists to save storage
+        if (order.proofOfDelivery?.image) {
+          await deleteFromCloudinary(order.proofOfDelivery.image);
+        }
+      } catch (revertErr) {
+        console.error('[Admin] Resource reversion failed during deletion:', revertErr);
+      }
+    }
+
+    await Order.findByIdAndDelete(orderId);
+
+    res.json({
+      success: true,
+      message: 'Order deleted completely from database'
+    });
+
+  } catch (error) {
+    console.error('💥 Error deleting order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting order: ' + error.message
     });
   }
 });

@@ -36,7 +36,7 @@ const AdminLogin = () => {
         setToken(data.token);
         setMessage('Login successful! Redirecting to admin dashboard...');
         localStorage.setItem('adminToken', data.token);
-        
+
         // Redirect to admin dashboard
         setTimeout(() => {
           window.location.href = '/admin';
@@ -160,15 +160,13 @@ const AdminLogin = () => {
 
             {/* Message Display */}
             {message && (
-              <div className={`rounded-2xl p-5 border-l-4 ${
-                token 
-                  ? 'bg-green-900/30 border-green-400' 
+              <div className={`rounded-2xl p-5 border-l-4 ${token
+                  ? 'bg-green-900/30 border-green-400'
                   : 'bg-red-900/30 border-red-400'
-              } backdrop-blur-sm transform transition-all duration-300`}>
+                } backdrop-blur-sm transform transition-all duration-300`}>
                 <div className="flex items-start">
-                  <div className={`flex-shrink-0 ${
-                    token ? 'text-green-400' : 'text-red-400'
-                  }`}>
+                  <div className={`flex-shrink-0 ${token ? 'text-green-400' : 'text-red-400'
+                    }`}>
                     {token ? (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -180,9 +178,8 @@ const AdminLogin = () => {
                     )}
                   </div>
                   <div className="ml-3">
-                    <p className={`text-sm font-medium ${
-                      token ? 'text-green-300' : 'text-red-300'
-                    }`}>
+                    <p className={`text-sm font-medium ${token ? 'text-green-300' : 'text-red-300'
+                      }`}>
                       {message}
                     </p>
                     {token && (
@@ -218,7 +215,7 @@ const AdminLogin = () => {
       </div>
 
       {/* Add custom animations to tailwind config */}
-      <style jsx>{`
+      <style>{`
         @keyframes blob {
           0% { transform: translate(0px, 0px) scale(1); }
           33% { transform: translate(30px, -50px) scale(1.1); }

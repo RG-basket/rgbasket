@@ -125,7 +125,7 @@ const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const bannerRoutes = require('./routes/banners');
 const offerRoutes = require('./routes/offerRoutes');
 const serviceAreaRoutes = require('./routes/serviceAreas');
-
+const deliveryPartnerRoutes = require('./routes/deliveryPartnerRoutes');
 
 // Import middleware
 const { checkBanned } = require('./middleware/auth');
@@ -146,6 +146,7 @@ app.use('/api/service-areas', serviceAreaRoutes);
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/feeds', require('./routes/feeds'));
 app.use('/api/sitemap', require('./routes/sitemap'));
+app.use('/api/delivery-partners', deliveryPartnerRoutes);
 
 
 // Your existing routes

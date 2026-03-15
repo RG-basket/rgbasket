@@ -49,6 +49,8 @@ const AdminServiceAreas = lazy(() => import("./components/Admin/AdminServiceArea
 
 
 const InfluencerDashboard = lazy(() => import("./pages/InfluencerDashboard.jsx"));
+const RiderPortal = lazy(() => import("./pages/RiderPortal.jsx"));
+const AdminDeliveryPartners = lazy(() => import("./components/Admin/AdminDeliveryPartners.jsx"));
 
 // Shared Components
 import Navbar from "./components/Navbar/Navbar.jsx";
@@ -99,6 +101,7 @@ import BlinkitLoader from "./components/Common/BlinkitLoader.jsx";
 const App = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
+  const isRiderPath = location.pathname.startsWith("/rider");
   const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady } = useAppContext();
 
   // console.log('Current User in App:', user);
@@ -109,20 +112,20 @@ const App = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-between">
-      {/* GLOBAL BLINKIT-STYLE LOADER - Hidden on Admin Paths */}
-      {!isAdminPath && <BlinkitLoader isAppReady={isAppReady} />}
+      {/* GLOBAL BLINKIT-STYLE LOADER - Hidden on Admin Paths and Rider Paths */}
+      {!isAdminPath && !isRiderPath && <BlinkitLoader isAppReady={isAppReady} />}
 
       {/* GLOBAL BAN OVERLAY */}
-      {user && user.isBanned === true && !isAdminPath && (
+      {user && user.isBanned === true && !isAdminPath && !isRiderPath && (
         <BanScreen user={user} />
       )}
 
       <ScrollToTop />
-      {!isAdminPath && <LoginGuard />}
-      {!isAdminPath && <InstallPopup />}
-      {!isAdminPath && <PhoneCollectionPopup />}
+      {!isAdminPath && !isRiderPath && <LoginGuard />}
+      {!isAdminPath && !isRiderPath && <InstallPopup />}
+      {!isAdminPath && !isRiderPath && <PhoneCollectionPopup />}
 
-      {!isAdminPath && (
+      {!isAdminPath && !isRiderPath && (
         <>
           <Navbar />
           <CategoryStrip />
@@ -188,7 +191,7 @@ const App = () => {
       <Toaster />
 
       {/* Main content - Remove padding for admin routes */}
-      <main className={`flex-grow ${isAdminPath ? 'p-0' : 'px-4 md:px-4 lg:px-16 pb-24 md:pb-0'}`}>
+      <main className={`flex-grow ${(isAdminPath || isRiderPath) ? 'p-0' : 'px-4 md:px-4 lg:px-16 pb-24 md:pb-0'}`}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public Routes */}
@@ -306,13 +309,22 @@ const App = () => {
             {/* Influencer Route */}
             <Route path="/influencer/:routeName" element={<InfluencerDashboard />} />
 
+            {/* Rider Portal */}
+            <Route path="/rider/:token" element={<RiderPortal />} />
+
+            <Route path="/admin/delivery-partners" element={
+              <ProtectedRoute>
+                <AdminDeliveryPartners />
+              </ProtectedRoute>
+            } />
+
           </Routes>
         </Suspense>
         {/* Spacer to prevent content from being hidden behind MobileNav */}
         <div className="h-15 md:hidden" />
       </main>
 
-      {location.pathname === "/" && <Footer />}
+      {location.pathname === "/" && !isRiderPath && <Footer />}
     </div>
   );
 };

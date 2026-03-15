@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Phone, Check } from 'lucide-react';
 
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -785,9 +786,25 @@ const MyOrders = () => {
                               </button>
                             )}
                             {(order.status === 'shipped' || order.status === 'out for delivery') && (
-                              <button onClick={() => handleMarkAsDelivered(order)} className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-100 active:scale-95 transition-all">
-                                ✓ Confirm Receipt
-                              </button>
+                              <div className="flex flex-col gap-3 w-full sm:w-auto">
+                                <button onClick={() => handleMarkAsDelivered(order)} className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                  <Check size={16} /> Confirm Order Received
+                                </button>
+                                {order.deliveryPartner && (
+                                  <div className="flex items-center gap-2 p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl shadow-sm">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Assigned Rider</p>
+                                      <p className="text-xs font-black text-slate-800 truncate">{order.deliveryPartner.name}</p>
+                                    </div>
+                                    <a
+                                      href={`tel:${order.deliveryPartner.phone}`}
+                                      className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-500 transition-all shadow-md active:scale-90 flex items-center gap-1.5 text-[10px] font-black uppercase"
+                                    >
+                                      <Phone size={14} /> Call Rider
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
                             )}
                             {canCancelOrder(order) && (
                               <button onClick={() => handleCancelOrder(order)} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl text-xs font-bold active:scale-95 transition-all">
@@ -857,6 +874,24 @@ const MyOrders = () => {
                                     {order.shippingAddress.state} - {order.shippingAddress.pincode}
                                   </p>
                                   <p className="text-[11px] font-black text-emerald-600 mt-2">📞 {order.shippingAddress.phoneNumber}</p>
+                                </div>
+                              )}
+
+                              {(order.status === 'shipped' || order.status === 'out for delivery') && order.deliveryPartner && (
+                                <div className="bg-emerald-50/50 p-4 rounded-3xl border border-emerald-100 shadow-sm">
+                                  <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest mb-3">Delivery Partner Details</h4>
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xl shadow-sm shrink-0">
+                                      🛵
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-bold text-gray-800 truncate">{order.deliveryPartner.name}</p>
+                                      <p className="text-xs font-bold text-emerald-600 mt-0.5" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                        {order.deliveryPartner.phone}
+                                      </p>
+                                    </div>
+                                  </div>
                                 </div>
                               )}
 

@@ -183,6 +183,20 @@ const OrderSchema = new mongoose.Schema({
   location: {
     type: Object,
     default: null
+  },
+  deliveryPartner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'DeliveryPartner',
+    default: null
+  },
+  proofOfDelivery: {
+    image: { type: String, default: '' },
+    capturedAt: { type: Date },
+    location: {
+      latitude: { type: Number },
+      longitude: { type: Number }
+    },
+    isForcefullyDelivered: { type: Boolean, default: false }
   }
 }, {
   timestamps: true,
