@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAppContext } from '/src/context/AppContext.jsx';
 import { useNavigate } from "react-router-dom";
-import { FaShoppingCart } from "react-icons/fa";
+import { FaShoppingCart, FaChevronDown } from "react-icons/fa";
+import VariantSelectionModal from "./VariantSelectionModal";
 
 // Global cache for slot availability to prevent redundant API calls
 const slotAvailabilityCache = new Map();
@@ -34,6 +35,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const [slotUnavailabilityReason, setSlotUnavailabilityReason] = useState(unavailabilityReason);
     const [nextSlotInfo, setNextSlotInfo] = useState(null);
     const [loadingNextSlot, setLoadingNextSlot] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const checkTimeoutRef = useRef(null);
     const [isImageVisible, setIsImageVisible] = useState(false);
     const imageContainerRef = useRef(null);
@@ -177,9 +179,31 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         }
     }, [product._id]);
 
-    // Use weightIndex for cart key to match AppContext
-    const cartKey = `${product._id}_${selectedWeightIndex}`;
-    const quantity = cartItems[cartKey] || 0;
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : true);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // ✅ Variant/Cart Logic: Determine what to show on the card
+    // Calculate total quantity across all variants
+    const variantQuantities = weights.map((w, idx) => {
+        const key = `${product._id}_${idx}`;
+        return { index: idx, qty: cartItems[key] || 0 };
+    });
+    const totalQuantity = variantQuantities.reduce((sum, item) => sum + item.qty, 0);
+
+    // If something is in cart, find the active one
+    const activeInCart = variantQuantities.find(v => v.qty > 0);
+    
+    // Update selectedWeightIndex if something is in cart and we haven't manually changed it
+    useEffect(() => {
+        if (activeInCart && (!isModalOpen || !isMobile)) {
+            setSelectedWeightIndex(activeInCart.index);
+        }
+    }, [activeInCart?.index, isModalOpen, isMobile]);
 
     const price = Number(selectedWeight?.price) || 0;
     const offerPrice = Number(selectedWeight?.offerPrice) || price;
@@ -203,9 +227,30 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         window.scrollTo(0, 0);
     };
 
-    const handleCartAction = (e, action) => {
+    const handleCartAction = (e, action, isAdjustment = false) => {
         e.stopPropagation();
         if (!isAvailable) return;
+        
+        // ONLY open modal if on MOBILE. On desktop, proceed directly.
+        if (isMobile) {
+            // Count how many different variants are currently in cart
+            const variantsInCartCount = variantQuantities.filter(v => v.qty > 0).length;
+
+            // If it's an "ADD" action (quantity is 0) and there are multiple variants, show modal
+            if (totalQuantity === 0 && weights.length > 1) {
+                setIsModalOpen(true);
+                return;
+            }
+
+            // If it's an adjustment (+ or -) and there are multiple DIFFERENT variants in cart,
+            // we MUST show the modal so user can choose which one to adjust
+            if (isAdjustment && variantsInCartCount > 1) {
+                setIsModalOpen(true);
+                return;
+            }
+        }
+        
+        // Otherwise (or if it's desktop), perform the action directly on the 'selectedWeightIndex'
         action();
     };
 
@@ -274,33 +319,55 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                 {/* Customizable Indicator - Simple & Subtle */}
                 {product.isCustomizable && isStockAvailable && slotAvailability && (
                     <div className="flex items-center gap-1 opacity-80">
-                        <span className="text-[9px] bg-emerald-50 text-emerald-600 px-1 py-0.5 rounded font-bold uppercase tracking-tighter">
-                            ✨ {quantity > 0 ? 'Check Cart' : 'Customizable'}
+                        <span className="text-[9px] bg-[#26544a]/10 text-[#26544a] px-1 py-0.5 rounded font-bold uppercase tracking-tighter">
+                            ✨ {totalQuantity > 0 ? 'Check Cart' : 'Customizable'}
                         </span>
                     </div>
                 )}
 
-                {/* Weight Selector */}
-                <div className="relative" onClick={(e) => e.stopPropagation()}>
-                    <select
-                        className={`w-full text-[10px] p-1.5 border rounded-lg bg-white focus:outline-none transition-all cursor-pointer appearance-none pr-5 ${!isAvailable
-                            ? 'border-gray-200 bg-gray-50 text-gray-400'
-                            : 'border-gray-200 hover:border-emerald-300 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 text-gray-700'}`}
-                        value={selectedWeightIndex}
-                        onChange={(e) => setSelectedWeightIndex(Number(e.target.value))}
-                        disabled={weights.length <= 1 || !isAvailable}
-                    >
-                        {weightOptions.map((w) => (
-                            <option key={w.originalIndex} value={w.originalIndex}>
-                                {formatWeight(w)}
-                            </option>
-                        ))}
-                    </select>
-                    {weights.length > 1 && (
-                        <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <svg className="w-2 h-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                {/* Weight Selector / Variant indicator */}
+                <div className="relative group/variant" onClick={(e) => e.stopPropagation()}>
+                    {weights.length > 1 ? (
+                        <>
+                            {/* Mobile: Premium Button */}
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="md:hidden w-full flex items-center justify-between text-[11px] p-2 border border-gray-100 rounded-xl bg-gray-50/50 hover:bg-[#26544a]/5 hover:border-[#26544a]/20 transition-all duration-300 cursor-pointer group"
+                            >
+                                <span className="font-bold text-gray-700 group-hover:text-[#26544a]">
+                                    {formatWeight(selectedWeight)}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-[9px] text-gray-400 font-medium">{weights.length} variants</span>
+                                    <FaChevronDown className="w-2 h-2 text-gray-400 group-hover:text-[#26544a] transition-transform group-hover:translate-y-0.5" />
+                                </div>
+                            </button>
+
+                            {/* Desktop: Interactive Chips/Buttons */}
+                            <div className="hidden md:flex flex-wrap gap-1 w-full mt-1">
+                                {weights.slice(0, 3).map((w, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setSelectedWeightIndex(idx)}
+                                        className={`text-[9px] px-1.5 py-0.5 rounded-lg font-bold border transition-all ${
+                                            selectedWeightIndex === idx
+                                            ? 'bg-[#26544a] text-white border-[#26544a] shadow-sm'
+                                            : 'bg-white text-gray-600 border-gray-100 hover:border-[#26544a]/40 hover:text-[#26544a]'
+                                        }`}
+                                    >
+                                        {formatWeight(w)}
+                                    </button>
+                                ))}
+                                {weights.length > 3 && (
+                                    <div className="text-[9px] text-gray-300 font-bold self-center px-1">
+                                        +{weights.length - 3} more
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="w-full text-[11px] p-2 border border-gray-50 rounded-xl bg-gray-50/30 text-gray-500 font-bold">
+                            {formatWeight(selectedWeight)}
                         </div>
                     )}
                 </div>
@@ -320,27 +387,27 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
 
                 {/* Add to Cart Button */}
                 <div className="mt-auto pt-1.5" onClick={(e) => e.stopPropagation()}>
-                    {quantity > 0 ? (
+                    {totalQuantity > 0 ? (
                         <div className={`flex items-center justify-between border rounded-xl h-7 px-1 transition-all ${!isAvailable
                             ? 'bg-gray-100 border-gray-200'
-                            : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'}`}>
+                            : 'bg-[#26544a]/5 border-[#26544a]/20 hover:bg-[#26544a]/10'}`}>
                             <button
-                                onClick={(e) => handleCartAction(e, () => removeCartItem(cartKey))}
+                                onClick={(e) => handleCartAction(e, () => removeCartItem(`${product._id}_${selectedWeightIndex}`), true)}
                                 className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all ${!isAvailable
                                     ? 'text-gray-400 cursor-not-allowed'
-                                    : 'text-emerald-700 hover:bg-white hover:shadow-sm active:scale-95'}`}
+                                    : 'text-[#26544a] hover:bg-white hover:shadow-sm active:scale-95'}`}
                                 disabled={!isAvailable}
                             >
                                 <span className="font-bold">−</span>
                             </button>
-                            <span className={`text-xs font-bold min-w-[16px] text-center ${!isAvailable ? 'text-gray-500' : 'text-emerald-800'}`}>
-                                {quantity}
+                            <span className={`text-xs font-bold min-w-[16px] text-center ${!isAvailable ? 'text-gray-500' : 'text-[#26544a]'}`}>
+                                {totalQuantity}
                             </span>
                             <button
-                                onClick={(e) => handleCartAction(e, () => addToCart(cartKey, 1))}
+                                onClick={(e) => handleCartAction(e, () => addToCart(`${product._id}_${selectedWeightIndex}`, 1), true)}
                                 className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all ${!isAvailable
                                     ? 'text-gray-400 cursor-not-allowed'
-                                    : 'text-emerald-700 hover:bg-white hover:shadow-sm active:scale-95'}`}
+                                    : 'text-[#26544a] hover:bg-white hover:shadow-sm active:scale-95'}`}
                                 disabled={!isAvailable}
                             >
                                 <span className="font-bold">+</span>
@@ -348,7 +415,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                         </div>
                     ) : (
                         <button
-                            onClick={(e) => handleCartAction(e, () => addToCart(cartKey, 1))}
+                            onClick={(e) => handleCartAction(e, () => addToCart(`${product._id}_${selectedWeightIndex}`, 1))}
                             disabled={!isAvailable}
                             className={`w-full h-7 text-xs font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-1 shadow-sm active:scale-95 ${!isAvailable
                                 ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
@@ -388,6 +455,13 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                     </div>
                 )}
             </div>
+
+            {/* Variant Selection Modal */}
+            <VariantSelectionModal 
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                product={product}
+            />
         </div>
     );
 };
