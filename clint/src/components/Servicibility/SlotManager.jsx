@@ -27,7 +27,7 @@ const SlotManager = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ capacity: 20, cutoffHours: 0.0833 }); // 5 minutes
+  const [editForm, setEditForm] = useState({ capacity: 20, cutoffMinutes: 5 }); // 5 minutes
 
   // Preview State - Initialize with IST tomorrow
   const [previewDate, setPreviewDate] = useState(() => {
@@ -85,7 +85,7 @@ const SlotManager = () => {
 
   const handleEdit = (slot) => {
     setEditingId(slot._id);
-    setEditForm({ capacity: slot.capacity, cutoffHours: slot.cutoffHours });
+    setEditForm({ capacity: slot.capacity, cutoffMinutes: slot.cutoffMinutes });
   };
 
   const handleSave = async (id) => {
@@ -137,7 +137,7 @@ const SlotManager = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slot Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Capacity</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cutoff (Hrs)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cutoff (Min)</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -165,11 +165,11 @@ const SlotManager = () => {
                         <input
                           type="number"
                           className="w-16 border rounded p-1"
-                          value={editForm.cutoffHours}
-                          onChange={e => setEditForm({ ...editForm, cutoffHours: e.target.value })}
+                          value={editForm.cutoffMinutes}
+                          onChange={e => setEditForm({ ...editForm, cutoffMinutes: e.target.value })}
                         />
                       ) : (
-                        <span className="text-gray-600">{slot.cutoffHours}h</span>
+                        <span className="text-gray-600">{slot.cutoffMinutes}m</span>
                       )}
                     </td>
                     <td className="px-4 py-4 text-right">

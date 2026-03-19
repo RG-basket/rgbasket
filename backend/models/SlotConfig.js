@@ -19,9 +19,9 @@ const slotConfigSchema = new mongoose.Schema({
         default: 20,
         required: true
     },
-    cutoffHours: {
+    cutoffMinutes: {
         type: Number,
-        default: 0.0833, // Hours before start time to stop accepting orders (0.0833 = 5 minutes)
+        default: 5, // Minutes before start time to stop accepting orders
         required: true
     },
     isActive: {

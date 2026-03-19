@@ -32,64 +32,10 @@ const formatISTDate = (date) => {
 };
 
 /* -------------------------------
-   Slot Initialization
+   Slot Initialization - DISABLED
+   (Automatic creation removed to allow manual management)
 --------------------------------- */
-const initializeSlots = async () => {
-  try {
-    // Ensure unique index on slot name
-    await SlotConfig.collection.createIndex({ name: 1 }, { unique: true });
-
-    const defaultSlots = [
-      { name: 'Morning - First Half', startTime: '07:00', endTime: '08:30', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
-      { name: 'Morning - Second Half', startTime: '08:30', endTime: '10:00', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
-      { name: 'Noon', startTime: '12:00', endTime: '14:00', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
-      { name: 'Night - First Half', startTime: '17:00', endTime: '18:30', capacity: 200, cutoffHours: 0.0833 }, // 5 minutes
-      { name: 'Night - Second Half', startTime: '18:30', endTime: '20:00', capacity: 200, cutoffHours: 0.0833 } // 5 minutes
-    ];
-
-    const operations = defaultSlots.map(slot => ({
-      updateOne: {
-        filter: { name: slot.name },
-        update: { $setOnInsert: slot },
-        upsert: true
-      }
-    }));
-
-    await SlotConfig.bulkWrite(operations);
-    console.log('✅ Slots initialized/verified');
-  } catch (error) {
-    if (error.code === 11000) {
-      console.log('Cleaning up duplicate slots...');
-      await cleanupDuplicates();
-      await initializeSlots(); // Retry
-    } else {
-      console.error('Error initializing slots:', error);
-    }
-  }
-};
-
-const cleanupDuplicates = async () => {
-  try {
-    const slots = await SlotConfig.find().sort({ createdAt: 1 });
-    const seen = new Set();
-
-    for (const slot of slots) {
-      if (seen.has(slot.name)) {
-        await SlotConfig.findByIdAndDelete(slot._id);
-        console.log(`Deleted duplicate: ${slot.name}`);
-      } else {
-        seen.add(slot.name);
-      }
-    }
-  } catch (error) {
-    console.error('Cleanup error:', error);
-  }
-};
-
-// Delay initialization to ensure MongoDB is ready
-setTimeout(() => {
-  initializeSlots();
-}, 3000);
+// Automatic slot initialization removed as per user request to prevent recreation of default slots.
 
 /* -------------------------------
    CRUD Routes
@@ -130,6 +76,18 @@ router.put('/:id', authenticateAdminOr404, async (req, res) => {
   }
 });
 
+// DELETE /api/slots/:id - Delete slot config (Admin)
+router.delete('/:id', authenticateAdminOr404, async (req, res) => {
+  try {
+    const slot = await SlotConfig.findByIdAndDelete(req.params.id);
+    if (!slot) return res.status(404).json({ success: false, message: 'Slot not found' });
+    res.json({ success: true, message: 'Slot deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting slot:', error);
+    res.status(500).json({ success: false, message: 'Error deleting slot' });
+  }
+});
+
 /* -------------------------------
    Availability Route - ULTRA SIMPLE WORKING SOLUTION
 --------------------------------- */
@@ -161,8 +119,8 @@ const hasCutoffPassed = (slot, selectedDate, now) => {
   const slotTime = new Date(today);
   slotTime.setHours(hours, minutes, 0, 0);
 
-  // Calculate cutoff time (cutoffHours before slot start)
-  const cutoffTime = new Date(slotTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
+  // Calculate cutoff time (cutoffMinutes before slot start)
+  const cutoffTime = new Date(slotTime.getTime() - (slot.cutoffMinutes * 60 * 1000));
 
   // Check if current IST time is past cutoff
   const currentIST = getISTDate();
@@ -207,7 +165,7 @@ router.get('/availability', async (req, res) => {
       const [hours, minutes] = slot.startTime.split(':').map(Number);
       const slotTime = new Date(selectedDate);
       slotTime.setHours(hours, minutes, 0, 0);
-      const cutoffTime = new Date(slotTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
+      const cutoffTime = new Date(slotTime.getTime() - (slot.cutoffMinutes * 60 * 1000));
 
       console.log(`${slot.name}:`);
       console.log(`  Slot time: ${slotTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
@@ -226,7 +184,7 @@ router.get('/availability', async (req, res) => {
         booked: orderCount,
         isAvailable: isAvailable,
         reason: cutoffPassed
-          ? `Booking closed - cutoff time passed (${Math.round(slot.cutoffHours * 60)} min before delivery)`
+          ? `Booking closed - cutoff time passed (${slot.cutoffMinutes} min before delivery)`
           : (orderCount >= slot.capacity ? 'Slot full' : 'Available')
       };
     }));

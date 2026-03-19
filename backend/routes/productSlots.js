@@ -70,7 +70,7 @@ router.get('/:id/slot-availability', async (req, res) => {
                 const slotDateTime = new Date(selectedDate);
                 slotDateTime.setHours(hours, minutes, 0, 0);
 
-                const cutoffTime = new Date(slotDateTime.getTime() - (slot.cutoffHours * 60 * 60 * 1000));
+                const cutoffTime = new Date(slotDateTime.getTime() - (slot.cutoffMinutes * 60 * 1000));
 
                 if (now > cutoffTime) {
                     return {
@@ -81,7 +81,7 @@ router.get('/:id/slot-availability', async (req, res) => {
                         capacity: slot.capacity,
                         booked: 0,
                         isAvailable: false,
-                        reason: `Booking closed - cutoff time passed (${Math.round(slot.cutoffHours * 60)} min before delivery)`
+                        reason: `Booking closed - cutoff time passed (${slot.cutoffMinutes} min before delivery)`
                     };
                 }
             }
