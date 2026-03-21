@@ -54,7 +54,27 @@ exports.createComplaint = async (req, res) => {
 exports.getUserComplaints = async (req, res) => {
     try {
         const { userId } = req.params;
-        const complaints = await Complaint.find({ user: userId }).sort({ createdAt: -1 });
+        const User = require('../models/User');
+
+        console.log('🔍 Fetching complaints for user:', userId);
+
+        // Smart ID lookup to handle both MongoDB _id and googleId
+        const user = await User.findOne({
+            $or: [
+                { _id: userId.match(/^[0-9a-fA-F]{24}$/) ? userId : null },
+                { googleId: userId }
+            ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+        });
+
+        const userIds = [userId];
+        if (user) {
+            if (user._id) userIds.push(user._id.toString());
+            if (user.googleId) userIds.push(user.googleId);
+        }
+
+        const uniqueUserIds = [...new Set(userIds.filter(id => id))];
+        const complaints = await Complaint.find({ user: { $in: uniqueUserIds } }).sort({ createdAt: -1 });
+
         res.json({
             success: true,
             complaints

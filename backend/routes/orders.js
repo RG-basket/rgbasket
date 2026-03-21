@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const User = require('../models/User');
 const ServiceArea = require('../models/ServiceArea');
 const TelegramService = require('../services/TelegramService');
 const cache = require('../services/redis').cache;
@@ -74,11 +75,29 @@ router.get('/user/:userId', checkBanned, async (req, res) => {
       });
     }
 
-    const orders = await Order.find({ user: userId })
+    // 1. Find the user first to get both their MongoDB _id and googleId
+    // This handles cases where some orders belong to googleId while others belong to _id
+    const user = await User.findOne({
+      $or: [
+        { _id: userId.match(/^[0-9a-fA-F]{24}$/) ? userId : null },
+        { googleId: userId }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    // 2. Build a list of all potential IDs associated with this user
+    const userIds = [userId];
+    if (user) {
+      if (user._id) userIds.push(user._id.toString());
+      if (user.googleId) userIds.push(user.googleId);
+    }
+
+    // 3. Find orders assigned to any of these IDs (deduplicated)
+    const uniqueUserIds = [...new Set(userIds.filter(id => id))];
+    const orders = await Order.find({ user: { $in: uniqueUserIds } })
       .populate('deliveryPartner', 'name phone')
       .sort({ createdAt: -1 });
 
-    console.log(`📦 Found ${orders.length} orders for user ${userId}`);
+    console.log(`📦 Found ${orders.length} orders for user ${userId} (checked ${uniqueUserIds.length} ID variants)`);
 
     res.json({
       success: true,

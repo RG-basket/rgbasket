@@ -90,12 +90,31 @@ router.post('/admin/capture', authenticateAdmin, async (req, res) => {
 
 router.get('/user/:userId', checkBanned, async (req, res) => {
   try {
-    console.log('Fetching addresses for user:', req.params.userId);
+    const { userId } = req.params;
+    console.log('🔍 Fetching addresses for user:', userId);
 
-    const addresses = await UserAddress.find({ user: req.params.userId })
+    // 1. Find the user first to get both their MongoDB _id and googleId
+    // This handles cases where some addresses belong to googleId while others belong to _id
+    const user = await User.findOne({
+      $or: [
+        { _id: userId.match(/^[0-9a-fA-F]{24}$/) ? userId : null },
+        { googleId: userId }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    // 2. Build a list of all potential IDs associated with this user
+    const userIds = [userId];
+    if (user) {
+      if (user._id) userIds.push(user._id.toString());
+      if (user.googleId) userIds.push(user.googleId);
+    }
+
+    // 3. Find addresses assigned to any of these IDs (deduplicated)
+    const uniqueUserIds = [...new Set(userIds.filter(id => id))];
+    const addresses = await UserAddress.find({ user: { $in: uniqueUserIds } })
       .sort({ isDefault: -1, createdAt: -1 });
 
-    console.log('Found addresses:', addresses.length);
+    console.log(`📦 Found ${addresses.length} addresses for user ${userId} (checked ${uniqueUserIds.length} ID variants)`);
 
     res.json({
       success: true,
@@ -206,8 +225,26 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
 // Set default address
 router.patch('/:id/set-default', checkBanned, async (req, res) => {
   try {
+    const { userId } = req.body;
+    
+    // Find User IDs to handle both _id and googleId
+    const user = await User.findOne({
+      $or: [
+        { _id: userId.match(/^[0-9a-fA-F]{24}$/) ? userId : null },
+        { googleId: userId }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    const userIds = [userId];
+    if (user) {
+      if (user._id) userIds.push(user._id.toString());
+      if (user.googleId) userIds.push(user.googleId);
+    }
+    const uniqueUserIds = [...new Set(userIds.filter(id => id))];
+
+    // Reset default for all address variations of this user
     await UserAddress.updateMany(
-      { user: req.body.userId },
+      { user: { $in: uniqueUserIds } },
       { $set: { isDefault: false } }
     );
 

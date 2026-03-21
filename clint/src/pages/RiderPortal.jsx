@@ -14,6 +14,9 @@ const RiderPortal = () => {
     const [myOrders, setMyOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true); // For initial sync
+    const [orderActionLoading, setOrderActionLoading] = useState(null); // Track specific order being accepted
+    const [statusUpdating, setStatusUpdating] = useState(false); // For online/offline toggle
     const [expandedOrder, setExpandedOrder] = useState(null);
     const [fetchingLocation, setFetchingLocation] = useState(false);
     const [historicalLocations, setHistoricalLocations] = useState({}); // { userId: locationData }
@@ -80,6 +83,7 @@ const RiderPortal = () => {
             if (isManual) toast.error('Failed to refresh');
         } finally {
             if (isManual) setRefreshing(false);
+            setInitialLoading(false);
         }
     };
 
@@ -114,6 +118,7 @@ const RiderPortal = () => {
 
     const handleToggleStatus = async () => {
         try {
+            setStatusUpdating(true);
             const newStatus = !partner.isActive;
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/toggle-status/${partner._id}`, {
                 method: 'PATCH',
@@ -129,11 +134,14 @@ const RiderPortal = () => {
             }
         } catch (err) {
             toast.error('Error updating status');
+        } finally {
+            setStatusUpdating(false);
         }
     };
 
     const handleAcceptOrder = async (orderId) => {
         try {
+            setOrderActionLoading(orderId);
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/accept-order`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -148,6 +156,8 @@ const RiderPortal = () => {
             }
         } catch (err) {
             toast.error('Error accepting order');
+        } finally {
+            setOrderActionLoading(null);
         }
     };
 
@@ -360,6 +370,24 @@ const RiderPortal = () => {
         );
     }
 
+    if (initialLoading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
+                <div className="relative">
+                    <div className="w-20 h-20 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin"></div>
+                    <Truck className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-600 w-8 h-8" />
+                </div>
+                <h2 className="mt-8 text-xl font-black text-gray-800 tracking-tight">Syncing Portal...</h2>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-2 max-w-[200px] leading-relaxed">Fetching orders and updating your status</p>
+                <div className="mt-12 flex gap-1.5">
+                    <div className="w-2 h-2 bg-emerald-600 rounded-full animate-bounce delay-0"></div>
+                    <div className="w-2 h-2 bg-emerald-600/60 rounded-full animate-bounce delay-150"></div>
+                    <div className="w-2 h-2 bg-emerald-600/30 rounded-full animate-bounce delay-300"></div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             {/* Header */}
@@ -400,9 +428,14 @@ const RiderPortal = () => {
                         <span className={`text-[10px] font-black mb-1 uppercase tracking-wider ${partner.isActive ? 'text-emerald-600' : 'text-rose-500'}`}>
                             {partner.isActive ? 'Ready to work' : 'Offline'}
                         </span>
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label className={`relative inline-flex items-center cursor-pointer ${statusUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
                             <input type="checkbox" className="sr-only peer" checked={partner.isActive} onChange={handleToggleStatus} />
                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                            {statusUpdating && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <RefreshCw className="w-3 h-3 text-emerald-600 animate-spin" />
+                                </div>
+                            )}
                         </label>
                     </div>
                 </div>
@@ -455,9 +488,16 @@ const RiderPortal = () => {
                                 {partner.isActive ? (
                                     <button
                                         onClick={() => handleAcceptOrder(order._id)}
-                                        className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl hover:bg-emerald-700 flex justify-center items-center gap-2 transition"
+                                        disabled={orderActionLoading === order._id}
+                                        className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl hover:bg-emerald-700 flex justify-center items-center gap-2 transition disabled:opacity-75 disabled:cursor-not-allowed"
                                     >
-                                        <Check size={18} /> ACCEPT SHIPMENT
+                                        {orderActionLoading === order._id ? (
+                                            <RefreshCw className="w-5 h-5 animate-spin" />
+                                        ) : (
+                                            <>
+                                                <Check size={18} /> ACCEPT SHIPMENT
+                                            </>
+                                        )}
                                     </button>
                                 ) : (
                                     <div className="bg-gray-100 text-gray-400 text-center py-4 rounded-xl font-bold text-sm">

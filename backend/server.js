@@ -318,8 +318,26 @@ app.get('/api/users/:userId', checkBanned, async (req, res) => {
 // Get orders for specific user
 app.get('/api/orders/user/:userId', checkBanned, async (req, res) => {
   try {
+    const userId = req.params.userId;
     const Order = require('./models/Order');
-    const orders = await Order.find({ user: req.params.userId })
+    const User = require('./models/User');
+
+    // Smart ID lookup to handle both MongoDB _id and googleId
+    const user = await User.findOne({
+      $or: [
+        { _id: userId.match(/^[0-9a-fA-F]{24}$/) ? userId : null },
+        { googleId: userId }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    const userIds = [userId];
+    if (user) {
+      if (user._id) userIds.push(user._id.toString());
+      if (user.googleId) userIds.push(user.googleId);
+    }
+
+    const uniqueUserIds = [...new Set(userIds.filter(id => id))];
+    const orders = await Order.find({ user: { $in: uniqueUserIds } })
       .populate('user', 'name email')
       .sort({ createdAt: -1 });
 
