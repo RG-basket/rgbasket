@@ -7,6 +7,7 @@ import ProductCard from '../components/Products/ProductCard';
 import toast from 'react-hot-toast';
 import { ChevronDown, ChevronUp, ShoppingCart, Zap, AlertCircle } from 'lucide-react';
 import SEO from '../components/SEO/SEO.jsx';
+import { formatWeight } from '../utils/weightFormatter.js';
 
 // Animation variants
 const containerVariants = {
@@ -257,14 +258,6 @@ const ProductDetails = () => {
   // Overall availability
   const isAvailable = isStockAvailable && isAvailableForSlot;
 
-  // Format weight display
-  const formatWeight = (weightObj) => {
-    if (!weightObj) return '';
-    if (weightObj.unit === 'piece' || weightObj.unit === 'unit') {
-      return '1 piece';
-    }
-    return `${weightObj.weight} ${weightObj.unit}`;
-  };
 
   // Helper: return integer (no decimals)
   const formatPrice = (v) => {

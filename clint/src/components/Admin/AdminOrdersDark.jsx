@@ -8,6 +8,8 @@ import AdminTableDark from './SharedDark/AdminTableDark';
 import LocationCaptureModal from './SharedDark/LocationCaptureModal';
 import AdminModalDark from './SharedDark/AdminModalDark';
 import { tw } from '../../config/tokyoNightTheme';
+import { formatWeight } from '../../utils/weightFormatter.js';
+
 
 const statusIcons = {
   pending: Clock,
@@ -1002,9 +1004,8 @@ const AdminOrdersDark = () => {
           '<td>' +
           '<strong>' + item.name + '</strong>' +
           (item.isCustomized ? '<br><span style="font-size: 11px; color: #10b981; font-weight: 600;">✨ CUSTOMIZED: ' + (item.customizationInstructions || 'N/A') + '</span>' : '') +
-          '<br><span style="font-size: 11px; color: #64748b;">' + item.description + '</span>' +
           '</td>' +
-          '<td>' + item.weight + (item.unit ? ' ' + item.unit : '') + '</td>' +
+          '<td>' + formatWeight(item.weight, item.unit) + '</td>' +
           '<td>' + item.quantity + '</td>' +
           '<td>₹' + item.price + (item.customizationCharge > 0 ? `<br><span style="font-size: 10px; color: #10b981;">+ ₹${item.customizationCharge} custom</span>` : '') + '</td>' +
           '<td><strong>₹' + ((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2) + '</strong></td>' +

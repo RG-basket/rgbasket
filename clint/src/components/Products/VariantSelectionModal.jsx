@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus, Check } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext.jsx';
+import { formatWeight } from '../../utils/weightFormatter.js';
 
 const VariantSelectionModal = ({ isOpen, onClose, product }) => {
     const { 
@@ -23,13 +24,6 @@ const VariantSelectionModal = ({ isOpen, onClose, product }) => {
     const formatPrice = (v) => {
         const n = Number(v) || 0;
         return Math.round(n);
-    };
-
-    const formatWeight = (weightObj) => {
-        if (!weightObj) return "";
-        const { weight, unit } = weightObj;
-        if (!unit || unit === "piece" || unit === "unit") return weight;
-        return `${weight}${unit}`;
     };
 
     const weights = product.weights || [];

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { assets } from '../../assets/assets';
 import { useAppContext } from '../../context/AppContext';
+import { formatWeight } from '../../utils/weightFormatter.js';
 
 const CartItem = ({ product, navigate, updateCartItem, removeCartItem, CURRENCY, getProductImage, isUnavailable, unavailabilityReason }) => {
     const { updateCustomization, findNextAvailableSlotForProduct, validateAndSetSlot } = useAppContext();
@@ -106,7 +107,7 @@ const CartItem = ({ product, navigate, updateCartItem, removeCartItem, CURRENCY,
                         <div className={`text-xs sm:text-sm ${subTextClass} mt-1 space-y-1`}>
                             <p className="flex items-center gap-1">
                                 <span>Weight:</span>
-                                <span className="font-bold text-gray-800">{product.weight}{product.unit}</span>
+                                <span className="font-bold text-gray-800">{formatWeight(product.weight, product.unit)}</span>
                             </p>
                             <p className="flex items-center gap-1">
                                 <span>Price:</span>

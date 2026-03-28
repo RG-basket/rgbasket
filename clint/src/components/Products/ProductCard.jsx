@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useAppContext } from '/src/context/AppContext.jsx';
+import { useAppContext } from "../../context/AppContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { FaShoppingCart, FaChevronDown } from "react-icons/fa";
 import VariantSelectionModal from "./VariantSelectionModal";
+import { formatWeight } from '../../utils/weightFormatter.js';
 
 // Global cache for slot availability to prevent redundant API calls
 const slotAvailabilityCache = new Map();
@@ -213,13 +214,6 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const formatPrice = (v) => {
         const n = Number(v) || 0;
         return Math.round(n);
-    };
-
-    const formatWeight = (weightObj) => {
-        if (!weightObj) return "";
-        const { weight, unit } = weightObj;
-        if (!unit || unit === "piece" || unit === "unit") return weight;
-        return `${weight}${unit}`;
     };
 
     const handleCardClick = () => {
