@@ -51,8 +51,8 @@ const OrderSummary = ({
     const [isCustomTip, setIsCustomTip] = React.useState(false);
     const [customTipValue, setCustomTipValue] = React.useState('');
     return (
-        <div className="w-full lg:max-w-md bg-green-50 border border-green-200 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 h-fit sticky top-20 lg:top-24">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Order Summary</h2>
+        <div className="w-full lg:max-w-md bg-emerald-50/50 border border-emerald-100 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 h-fit sticky top-20 lg:top-24">
+            <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-4 sm:mb-6 tracking-tight">Order Summary</h2>
 
             {/* User Information - Hidden as per request */}
             {/* <UserInfo user={user} /> */}
@@ -122,12 +122,12 @@ const OrderSummary = ({
 
 
                     {/* Delivery Partner Tip Section */}
-                    <div className="mb-6 bg-green-50/50 border border-green-200 rounded-2xl p-4 shadow-sm shadow-green-100/50">
+                    <div className="mb-6 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 shadow-sm shadow-emerald-50/50">
                         <div className="flex items-center gap-2 mb-3">
                             <span className="text-xl">🛵</span>
                             <div className="flex flex-col">
                                 <span className="font-bold text-gray-800 text-sm">Thank Your Delivery Hero</span>
-                                <span className="text-[10px] text-green-600 font-medium">100% of your tip goes to the partner</span>
+                                <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">100% of your tip goes to the partner</span>
                             </div>
                         </div>
 
@@ -139,9 +139,9 @@ const OrderSummary = ({
                                         setTipAmount(amount);
                                         setIsCustomTip(false);
                                     }}
-                                    className={`py-2 rounded-xl text-xs font-bold transition-all ${tipAmount === amount && !isCustomTip
-                                        ? 'bg-green-600 text-white shadow-md shadow-green-200 scale-105'
-                                        : 'bg-white border border-green-200 text-green-600 hover:bg-green-50'
+                                    className={`py-2 rounded-xl text-xs font-black transition-all ${tipAmount === amount && !isCustomTip
+                                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 scale-105'
+                                        : 'bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50'
                                         }`}
                                 >
                                     {currencySymbol}{amount}
@@ -149,9 +149,9 @@ const OrderSummary = ({
                             ))}
                             <button
                                 onClick={() => setIsCustomTip(true)}
-                                className={`py-2 rounded-xl text-xs font-bold transition-all ${isCustomTip
-                                    ? 'bg-green-600 text-white shadow-md shadow-green-200 scale-105'
-                                    : 'bg-white border border-green-200 text-green-600 hover:bg-green-50'
+                                className={`py-2 rounded-xl text-xs font-black transition-all ${isCustomTip
+                                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 scale-105'
+                                    : 'bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50'
                                     }`}
                             >
                                 Other
@@ -180,13 +180,13 @@ const OrderSummary = ({
                                     }}
                                     placeholder="Enter custom tip"
                                     min="0"
-                                    className="w-full bg-white border-2 border-green-200 rounded-xl py-3 pl-8 pr-4 text-sm font-bold focus:border-green-600 focus:ring-0 transition-colors"
+                                    className="w-full bg-white border-2 border-emerald-100 rounded-xl py-3 pl-8 pr-4 text-sm font-bold focus:border-emerald-600 focus:ring-0 transition-colors"
                                 />
                             </div>
                         )}
 
                         {tipAmount > 0 && (
-                            <div className="mt-3 flex items-center justify-between text-[11px] font-medium text-green-700 bg-green-100/50 py-1.5 px-3 rounded-lg border border-green-200 animate-in fade-in duration-300">
+                            <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-emerald-700 bg-emerald-100/30 py-2 px-3 rounded-lg border border-emerald-100 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-1.5">
                                     <span>🌟 You're amazing!</span>
                                     <button
@@ -195,12 +195,12 @@ const OrderSummary = ({
                                             setIsCustomTip(false);
                                             setCustomTipValue('');
                                         }}
-                                        className="underline hover:text-green-900 ml-1"
+                                        className="underline hover:text-emerald-900 ml-1 font-black uppercase text-[9px] tracking-wider"
                                     >
-                                        Remove tip
+                                        Remove
                                     </button>
                                 </div>
-                                <span className="font-bold">{currencySymbol}{tipAmount}</span>
+                                <span className="font-black">{currencySymbol}{tipAmount}</span>
                             </div>
                         )}
                     </div>
@@ -220,6 +220,7 @@ const OrderSummary = ({
                         tipAmount={tipAmount}
                         standardFee={standardFee}
                         distanceSurcharge={distanceSurcharge}
+                        instruction={instruction}
                     />
 
                     {/* Order Button */}

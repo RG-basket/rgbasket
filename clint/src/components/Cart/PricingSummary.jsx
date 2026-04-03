@@ -14,7 +14,8 @@ const PricingSummary = ({
     baseShippingFee = 29,
     standardFee = 29,
     distanceSurcharge = 0,
-    tipAmount = 0
+    tipAmount = 0,
+    instruction = ""
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const summaryRef = useRef(null);
@@ -118,6 +119,17 @@ const PricingSummary = ({
                     <span>GST & Taxes</span>
                     <span>{currencySymbol}{tax.toFixed(2)}</span>
                 </div>
+
+                {/* Delivery Instruction Display */}
+                {instruction && (
+                    <div className="mt-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100 border-dashed">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs">📝</span>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Delivery Instructions</span>
+                        </div>
+                        <p className="text-[11px] text-emerald-600 font-medium italic">"{instruction}"</p>
+                    </div>
+                )}
             </div>
 
             <hr className="border-green-200 my-2 sm:my-3" />

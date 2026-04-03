@@ -632,6 +632,18 @@ const RiderPortal = () => {
                                                 </div>
                                             </div>
 
+                                            {/* Delivery Instructions */}
+                                            {order.instruction && (
+                                                <div className="mt-5 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                                    <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                                        <span className="text-sm">📝</span> Delivery Instructions
+                                                    </h4>
+                                                    <p className="text-sm font-bold text-gray-800 leading-relaxed">
+                                                        {order.instruction}
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             {/* Location Section */}
                                             <div className="mt-5 space-y-3">
                                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Navigation size={12} /> Precise Location</h4>

@@ -561,6 +561,17 @@ const MyOrders = () => {
         ${order.discountAmount > 0 ? `<div class="total-row" style="color: #059669;"><span>Discount:</span><span>-₹${order.discountAmount.toFixed(2)}</span></div>` : ''}
         <div class="total-row final"><span>TOTAL AMOUNT:</span><span>₹${order.totalAmount.toFixed(2)}</span></div>
       </div>
+
+      ${order.instruction ? `
+      <div style="margin-top: 20px; padding: 15px; background: #ecfdf5; border: 1px dashed #10b981; border-radius: 8px;">
+        <div style="font-size: 12px; font-weight: 700; color: #065f46; margin-bottom: 5px; text-transform: uppercase; display: flex; align-items: center; gap: 5px;">
+          <span>📝</span> Delivery Instructions
+        </div>
+        <div style="font-size: 13px; color: #064e3b; font-style: italic; font-weight: 500;">
+          "${order.instruction}"
+        </div>
+      </div>
+      ` : ''}
     </div>
 
     <div class="footer">
@@ -896,9 +907,13 @@ const MyOrders = () => {
                               )}
 
                               {order.instruction && (
-                                <div className="bg-amber-50/50 p-3 rounded-2xl border border-amber-100">
-                                  <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider mb-1">Instruction</p>
-                                  <p className="text-xs text-amber-800 font-medium italic">"{order.instruction}"</p>
+                                <div className="bg-emerald-50/50 p-4 rounded-3xl border border-emerald-100 shadow-sm">
+                                  <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                    <span>📝</span> Delivery Instruction
+                                  </h4>
+                                  <p className="text-xs text-emerald-800 font-bold leading-relaxed">
+                                    {order.instruction}
+                                  </p>
                                 </div>
                               )}
                             </div>
