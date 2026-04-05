@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw, RefreshCw, FileDown, Filter, Edit } from 'lucide-react';
+import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw, RefreshCw, FileDown, Filter, Edit, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -18,6 +18,9 @@ const AdminUsersDark = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expandedOrders, setExpandedOrders] = useState(false);
     const [activeFilter, setActiveFilter] = useState('all'); // all, online, dau
+
+    const [selectedHistoryOrder, setSelectedHistoryOrder] = useState(null);
+    const [showHistoryOrderModal, setShowHistoryOrderModal] = useState(false);
 
     const [page, setPage] = useState(1);
     const [totalUsers, setTotalUsers] = useState(0);
@@ -435,7 +438,8 @@ const AdminUsersDark = () => {
                         fetchUsers(newPage);
                     }}
                     onRowClick={(user) => {
-                        setEditingUser(user);
+                        setSelectedUser(user);
+                        setExpandedOrders(false);
                         setIsModalOpen(true);
                     }}
                 />
@@ -707,7 +711,14 @@ const AdminUsersDark = () => {
                                     <div className="space-y-3 mt-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                         {selectedUser.orders && selectedUser.orders.length > 0 ? (
                                             selectedUser.orders.map((order, idx) => (
-                                                <div key={idx} className={`p-3 rounded-lg border ${tw.borderPrimary} ${tw.bgSecondary}`}>
+                                                <div 
+                                                    key={idx} 
+                                                    onClick={() => {
+                                                        setSelectedHistoryOrder(order);
+                                                        setShowHistoryOrderModal(true);
+                                                    }}
+                                                    className={`p-3 rounded-lg border ${tw.borderPrimary} ${tw.bgSecondary} hover:bg-[#414868]/30 transition-all cursor-pointer group active:scale-[0.98]`}
+                                                >
                                                     <div className="flex justify-between items-center mb-2">
                                                         <span className={`text-xs font-mono ${tw.textSecondary}`}>#{order._id.slice(-8).toUpperCase()}</span>
                                                         <div className="flex gap-2">
@@ -735,9 +746,14 @@ const AdminUsersDark = () => {
                                                             <p className={`text-sm font-bold ${tw.textPrimary}`}>₹{order.finalTotal || order.totalAmount}</p>
                                                             <p className={`text-xs ${tw.textSecondary}`}>{new Date(order.createdAt).toLocaleDateString()}</p>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className={`text-[10px] ${tw.textSecondary}`}>{order.items?.length || 0} Items</p>
-                                                            <p className={`text-[10px] ${tw.textSecondary}`}>{order.paymentMethod?.replace('_', ' ')}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-right">
+                                                                <p className={`text-[10px] ${tw.textSecondary}`}>{order.items?.length || 0} Items</p>
+                                                                <p className={`text-[10px] ${tw.textSecondary}`}>{order.paymentMethod?.replace('_', ' ')}</p>
+                                                            </div>
+                                                            <div className="p-1.5 rounded-lg bg-[#7aa2f7]/10 text-[#7aa2f7] opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Eye size={12} />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -751,6 +767,83 @@ const AdminUsersDark = () => {
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    )}
+                </AdminModalDark>
+
+                {/* History Order Details Modal */}
+                <AdminModalDark
+                    isOpen={showHistoryOrderModal}
+                    onClose={() => setShowHistoryOrderModal(false)}
+                    title={`Order Details - #${selectedHistoryOrder?._id?.slice(-8).toUpperCase()}`}
+                    size="lg"
+                >
+                    {selectedHistoryOrder && (
+                        <div className="space-y-6">
+                            {/* Order Info Cards */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className={`p-3 rounded-xl border ${tw.borderPrimary} ${tw.bgInput}`}>
+                                    <p className={`text-[10px] uppercase font-bold tracking-widest ${tw.textSecondary} mb-1`}>Status</p>
+                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider 
+                                        ${selectedHistoryOrder.status === 'delivered' ? 'bg-green-500/20 text-green-400' :
+                                            selectedHistoryOrder.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
+                                                'bg-blue-500/20 text-blue-400'}`}>
+                                        {selectedHistoryOrder.status}
+                                    </span>
+                                </div>
+                                <div className={`p-3 rounded-xl border ${tw.borderPrimary} ${tw.bgInput}`}>
+                                    <p className={`text-[10px] uppercase font-bold tracking-widest ${tw.textSecondary} mb-1`}>Date</p>
+                                    <p className={`text-xs font-bold ${tw.textPrimary}`}>
+                                        {new Date(selectedHistoryOrder.createdAt).toLocaleString()}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Items List */}
+                            <div className="space-y-3">
+                                <h4 className={`text-xs font-bold uppercase tracking-widest ${tw.textSecondary} flex items-center gap-2`}>
+                                    <Package size={14} /> Items ({selectedHistoryOrder.items?.length || 0})
+                                </h4>
+                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {selectedHistoryOrder.items?.map((item, idx) => (
+                                        <div key={idx} className={`p-3 rounded-xl border ${tw.borderPrimary} ${tw.bgSecondary} flex justify-between items-center`}>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-sm font-bold ${tw.textPrimary} truncate`}>{item.name}</p>
+                                                <p className={`text-[10px] ${tw.textSecondary}`}>{item.weight} {item.unit} x {item.quantity}</p>
+                                            </div>
+                                            <div className="text-right ml-4">
+                                                <p className={`text-sm font-bold ${tw.textPrimary}`}>₹{((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Summary */}
+                            <div className={`p-4 rounded-xl border-2 ${tw.borderPrimary} bg-[#1a1b26] space-y-2`}>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className={tw.textSecondary}>Subtotal</span>
+                                    <span className={tw.textPrimary}>₹{(selectedHistoryOrder.subtotal || selectedHistoryOrder.totalAmount - (selectedHistoryOrder.shippingFee || 0)).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className={tw.textSecondary}>Delivery Fee</span>
+                                    <span className="text-yellow-500 font-bold">+ ₹{(selectedHistoryOrder.shippingFee || 0).toFixed(2)}</span>
+                                </div>
+                                <div className={`flex justify-between items-center pt-2 mt-2 border-t border-[#414868]`}>
+                                    <span className={`text-xs font-black uppercase tracking-widest ${tw.textSecondary}`}>Grand Total</span>
+                                    <span className={`text-xl font-black text-[#7aa2f7]`}>
+                                        ₹{(selectedHistoryOrder.finalTotal || selectedHistoryOrder.totalAmount).toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <AdminButtonDark 
+                                variant="outline" 
+                                className="w-full" 
+                                onClick={() => setShowHistoryOrderModal(false)}
+                            >
+                                Close Details
+                            </AdminButtonDark>
                         </div>
                     )}
                 </AdminModalDark>
