@@ -9,6 +9,7 @@ import PWAInstallBanner from '../components/User/PWAInstallBanner.jsx';
 import NewArrivals from '../components/Dashboard/NewArrivals.jsx';
 import ShareApp from '../components/Dashboard/ShareAppBanner.jsx';
 import SEO from '../components/SEO/SEO.jsx';
+import TwentyRupeeStore from '../components/Dashboard/TwentyRupeeStore.jsx';
 
 const Home = () => {
     return (
@@ -47,6 +48,7 @@ const Home = () => {
             </div>
             <ShareApp />
             <NewArrivals />
+            <TwentyRupeeStore />
             <BestSeller />
             <PWAInstallBanner />
             <RecentViewed />

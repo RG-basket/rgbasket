@@ -11,8 +11,11 @@ const RecentViewed = () => {
     <div className="mt-6 px-4">
       <p className="text-2xl md:text-3xl font-medium">Recently Viewed</p>
       <div className="mt-6 grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-3 sm:gap-4 md:gap-6">
-        {recentItems.slice(0, 6).map((item) => (
-          <ProductCard key={item._id} product={item} showCartControls={false} />
+          {recentItems
+          .filter(item => item.active !== false && item.inStock && item.stock > 0)
+          .slice(0, 6)
+          .map((item) => (
+          <ProductCard key={item._id} product={item} showCartControls={false} hideIfUnavailable={true} />
         ))}
       </div>
     </div>

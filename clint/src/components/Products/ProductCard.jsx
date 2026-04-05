@@ -9,7 +9,7 @@ import { formatWeight } from '../../utils/weightFormatter.js';
 const slotAvailabilityCache = new Map();
 const CACHE_DURATION = 60000; // 1 minute cache
 
-const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = true, unavailabilityReason = '', hideIfUnavailable = false }) => {
+const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = true, unavailabilityReason = '', hideIfUnavailable = false, className = "", onClick = null }) => {
     const {
         currency,
         addToCart,
@@ -29,7 +29,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const contextProduct = productId ? getProductById(productId) : initialProduct;
     const product = contextProduct || initialProduct;
 
-    if (!product || !product._id || !product.name) return null;
+
 
     const [imageError, setImageError] = useState(false);
     const [slotAvailability, setSlotAvailability] = useState(isAvailableForSlot);
@@ -139,7 +139,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     }, [product?._id, selectedSlot?.date, selectedSlot?.timeSlot]);
 
     // ✅ REAL-TIME: Get stock status from context
-    const stockStatus = getProductStockStatus ? getProductStockStatus(product._id, selectedWeightIndex) : {
+    const stockStatus = getProductStockStatus ? getProductStockStatus(product?._id, selectedWeightIndex) : {
         inStock: selectedWeight?.inStock ?? product?.inStock ?? false,
         stock: selectedWeight?.stock ?? product?.stock ?? 0
     };
@@ -148,7 +148,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const isStockAvailable = (stockStatus.inStock && stockStatus.stock > 0);
     const isAvailable = isStockAvailable && slotAvailability;
 
-    if (hideIfUnavailable && !isAvailable) return null;
+
 
     // ✅ Find next available slot if current one is restricted
     useEffect(() => {
@@ -156,7 +156,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
             const getNextSlot = async () => {
                 setLoadingNextSlot(true);
                 try {
-                    const next = await findNextAvailableSlotForProduct(product._id);
+                    const next = await findNextAvailableSlotForProduct(product?._id);
                     setNextSlotInfo(next);
                 } catch (err) {
                     console.error('Failed to find next slot:', err);
@@ -171,14 +171,14 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     }, [slotAvailability, product?._id, isStockAvailable]);
 
     const baseUrl = import.meta.env.VITE_API_URL;
-    const imageUrl = product.images?.[0] ? product.images[0] : null;
+    const imageUrl = product?.images?.[0] ? product.images[0] : null;
 
     // ✅ Reset to smallest weight if product or weights change
     useEffect(() => {
         if (weightOptions.length > 0) {
             setSelectedWeightIndex(weightOptions[0].originalIndex);
         }
-    }, [product._id]);
+    }, [product?._id]);
 
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : true);
 
@@ -216,7 +216,8 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         return Math.round(n);
     };
 
-    const handleCardClick = () => {
+    const handleCardClick = (e) => {
+        if (onClick) onClick(e);
         navigate(`/products/${product.category?.toLowerCase() || "uncategorized"}/${product._id}`);
         window.scrollTo(0, 0);
     };
@@ -259,8 +260,11 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         return '';
     };
 
+    if (!product || !product._id || !product.name) return null;
+    if (hideIfUnavailable && !isAvailable) return null;
+
     return (
-        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] h-full flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale-[0.3]' : 'hover:border-emerald-200 hover:scale-[1.02]'}`}>
+        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] h-full flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale-[0.3]' : 'hover:border-emerald-200 hover:scale-[1.02]'} ${className}`}>
             {/* Badges Container - Top Right */}
             <div className="absolute top-1.5 right-1.5 z-10 flex flex-col gap-1 pointer-events-none">
                 {!isStockAvailable ? (

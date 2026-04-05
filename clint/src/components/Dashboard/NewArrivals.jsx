@@ -26,13 +26,8 @@ const NewArrivals = () => {
     try {
       if (contextProducts && contextProducts.length > 0) {
         const recentProducts = contextProducts
-          .filter(p => p.active !== false)
-          .slice(0, 16)
-          .sort((a, b) => {
-            const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
-            const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
-            return bAvailable - aAvailable;
-          });
+          .filter(p => p.active !== false && p.inStock && p.stock > 0)
+          .slice(0, 16);
         setAllProducts(recentProducts);
         setDisplayProducts({
           row1: recentProducts.slice(0, 8),
@@ -200,31 +195,18 @@ const NewArrivals = () => {
 
   if (loading) {
     return (
-      <section className="w-full bg-gradient-to-r from-emerald-50 via-lime-50 to-white py-8">
+      <section className="w-full bg-gradient-to-r from-emerald-50 via-lime-50 to-white py-4 md:py-6">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-8">
-            <div className="h-7 bg-emerald-200 rounded w-48 mx-auto mb-3 animate-pulse"></div>
+          <div className="text-center mb-4">
+            <div className="h-6 bg-emerald-200 rounded w-40 mx-auto animate-pulse"></div>
           </div>
-
-          {/* Two horizontal lines skeleton */}
           <div className="space-y-4">
-            {/* Line 1 */}
-            <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-thin scrollbar-thumb-emerald-200 scrollbar-track-transparent">
+            <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-none">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex-shrink-0 w-[180px] animate-pulse">
-                  <div className="bg-emerald-100 h-40 rounded-lg mb-2"></div>
-                  <div className="bg-emerald-100 h-4 rounded w-3/4 mb-2"></div>
-                  <div className="bg-emerald-100 h-4 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-            {/* Line 2 */}
-            <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-thin scrollbar-thumb-lime-200 scrollbar-track-transparent">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex-shrink-0 w-[180px] animate-pulse">
-                  <div className="bg-lime-100 h-40 rounded-lg mb-2"></div>
-                  <div className="bg-lime-100 h-4 rounded w-3/4 mb-2"></div>
-                  <div className="bg-lime-100 h-4 rounded w-1/2"></div>
+                <div key={i} className="flex-shrink-0 w-[140px] animate-pulse">
+                  <div className="bg-emerald-100 h-32 rounded-lg mb-2"></div>
+                  <div className="bg-emerald-100 h-3 rounded w-3/4 mb-1"></div>
+                  <div className="bg-emerald-100 h-3 rounded w-1/2"></div>
                 </div>
               ))}
             </div>
@@ -239,132 +221,63 @@ const NewArrivals = () => {
   }
 
   return (
-    <section className="w-full bg-gradient-to-r from-emerald-50 via-lime-50 to-white py-8">
+    <section className="w-full bg-gradient-to-r from-emerald-50 via-lime-50 to-white py-3 md:py-5">
       <div className="container mx-auto px-4">
-
-
-
-
-        {/* Top Row - Scrolls right to left */}
+        {/* Top Row */}
         <div
           ref={topRowRef}
-          className="flex gap-4 mb-6 overflow-x-scroll scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-transparent hover:scrollbar-thumb-emerald-400 pb-4"
-          style={{
-            cursor: 'grab',
-            scrollBehavior: 'smooth'
-          }}
+          className="flex gap-2.5 mb-3 overflow-x-scroll scrollbar-none pb-1"
+          style={{ cursor: 'grab', scrollBehavior: 'smooth' }}
           onMouseDown={handleUserInteraction}
           onTouchStart={handleUserInteraction}
           onWheel={handleUserInteraction}
         >
-          {/* Original products */}
-          {displayProducts.row1.map((product, index) => (
-            <div
-              key={`top-original-${product._id}-${index}`}
-              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-                } hover:scale-105`}
+          {displayProducts.row1.concat(displayProducts.row1).map((product, index) => (
+            <MemoizedProductCard
+              key={`top-${product._id}-${index}`}
+              product={product}
+              showBadge={true}
+              badgeText="New"
+              badgeColor="emerald"
+              hideIfUnavailable={true}
               onClick={handleUserInteraction}
-              onMouseDown={handleUserInteraction}
-              onTouchStart={handleUserInteraction}
-            >
-              <div className="">
-                <MemoizedProductCard
-                  product={product}
-                  showBadge={true}
-                  badgeText="New"
-                  badgeColor="emerald"
-                />
-              </div>
-            </div>
-          ))}
-
-          {/* Duplicated products for seamless loop */}
-          {displayProducts.row1.map((product, index) => (
-            <div
-              key={`top-duplicate-${product._id}-${index}`}
-              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-                } hover:scale-105`}
-              onClick={handleUserInteraction}
-              onMouseDown={handleUserInteraction}
-              onTouchStart={handleUserInteraction}
-            >
-              <div className="">
-                <ProductCard
-                  product={product}
-                  showBadge={true}
-                  badgeText="New"
-                  badgeColor="emerald"
-                />
-              </div>
-            </div>
+              className={`flex-shrink-0 w-[140px] sm:w-[145px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} hover:scale-105`}
+            />
           ))}
         </div>
 
-        {/* Bottom Row - Scrolls left to right */}
+        {/* Bottom Row */}
         <div
           ref={bottomRowRef}
-          className="flex gap-4 overflow-x-scroll scrollbar-thin scrollbar-thumb-lime-300 scrollbar-track-transparent hover:scrollbar-thumb-lime-400 pb-4"
-          style={{
-            cursor: 'grab',
-            scrollBehavior: 'smooth'
-          }}
+          className="flex gap-2.5 overflow-x-scroll scrollbar-none pb-1"
+          style={{ cursor: 'grab', scrollBehavior: 'smooth' }}
           onMouseDown={handleUserInteraction}
           onTouchStart={handleUserInteraction}
           onWheel={handleUserInteraction}
         >
-          {/* Original products */}
-          {displayProducts.row2.map((product, index) => (
-            <div
-              key={`bottom-original-${product._id}-${index}`}
-              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-                } hover:scale-105`}
+          {displayProducts.row2.concat(displayProducts.row2).map((product, index) => (
+            <ProductCard
+              key={`bottom-${product._id}-${index}`}
+              product={product}
+              showBadge={true}
+              badgeText="Fresh"
+              badgeColor="lime"
+              hideIfUnavailable={true}
               onClick={handleUserInteraction}
-              onMouseDown={handleUserInteraction}
-              onTouchStart={handleUserInteraction}
-            >
-              <div className="">
-                <ProductCard
-                  product={product}
-                  showBadge={true}
-                  badgeText="Fresh"
-                  badgeColor="lime"
-                />
-              </div>
-            </div>
-          ))}
-
-          {/* Duplicated products for seamless loop */}
-          {displayProducts.row2.map((product, index) => (
-            <div
-              key={`bottom-duplicate-${product._id}-${index}`}
-              className={`flex-shrink-0 w-40 sm:w-48 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-                } hover:scale-105`}
-              onClick={handleUserInteraction}
-              onMouseDown={handleUserInteraction}
-              onTouchStart={handleUserInteraction}
-            >
-              <div className="">
-                <ProductCard
-                  product={product}
-                  showBadge={true}
-                  badgeText="Fresh"
-                  badgeColor="lime"
-                />
-              </div>
-            </div>
+              className={`flex-shrink-0 w-[140px] sm:w-[145px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} hover:scale-105`}
+            />
           ))}
         </div>
 
         {/* CTA Button */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-3">
           <button
             onClick={() => navigate('/products/all')}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-full text-sm font-semibold transition-colors duration-200 shadow-sm hover:shadow-md"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-full text-[11px] font-bold transition-all duration-200 shadow-sm active:scale-95"
           >
-            View All Products
+            View All
           </button>
         </div>
-
       </div>
     </section>
   );

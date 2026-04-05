@@ -13,13 +13,8 @@ const BestSeller = () => {
   // Memoize the filtered products to avoid recalculating on every render
   const inStockProducts = useMemo(() =>
     products
-      .filter((product) => product.active !== false)
-      .slice(0, 8)
-      .sort((a, b) => {
-        const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
-        const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
-        return bAvailable - aAvailable;
-      }),
+      .filter((product) => product.active !== false && product.inStock && product.stock > 0)
+      .slice(0, 8),
     [products]
   );
 
@@ -47,9 +42,12 @@ const BestSeller = () => {
         >
           {inStockProducts.length > 0 ? (
             inStockProducts.map((product) => (
-              <div key={product._id} className="flex-none w-40 sm:w-48">
-                <MemoizedProductCard product={product} />
-              </div>
+              <MemoizedProductCard 
+                key={product._id} 
+                product={product} 
+                hideIfUnavailable={true}
+                className="flex-none w-40 sm:w-48"
+              />
             ))
           ) : (
             <div className="flex items-center justify-center w-full min-h-32">
