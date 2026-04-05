@@ -18,26 +18,26 @@ const StatsCardDark = ({ title, value, icon: Icon, trend, trendValue, color = 'b
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`${tw.bgSecondary} rounded-xl p-6 border ${tw.borderPrimary} shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#7aa2f7]/50 group ${className}`}
+            className={`${tw.bgSecondary} rounded-xl p-4 sm:p-6 border ${tw.borderPrimary} shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#7aa2f7]/50 group ${className}`}
         >
-            <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg ${theme.bg} ${theme.text} group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-6 h-6" />
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className={`p-2 sm:p-3 rounded-lg ${theme.bg} ${theme.text} group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 {trend && (
-                    <div className={`flex items-center gap-1 text-sm font-medium ${trend === 'up' ? 'text-[#9ece6a]' : 'text-[#f7768e]'
+                    <div className={`flex items-center gap-1 text-[10px] sm:text-sm font-medium ${trend === 'up' ? 'text-[#9ece6a]' : 'text-[#f7768e]'
                         }`}>
-                        {trend === 'up' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                        {trend === 'up' ? <ArrowUpRight className="w-3 h-3 sm:w-4 sm:h-4" /> : <ArrowDownRight className="w-3 h-3 sm:w-4 sm:h-4" />}
                         <span>{trendValue}</span>
                     </div>
                 )}
             </div>
 
-            <h3 className={`${tw.textSecondary} text-sm font-medium mb-1`}>{title}</h3>
-            <p className={`${tw.textPrimary} text-2xl font-bold tracking-tight`}>{value}</p>
+            <h3 className={`${tw.textSecondary} text-[10px] sm:text-sm font-bold uppercase tracking-wider mb-1`}>{title}</h3>
+            <p className={`${tw.textPrimary} text-lg sm:text-2xl font-bold tracking-tight`}>{value}</p>
 
             {/* Background decoration */}
-            <div className={`absolute top-0 right-0 w-32 h-32 ${theme.bg} blur-[60px] rounded-full opacity-20 -mr-16 -mt-16 pointer-events-none`} />
+            <div className={`absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 ${theme.bg} blur-[40px] sm:blur-[60px] rounded-full opacity-20 -mr-12 sm:-mr-16 -mt-12 sm:-mt-16 pointer-events-none`} />
         </motion.div>
     );
 };

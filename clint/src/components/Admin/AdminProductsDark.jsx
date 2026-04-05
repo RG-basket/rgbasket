@@ -251,21 +251,25 @@ const AdminProductsDark = () => {
         <AdminLayoutDark>
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Products</h1>
-                        <p className={`text-sm ${tw.textSecondary}`}>Manage your product inventory</p>
+                        <h1 className={`text-xl sm:text-2xl font-bold ${tw.textPrimary}`}>Products</h1>
+                        <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>Manage your product inventory</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2 sm:gap-3">
                         <AdminButtonDark
                             variant="secondary"
+                            size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={() => navigate('/admin/products/bulk-edit')}
                         >
                             Bulk Edit
                         </AdminButtonDark>
                         <AdminButtonDark
                             variant="primary"
+                            size="sm"
                             icon={Plus}
+                            className="flex-1 sm:flex-none"
                             onClick={() => navigate('/admin/products/new')}
                         >
                             Add Product
@@ -274,23 +278,23 @@ const AdminProductsDark = () => {
                 </div>
 
                 {/* Filters */}
-                <div className={`${tw.bgSecondary} p-4 rounded-xl border ${tw.borderPrimary} flex flex-col md:flex-row gap-4 justify-between items-center`}>
-                    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${tw.textSecondary}`} />
+                <div className={`${tw.bgSecondary} p-3 sm:p-4 rounded-xl border ${tw.borderPrimary} flex flex-col lg:flex-row gap-4 justify-between items-center shadow-md`}>
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full lg:w-auto flex-1">
+                        <div className="relative flex-1 group">
+                            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${tw.textSecondary} group-focus-within:${tw.accentBlue} transition-colors`} />
                             <input
                                 type="text"
                                 placeholder="Search products..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className={`w-full pl-10 pr-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
+                                className={`w-full pl-10 pr-4 py-2 text-sm ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary} transition-all`}
                             />
                         </div>
-                        <div className="flex gap-4">
+                        <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
                             <select
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
-                                className={`px-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
+                                className={`flex-1 sm:flex-none text-xs sm:text-sm px-3 sm:px-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary} cursor-pointer transition-all`}
                             >
                                 <option value="all">All Categories</option>
                                 {categories.map(cat => (
@@ -300,7 +304,7 @@ const AdminProductsDark = () => {
                             <select
                                 value={stockFilter}
                                 onChange={(e) => setStockFilter(e.target.value)}
-                                className={`px-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
+                                className={`flex-1 sm:flex-none text-xs sm:text-sm px-3 sm:px-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary} cursor-pointer transition-all`}
                             >
                                 <option value="all">All Status</option>
                                 <option value="inStock">In Stock</option>
@@ -309,16 +313,17 @@ const AdminProductsDark = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 border-l border-[#414868] pl-4">
+                    <div className="flex items-center gap-2 border-t lg:border-t-0 lg:border-l border-[#414868] w-full lg:w-auto pt-3 lg:pt-0 lg:pl-4 justify-center">
+                        <span className={`text-[10px] uppercase font-bold tracking-widest ${tw.textSecondary} mr-2 lg:hidden`}>View Mode:</span>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[#7aa2f7]/20 text-[#7aa2f7]' : `${tw.textSecondary} hover:text-[#c0caf5]`}`}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[#7aa2f7]/20 text-[#7aa2f7] shadow-[0_0_15px_rgba(122,162,247,0.1)]' : `${tw.textSecondary} hover:text-[#c0caf5]`}`}
                         >
                             <List className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#7aa2f7]/20 text-[#7aa2f7]' : `${tw.textSecondary} hover:text-[#c0caf5]`}`}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[#7aa2f7]/20 text-[#7aa2f7] shadow-[0_0_15px_rgba(122,162,247,0.1)]' : `${tw.textSecondary} hover:text-[#c0caf5]`}`}
                         >
                             <Grid className="w-5 h-5" />
                         </button>
@@ -327,18 +332,20 @@ const AdminProductsDark = () => {
 
                 {/* Bulk Actions Bar */}
                 {selectedProducts.length > 0 && (
-                    <div className={`bg-[#7aa2f7]/10 border border-[#7aa2f7]/20 p-4 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2`}>
-                        <div className="flex items-center gap-3">
-                            <span className={`font-medium ${tw.textPrimary}`}>{selectedProducts.length} selected</span>
+                    <div className={`bg-[#7aa2f7]/10 border border-[#7aa2f7]/20 p-3 sm:p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 shadow-lg shadow-blue-500/10`}>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <span className={`font-bold text-xs sm:text-sm ${tw.textPrimary} bg-[#7aa2f7] text-[#1a1b26] px-3 py-1 rounded-full`}>
+                                {selectedProducts.length} selected
+                            </span>
                             <button
                                 onClick={() => setSelectedProducts([])}
-                                className={`text-sm ${tw.textSecondary} hover:text-[#c0caf5] underline`}
+                                className={`text-[10px] sm:text-sm ${tw.textSecondary} hover:text-[#c0caf5] underline font-medium`}
                             >
                                 Clear selection
                             </button>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <AdminButtonDark variant="danger" size="sm" icon={Trash2} onClick={handleBulkDelete}>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <AdminButtonDark variant="danger" size="sm" icon={Trash2} className="w-full sm:w-auto" onClick={handleBulkDelete}>
                                 Delete Selected
                             </AdminButtonDark>
                         </div>

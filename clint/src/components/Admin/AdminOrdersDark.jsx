@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus, Trash2, ExternalLink, CameraOff, Info } from 'lucide-react';
+import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus, Trash2, ExternalLink, CameraOff, Info, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -1197,28 +1197,32 @@ const AdminOrdersDark = () => {
       key: 'actions',
       label: 'Actions',
       render: (_, order) => (
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2">
           <AdminButtonDark
             variant="ghost"
             size="sm"
             icon={Eye}
+            className="px-2"
+            title="View Details"
             onClick={(e) => {
               e.stopPropagation();
               handleViewOrder(order);
             }}
           >
-            View
+            <span className="hidden sm:inline ml-1">View</span>
           </AdminButtonDark>
           <AdminButtonDark
             variant="ghost"
             size="sm"
             icon={Edit}
+            className="px-2"
+            title="Edit Order"
             onClick={(e) => {
               e.stopPropagation();
               handleEditOrder(order);
             }}
           >
-            Edit
+            <span className="hidden sm:inline ml-1">Edit</span>
           </AdminButtonDark>
           {/* Location Button - Show if order has valid coordinates */}
           {(order.deliveryLocation?.coordinates || order.liveLocation?.coordinates || order.location?.coordinates || order.location?.lat) && (
@@ -1226,6 +1230,7 @@ const AdminOrdersDark = () => {
               variant="ghost"
               size="sm"
               icon={MapPin}
+              className="px-2"
               onClick={(e) => {
                 e.stopPropagation();
                 // Prioritize: Verified Delivery Spot > Live GPS > Legacy Capture
@@ -1235,20 +1240,21 @@ const AdminOrdersDark = () => {
               }}
               title="View Delivery Location"
             >
-              Location
+              <span className="hidden sm:inline ml-1">Pin</span>
             </AdminButtonDark>
           )}
           <AdminButtonDark
             variant="ghost"
             size="sm"
-            className="text-rose-500 hover:bg-rose-500/10"
+            className="px-2 text-rose-500 hover:bg-rose-500/10"
             icon={Trash2}
+            title="Delete Order"
             onClick={(e) => {
               e.stopPropagation();
               handleDeleteOrder(order._id);
             }}
           >
-            Delete
+            <span className="hidden sm:inline ml-1">Del</span>
           </AdminButtonDark>
         </div>
       )
@@ -1272,77 +1278,77 @@ const AdminOrdersDark = () => {
     <AdminLayoutDark>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Order Management</h1>
-            <p className={`text-sm ${tw.textSecondary}`}>Manage and track all customer orders</p>
+            <h1 className={`text-xl sm:text-2xl font-bold ${tw.textPrimary}`}>Order Management</h1>
+            <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>Manage and track all customer orders</p>
           </div>
-          <div className="flex gap-3">
-            <AdminButtonDark icon={RefreshCw} onClick={() => fetchOrders(page)}>
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            <AdminButtonDark size="sm" icon={RefreshCw} className="flex-1 sm:flex-none" onClick={() => fetchOrders(page)}>
               Refresh
             </AdminButtonDark>
-            <AdminButtonDark variant="outline" onClick={() => navigate('/admin')}>
-              Back to Dashboard
+            <AdminButtonDark size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => navigate('/admin')}>
+              Dashboard
             </AdminButtonDark>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]`}>
-            <p className={`text-2xl font-bold ${tw.textPrimary}`}>{totalOrders}</p>
-            <p className={`text-sm ${tw.textSecondary}`}>Total Orders</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className={`p-3 sm:p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26] shadow-lg`}>
+            <p className={`text-xl sm:text-2xl font-bold ${tw.textPrimary}`}>{totalOrders}</p>
+            <p className={`text-[10px] sm:text-sm ${tw.textSecondary} uppercase font-bold tracking-wider`}>Total Orders</p>
           </div>
-          <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]`}>
-            <p className={`text-2xl font-bold ${tw.textPrimary}`}>{statusCounts.pending}</p>
-            <p className={`text-sm ${tw.textSecondary}`}>Pending</p>
+          <div className={`p-3 sm:p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26] shadow-lg`}>
+            <p className={`text-xl sm:text-2xl font-bold text-yellow-500`}>{statusCounts.pending}</p>
+            <p className={`text-[10px] sm:text-sm ${tw.textSecondary} uppercase font-bold tracking-wider`}>Pending</p>
           </div>
-          <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]`}>
-            <p className={`text-2xl font-bold ${tw.textPrimary}`}>{statusCounts.delivered}</p>
-            <p className={`text-sm ${tw.textSecondary}`}>Delivered</p>
+          <div className={`p-3 sm:p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26] shadow-lg`}>
+            <p className={`text-xl sm:text-2xl font-bold text-green-500`}>{statusCounts.delivered}</p>
+            <p className={`text-[10px] sm:text-sm ${tw.textSecondary} uppercase font-bold tracking-wider`}>Delivered</p>
           </div>
-          <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]`}>
-            <p className={`text-2xl font-bold text-[#9ece6a]`}>
-              ₹{getTotalRevenue().toLocaleString()}
+          <div className={`p-3 sm:p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26] shadow-lg`}>
+            <p className={`text-xl sm:text-2xl font-bold text-[#7dcfff]`}>
+              ₹{Math.floor(getTotalRevenue()).toLocaleString()}
             </p>
-            <p className={`text-sm ${tw.textSecondary}`}>Total Revenue</p>
+            <p className={`text-[10px] sm:text-sm ${tw.textSecondary} uppercase font-bold tracking-wider`}>Revenue</p>
           </div>
         </div>
 
         {/* Status Quick Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
+        <div className="flex flex-wrap sm:grid sm:grid-cols-7 gap-2 sm:gap-4 overflow-x-auto pb-2 scrollbar-none">
           {[
-            { key: 'all', label: 'All Orders' },
+            { key: 'all', label: 'All' },
             { key: 'pending', label: 'Pending' },
             { key: 'confirmed', label: 'Confirmed' },
-            { key: 'processing', label: 'Processing' },
+            { key: 'processing', label: 'Proc...' },
             { key: 'shipped', label: 'Shipped' },
-            { key: 'delivered', label: 'Delivered' },
-            { key: 'cancelled', label: 'Cancelled' }
+            { key: 'delivered', label: 'Done' },
+            { key: 'cancelled', label: 'Cancel' }
           ].map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setFilterStatus(key)}
-              className={`p-4 rounded-xl border-2 transition-all ${filterStatus === key
-                ? 'border-[#7aa2f7] bg-[#7aa2f7]/20'
+              className={`flex-1 min-w-[80px] p-2.5 sm:p-4 rounded-xl border-2 transition-all ${filterStatus === key
+                ? 'border-[#7aa2f7] bg-[#7aa2f7]/20 shadow-[0_0_15px_rgba(122,162,247,0.1)]'
                 : `${tw.borderPrimary} hover:border-[#7aa2f7]/50`
                 }`}
             >
-              <p className={`text-2xl font-bold ${tw.textPrimary}`}>{statusCounts[key]}</p>
-              <p className={`text-sm ${tw.textSecondary}`}>{label}</p>
+              <p className={`text-lg sm:text-2xl font-bold ${tw.textPrimary}`}>{statusCounts[key]}</p>
+              <p className={`text-[10px] sm:text-sm font-medium ${tw.textSecondary}`}>{label}</p>
             </button>
           ))}
         </div>
 
         {/* Filters */}
-        <div className={`${tw.bgSecondary} p-4 rounded-xl border ${tw.borderPrimary}`}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={`${tw.bgSecondary} p-3 sm:p-4 rounded-xl border ${tw.borderPrimary} shadow-md`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
-              <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Status Filter</label>
+              <label className={`block text-[10px] sm:text-sm font-bold uppercase tracking-wider ${tw.textSecondary} mb-1 sm:mb-2`}>Status</label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className={`w-full ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
+                className={`w-full text-sm ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 cursor-pointer focus:ring-2 focus:ring-[#7aa2f7] transition-all`}
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -1355,35 +1361,35 @@ const AdminOrdersDark = () => {
             </div>
 
             <div>
-              <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Order Date</label>
+              <label className={`block text-[10px] sm:text-sm font-bold uppercase tracking-wider ${tw.textSecondary} mb-1 sm:mb-2`}>Order Date</label>
               <input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className={`w-full ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
+                className={`w-full text-sm ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#7aa2f7] transition-all`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Delivery Date</label>
+              <label className={`block text-[10px] sm:text-sm font-bold uppercase tracking-wider ${tw.textSecondary} mb-1 sm:mb-2`}>Delivery Date</label>
               <input
                 type="date"
                 value={deliveryDateFilter}
                 onChange={(e) => setDeliveryDateFilter(e.target.value)}
-                className={`w-full ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
+                className={`w-full text-sm ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#7aa2f7] transition-all`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium ${tw.textSecondary} mb-2`}>Search</label>
+              <label className={`block text-[10px] sm:text-sm font-bold uppercase tracking-wider ${tw.textSecondary} mb-1 sm:mb-2`}>Search</label>
               <div className="relative">
                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${tw.textSecondary}`} />
                 <input
                   type="text"
-                  placeholder="Search orders..."
+                  placeholder="Order ID, Phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
+                  className={`w-full text-sm pl-10 pr-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg focus:ring-2 focus:ring-[#7aa2f7] transition-all`}
                 />
               </div>
             </div>
@@ -1392,35 +1398,36 @@ const AdminOrdersDark = () => {
 
         {/* Bulk Actions Bar */}
         {selectedOrderIds.length > 0 && (
-          <div className={`${tw.bgSecondary} p-4 rounded-xl border border-[#7aa2f7]/50 bg-[#7aa2f7]/5 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4`}>
-            <div className="flex items-center gap-3">
-              <div className="bg-[#7aa2f7] text-[#1a1b26] px-3 py-1 rounded-full text-sm font-bold">
+          <div className={`${tw.bgSecondary} p-3 sm:p-4 rounded-xl border border-[#7aa2f7]/50 bg-[#7aa2f7]/5 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 shadow-lg shadow-blue-500/10`}>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="bg-[#7aa2f7] text-[#1a1b26] px-3 py-1 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap">
                 {selectedOrderIds.length} Selected
               </div>
-              <p className={`text-sm ${tw.textPrimary}`}>Update status for selected orders:</p>
+              <p className={`text-xs sm:text-sm font-medium ${tw.textPrimary}`}>Update status:</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center md:justify-end gap-2 w-full md:w-auto">
               {[
-                { key: 'confirmed', label: 'Confirmed', icon: Package },
-                { key: 'processing', label: 'Processing', icon: Package },
-                { key: 'shipped', label: 'Shipped', icon: Truck },
-                { key: 'delivered', label: 'Delivered', icon: CheckCircle },
-                { key: 'cancelled', label: 'Cancelled', icon: XCircle }
+                { key: 'confirmed', label: 'Confirm', icon: Package },
+                { key: 'processing', label: 'Proc...', icon: Package },
+                { key: 'shipped', label: 'Ship', icon: Truck },
+                { key: 'delivered', label: 'Done', icon: CheckCircle },
+                { key: 'cancelled', label: 'X', icon: XCircle }
               ].map((status) => (
                 <button
                   key={status.key}
                   disabled={bulkStatusUpdating}
                   onClick={() => handleBulkStatusUpdate(status.key)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${statusColors[status.key]} hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] sm:text-xs font-bold border transition-all ${statusColors[status.key]} hover:brightness-125 active:scale-95 disabled:opacity-50`}
+                  title={status.label}
                 >
                   <status.icon className="w-3.5 h-3.5" />
-                  {status.label}
+                  <span className="hidden sm:inline">{status.label}</span>
                 </button>
               ))}
               <AdminButtonDark
                 variant="ghost"
                 size="sm"
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white text-xs"
                 onClick={() => setSelectedOrderIds([])}
               >
                 Cancel
@@ -1448,29 +1455,33 @@ const AdminOrdersDark = () => {
           title={`Order Details - #${selectedOrder?._id?.slice(-8)}`}
           size="xl"
           footer={
-            <div className="flex justify-between items-center w-full">
-              <div className="flex gap-2">
-                <select
-                  value={selectedOrder?.status || ''}
-                  onChange={(e) => updateOrderStatus(selectedOrder._id, e.target.value)}
-                  disabled={updatingStatus}
-                  className={`${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+            <div className="flex flex-col gap-4 w-full">
+              {/* Status and Rider Assignment */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                <div className="flex flex-col w-full sm:flex-1">
+                  <span className={`text-[10px] uppercase font-bold tracking-wider ${tw.textSecondary} mb-1 ml-1`}>Update Status</span>
+                  <select
+                    value={selectedOrder?.status || ''}
+                    onChange={(e) => updateOrderStatus(selectedOrder._id, e.target.value)}
+                    disabled={updatingStatus}
+                    className={`w-full text-sm ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-[#7aa2f7] transition-all`}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="processing">Processing</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
 
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs ${tw.textSecondary} whitespace-nowrap`}>Assign Rider:</span>
+                <div className="flex flex-col w-full sm:flex-1">
+                  <span className={`text-[10px] uppercase font-bold tracking-wider ${tw.textSecondary} mb-1 ml-1`}>Assign Rider</span>
                   <select
                     value={selectedOrder?.deliveryPartner?._id || ''}
                     onChange={(e) => handleAssignRider(selectedOrder._id, e.target.value)}
                     disabled={assigningRider}
-                    className={`${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7aa2f7]`}
+                    className={`w-full text-sm ${tw.bgInput} border ${tw.borderPrimary} ${tw.textPrimary} rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-[#7aa2f7] transition-all`}
                   >
                     <option value="">Select Rider</option>
                     {partners.filter(p => p.isActive).map(p => (
@@ -1479,18 +1490,31 @@ const AdminOrdersDark = () => {
                   </select>
                 </div>
               </div>
-              <div className="flex gap-3">
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-[#414868]/30">
                 <AdminButtonDark
                   variant="danger"
+                  size="sm"
                   icon={Trash2}
+                  className="flex-1 sm:flex-none"
                   onClick={() => handleDeleteOrder(selectedOrder._id)}
                 >
                   Delete
                 </AdminButtonDark>
-                <AdminButtonDark onClick={printOrderBill}>
+                <AdminButtonDark 
+                  size="sm"
+                  className="flex-1 sm:flex-none"
+                  onClick={printOrderBill}
+                >
                   Print Bill
                 </AdminButtonDark>
-                <AdminButtonDark variant="outline" onClick={() => setShowOrderModal(false)}>
+                <AdminButtonDark 
+                  variant="outline" 
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => setShowOrderModal(false)}
+                >
                   Close
                 </AdminButtonDark>
               </div>
@@ -1517,57 +1541,96 @@ const AdminOrdersDark = () => {
                   </div>
                 )}
                 {/* Order Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
-                    <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Order Information</h3>
-                    <div className="space-y-2 text-sm">
-                      <p><span className={tw.textSecondary}>Order ID:</span> <span className={tw.textPrimary}>{selectedOrder._id}</span></p>
-                      <p><span className={tw.textSecondary}>Order Date:</span> <span className={tw.textPrimary}>{new Date(selectedOrder.createdAt).toLocaleString()}</span></p>
-                      <p><span className={tw.textSecondary}>Status:</span> <span className={`px-2 py-1 rounded-full text-xs ${statusColors[selectedOrder.status]}`}>{selectedOrder.status}</span></p>
-                      <p><span className={tw.textSecondary}>Payment:</span> <span className={tw.textPrimary}>{selectedOrder.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}</span></p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]/30`}>
+                    <h3 className={`text-[10px] uppercase font-black tracking-widest ${tw.textSecondary} mb-3 flex items-center gap-2`}>
+                      <Info className="w-3.5 h-3.5" /> Order Information
+                    </h3>
+                    <div className="space-y-2.5 text-xs sm:text-sm">
+                      <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                        <span className={tw.textSecondary}>Order ID:</span> 
+                        <span className={`${tw.textPrimary} font-mono break-all font-medium`}>{selectedOrder._id}</span>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className={tw.textSecondary}>Order Date:</span> 
+                        <span className={`${tw.textPrimary} font-medium`}>{new Date(selectedOrder.createdAt).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center gap-1">
+                        <span className={tw.textSecondary}>Payment:</span> 
+                        <span className={`${tw.textPrimary} font-bold text-[10px] bg-[#414868] px-2 py-0.5 rounded-md`}>
+                          {selectedOrder.paymentMethod === 'cash_on_delivery' ? 'COD' : 'ONLINE'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center gap-1">
+                        <span className={tw.textSecondary}>Status:</span> 
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${statusColors[selectedOrder.status]}`}>
+                          {selectedOrder.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
-                    <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Customer Information</h3>
-                    <div className="space-y-2 text-sm">
-                      <p><span className={tw.textSecondary}>Name:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.name || selectedOrder.shippingAddress?.fullName || 'Guest'}</span></p>
-                      <p><span className={tw.textSecondary}>Email:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.email || 'N/A'}</span></p>
-                      <p><span className={tw.textSecondary}>Phone:</span> <span className={tw.textPrimary}>{selectedOrder.userInfo?.phone || selectedOrder.shippingAddress?.phoneNumber || 'N/A'}</span></p>
+                  <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]/30`}>
+                    <h3 className={`text-[10px] uppercase font-black tracking-widest ${tw.textSecondary} mb-3 flex items-center gap-2`}>
+                      <User className="w-3.5 h-3.5" /> Customer Information
+                    </h3>
+                    <div className="space-y-2.5 text-xs sm:text-sm">
+                      <div className="flex justify-between gap-1">
+                        <span className={tw.textSecondary}>Name:</span> 
+                        <span className={`${tw.textPrimary} font-bold`}>{selectedOrder.userInfo?.name || selectedOrder.shippingAddress?.fullName || 'Guest'}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                        <span className={tw.textSecondary}>Email:</span> 
+                        <span className={`${tw.textPrimary} break-all font-medium`}>{selectedOrder.userInfo?.email || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between gap-1">
+                        <span className={tw.textSecondary}>Phone:</span> 
+                        <span className={`${tw.textPrimary} font-bold`}>📞 {selectedOrder.userInfo?.phone || selectedOrder.shippingAddress?.phoneNumber || 'N/A'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Delivery Information */}
-                <div className={`p-4 rounded-lg border ${tw.borderPrimary}`}>
-                  <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Delivery Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p><span className={tw.textSecondary}>Delivery Date:</span> <span className={tw.textPrimary}>{new Date(selectedOrder.deliveryDate).toLocaleDateString()}</span></p>
-                      <p><span className={tw.textSecondary}>Time Slot:</span> <span className={tw.textPrimary}>{selectedOrder.timeSlot}</span></p>
+                <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]/30`}>
+                  <h3 className={`text-[10px] uppercase font-black tracking-widest ${tw.textSecondary} mb-3 flex items-center gap-2`}>
+                    <Truck className="w-3.5 h-3.5" /> Delivery Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm">
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-[#414868]/20 border border-[#414868]/30">
+                        <p className={`text-[10px] uppercase font-bold text-yellow-500/80 mb-1`}>Scheduled For</p>
+                        <p className={`${tw.textPrimary} font-bold text-base`}>{new Date(selectedOrder.deliveryDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        <p className={`${tw.textPrimary} font-medium mt-1 opacity-80 underline decoration-yellow-500/30`}>Slot: {selectedOrder.timeSlot}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className={tw.textSecondary}>Delivery Address:</p>
-                      <p className={tw.textPrimary}>{selectedOrder.shippingAddress.street}</p>
-                      <p className={tw.textPrimary}>{selectedOrder.shippingAddress.locality}</p>
-                      <p className={tw.textPrimary}>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.pincode}</p>
-                      <p className={tw.textPrimary}>📞 {selectedOrder.shippingAddress.phoneNumber}</p>
-                      {selectedOrder.shippingAddress.alternatePhone && (
-                        <p className={tw.textPrimary}>📞 {selectedOrder.shippingAddress.alternatePhone} (Alt)</p>
-                      )}
+                    <div className="space-y-2">
+                      <p className={`text-[10px] uppercase font-bold ${tw.textSecondary}`}>Shipping Address</p>
+                      <div className={`p-3 rounded-lg border ${tw.borderPrimary} bg-white/5 space-y-1`}>
+                        <p className={`${tw.textPrimary} font-bold`}>{selectedOrder.shippingAddress.fullName}</p>
+                        <p className={tw.textPrimary}>{selectedOrder.shippingAddress.street}</p>
+                        <p className={tw.textPrimary}>{selectedOrder.shippingAddress.locality}</p>
+                        <p className={`${tw.textPrimary} font-medium`}>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.pincode}</p>
+                        <div className="mt-2 pt-2 border-t border-[#414868]/50 flex flex-wrap gap-x-4 gap-y-1">
+                          <p className="text-green-400 font-bold">📞 {selectedOrder.shippingAddress.phoneNumber}</p>
+                          {selectedOrder.shippingAddress.alternatePhone && (
+                            <p className="text-green-400/80">📞 {selectedOrder.shippingAddress.alternatePhone} (Alt)</p>
+                          )}
+                        </div>
+                      </div>
 
-                      <div className="mt-4 pt-3 border-t border-gray-700">
+                      <div className="mt-4">
                         <AdminButtonDark
                           size="sm"
                           variant="outline"
                           icon={MapPin}
-                          className="w-full justify-center"
+                          className="w-full justify-center h-10 shadow-sm"
                           onClick={() => {
                             setCaptureOrder(selectedOrder);
                             setShowCaptureModal(true);
                           }}
                         >
-                          Capture Location
+                          Verify Google Maps Pin
                         </AdminButtonDark>
                       </div>
                     </div>
@@ -1788,96 +1851,139 @@ const AdminOrdersDark = () => {
 
 
                 {/* Order Items */}
-                <div>
-                  <h3 className={`font-medium ${tw.textPrimary} mb-3`}>Order Items ({selectedOrder.items.length})</h3>
-                  <div className={`rounded-lg border ${tw.borderPrimary} overflow-hidden`}>
-                    <table className="w-full">
-                      <thead className={tw.bgInput}>
-                        <tr>
-                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Product</th>
-                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Weight</th>
-                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Qty</th>
-                          <th className={`px-4 py-3 text-left text-xs font-medium ${tw.textSecondary}`}>Price</th>
-                          <th className={`px-4 py-3 text-right text-xs font-medium ${tw.textSecondary}`}>Total</th>
+                <div className="space-y-4">
+                  <h3 className={`font-bold uppercase tracking-wider text-xs ${tw.textSecondary} flex items-center gap-2`}>
+                    <Package className="w-4 h-4" /> Order Items ({selectedOrder.items.length})
+                  </h3>
+                  
+                  {/* Desktop Table View */}
+                  <div className={`hidden sm:block rounded-xl border ${tw.borderPrimary} overflow-hidden bg-[#1a1b26]/50`}>
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className={`${tw.bgInput} border-b ${tw.borderPrimary}`}>
+                          <th className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider ${tw.textSecondary}`}>Product</th>
+                          <th className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider ${tw.textSecondary}`}>Weight</th>
+                          <th className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider ${tw.textSecondary}`}>Qty</th>
+                          <th className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider ${tw.textSecondary}`}>Price</th>
+                          <th className={`px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider ${tw.textSecondary}`}>Total</th>
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${tw.borderSecondary}`}>
                         {selectedOrder.items.map((item, index) => (
-                          <tr key={index}>
+                          <tr key={index} className="hover:bg-white/5 transition-colors">
                             <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>
                               <div className="flex items-center gap-3">
                                 <img
                                   src={getProductImage(item)}
                                   alt={item.name}
-                                  className="w-10 h-10 rounded object-cover border border-gray-600"
-                                  onError={(e) => {
-                                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjRjBGMEYwIi8+Cjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlByb2R1Y3Q8L3RleHQ+Cjwvc3ZnPg==';
-                                  }}
+                                  className="w-10 h-10 rounded-lg object-cover border border-[#414868]"
                                 />
                                 <div>
-                                  <p className="font-medium">{item.name}</p>
+                                  <p className="font-bold text-sm">{item.name}</p>
                                   {item.isCustomized && (
-                                    <p className="text-xs text-green-400 font-bold flex items-center gap-1 mt-0.5">
-                                      <span>✨</span> CUSTOMIZED: {item.customizationInstructions || 'No instructions'}
+                                    <p className="text-[10px] text-green-400 font-bold bg-green-400/10 px-1.5 py-0.5 rounded-md inline-block mt-0.5">
+                                      ✨ CUSTOM: {item.customizationInstructions}
                                     </p>
                                   )}
-                                  <p className={`text-xs ${tw.textSecondary}`}>{item.description}</p>
+                                  <p className={`text-[10px] ${tw.textSecondary} line-clamp-1 mt-0.5`}>{item.description}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.weight} {item.unit}</td>
-                            <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>{item.quantity}</td>
+                            <td className={`px-4 py-3 text-sm font-medium ${tw.textPrimary}`}>{item.weight} {item.unit}</td>
+                            <td className={`px-4 py-3 text-sm font-bold ${tw.textPrimary}`}>x{item.quantity}</td>
                             <td className={`px-4 py-3 text-sm ${tw.textPrimary}`}>
-                              <div>
-                                ₹{item.price}
-                                {item.customizationCharge > 0 && (
-                                  <p className="text-[10px] text-green-400 font-medium">+ ₹{item.customizationCharge} customization</p>
-                                )}
-                              </div>
+                              <div className="font-medium">₹{item.price}</div>
+                              {item.customizationCharge > 0 && (
+                                <p className="text-[9px] text-green-400 font-bold">+₹{item.customizationCharge} fee</p>
+                              )}
                             </td>
-                            <td className={`px-4 py-3 text-sm font-medium text-right ${tw.textPrimary}`}>
+                            <td className={`px-4 py-3 text-sm font-bold text-right ${tw.textPrimary}`}>
                               ₹{((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2)}
                             </td>
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className={tw.bgInput}>
-                        <tr>
-                          <td colSpan="4" className={`px-4 py-2 text-sm text-right ${tw.textSecondary}`}>Subtotal</td>
-                          <td className={`px-4 py-2 text-sm text-right ${tw.textPrimary}`}>
-                            ₹{displayOrder.subtotal?.toFixed(2)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td colSpan="4" className={`px-4 py-2 text-sm text-right ${tw.textSecondary}`}>Delivery Fee</td>
-                          <td className={`px-4 py-2 text-sm text-right ${tw.textPrimary}`}>
-                            + ₹{displayOrder.shippingFee?.toFixed(2)}
-                          </td>
-                        </tr>
-                        {displayOrder.discountAmount > 0 && (
-                          <tr>
-                            <td colSpan="4" className={`px-4 py-2 text-sm text-right text-green-400`}>Discount ({displayOrder.promoCode})</td>
-                            <td className={`px-4 py-2 text-sm text-right text-green-400`}>
-                              - ₹{displayOrder.discountAmount?.toFixed(2)}
-                            </td>
-                          </tr>
-                        )}
-                        {displayOrder.tipAmount > 0 && (
-                          <tr>
-                            <td colSpan="4" className={`px-4 py-2 text-sm text-right text-orange-400`}>Delivery Tip 💝</td>
-                            <td className={`px-4 py-2 text-sm text-right text-orange-400`}>
-                              + ₹{displayOrder.tipAmount?.toFixed(2)}
-                            </td>
-                          </tr>
-                        )}
-                        <tr className="border-t-2 border-gray-600">
-                          <td colSpan="4" className={`px-4 py-3 text-sm font-bold text-right ${tw.textPrimary}`}>Total Amount</td>
-                          <td className={`px-4 py-3 text-sm font-bold text-right text-[#7aa2f7]`}>
-                            ₹{displayOrder.totalAmount?.toFixed(2)}
-                          </td>
-                        </tr>
-                      </tfoot>
                     </table>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="sm:hidden space-y-3">
+                    {selectedOrder.items.map((item, index) => (
+                      <div key={index} className={`p-3 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]/50 shadow-sm`}>
+                        <div className="flex gap-3">
+                          <img
+                            src={getProductImage(item)}
+                            alt={item.name}
+                            className="w-16 h-16 rounded-lg object-cover border border-[#414868]"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`font-bold text-sm ${tw.textPrimary} truncate`}>{item.name}</h4>
+                            <p className={`text-[10px] ${tw.textSecondary} mb-1 italic`}>{item.weight} {item.unit}</p>
+                            <div className="flex justify-between items-end">
+                              <div className="text-[10px] space-y-0.5">
+                                <p className={tw.textSecondary}>Price: <span className={tw.textPrimary}>₹{item.price}</span></p>
+                                <p className={tw.textSecondary}>Qty: <span className={tw.textPrimary}>x{item.quantity}</span></p>
+                                {item.customizationCharge > 0 && (
+                                  <p className="text-green-400 font-bold">Custom: +₹{item.customizationCharge}</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-xs ${tw.textSecondary} uppercase font-bold tracking-wider mb-0.5`}>Subtotal</p>
+                                <p className={`text-sm font-bold text-[#7dcfff]`}>
+                                  ₹{((item.price * item.quantity) + (item.customizationCharge || 0)).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                            {item.isCustomized && (
+                              <div className="mt-2 p-2 rounded-lg bg-green-400/5 border border-green-400/10">
+                                <p className="text-[9px] text-green-400 font-bold leading-tight">
+                                  ✨ CUSTOM: {item.customizationInstructions}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Order Summary Section */}
+                  <div className={`mt-6 rounded-xl border-2 ${tw.borderPrimary} bg-[#1a1b26] overflow-hidden shadow-lg`}>
+                    <div className="p-4 space-y-3">
+                      <div className="flex justify-between items-center text-xs sm:text-sm">
+                        <span className={tw.textSecondary}>Subtotal</span>
+                        <span className={`font-medium ${tw.textPrimary}`}>₹{displayOrder.subtotal?.toFixed(2)}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-xs sm:text-sm">
+                        <span className={tw.textSecondary}>Delivery Fee</span>
+                        <span className="font-bold text-yellow-500/80">+ ₹{displayOrder.shippingFee?.toFixed(2)}</span>
+                      </div>
+
+                      {displayOrder.discountAmount > 0 && (
+                        <div className="flex justify-between items-center text-xs sm:text-sm border-t border-dashed border-gray-700 pt-2">
+                          <span className="text-green-400 font-bold">Discount ({displayOrder.promoCode})</span>
+                          <span className="text-green-400 font-bold">- ₹{displayOrder.discountAmount?.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {displayOrder.tipAmount > 0 && (
+                        <div className="flex justify-between items-center text-xs sm:text-sm border-t border-dashed border-gray-700 pt-2">
+                          <span className="text-orange-400 font-bold italic flex items-center gap-1">💝 Handling Tip</span>
+                          <span className="text-orange-400 font-bold">+ ₹{displayOrder.tipAmount?.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      <div className={`flex justify-between items-center p-3 rounded-xl bg-[#7aa2f7]/10 border border-[#7aa2f7]/20 mt-2`}>
+                        <div className="flex flex-col">
+                          <span className={`text-[10px] uppercase font-black tracking-widest ${tw.textSecondary}`}>Total Payable</span>
+                          <span className={`text-[#7aa2f7] text-[10px] font-bold uppercase`}>{selectedOrder.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid Online'}</span>
+                        </div>
+                        <span className={`text-xl sm:text-3xl font-black text-[#7aa2f7] drop-shadow-[0_0_15px_rgba(122,162,247,0.3)]`}>
+                          ₹{displayOrder.totalAmount?.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

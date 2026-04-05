@@ -193,14 +193,16 @@ const AdminCategoriesDark = () => {
         <AdminLayoutDark>
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Categories</h1>
-                        <p className={`text-sm ${tw.textSecondary}`}>Manage product categories with emojis</p>
+                        <h1 className={`text-xl sm:text-2xl font-bold ${tw.textPrimary}`}>Categories</h1>
+                        <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>Manage product categories with emojis</p>
                     </div>
                     <AdminButtonDark
                         variant="primary"
+                        size="sm"
                         icon={Plus}
+                        className="w-full sm:w-auto shadow-lg shadow-[#7aa2f7]/20"
                         onClick={() => handleOpenModal()}
                     >
                         Add Category
@@ -208,15 +210,15 @@ const AdminCategoriesDark = () => {
                 </div>
 
                 {/* Search */}
-                <div className={`${tw.bgSecondary} p-4 rounded-xl border ${tw.borderPrimary}`}>
-                    <div className="relative max-w-md">
-                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${tw.textSecondary}`} />
+                <div className={`${tw.bgSecondary} p-3 sm:p-4 rounded-xl border ${tw.borderPrimary} shadow-md`}>
+                    <div className="relative w-full max-w-md group">
+                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${tw.textSecondary} group-focus-within:${tw.accentBlue} transition-colors`} />
                         <input
                             type="text"
                             placeholder="Search categories..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className={`w-full pl-10 pr-4 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
+                            className={`w-full pl-10 pr-4 py-2 text-sm ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7aa2f7] ${tw.textPrimary} transition-all`}
                         />
                     </div>
                 </div>

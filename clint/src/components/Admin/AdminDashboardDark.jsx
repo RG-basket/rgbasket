@@ -116,23 +116,23 @@ const AdminDashboardDark = () => {
             <div className="min-h-screen bg-[#1a1b26] p-6"> {/* Ensure full height background */}
                 <div className="space-y-6 max-w-7xl mx-auto"> {/* Added max-width container */}
                     {/* Header */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 sm:p-0">
                         <div>
-                            <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Dashboard</h1>
-                            <p className={`text-sm ${tw.textSecondary}`}>Overview of your store's performance</p>
+                            <h1 className={`text-xl sm:text-2xl font-bold ${tw.textPrimary}`}>Dashboard</h1>
+                            <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>Overview of your store's performance</p>
                         </div>
-                        <div className="flex gap-3">
-                            <AdminButtonDark variant="secondary" icon={Clock}>Last 7 Days</AdminButtonDark>
+                        <div className="flex flex-wrap gap-2 sm:gap-3">
+                            <AdminButtonDark variant="secondary" icon={Clock} size="sm" className="flex-1 sm:flex-none">Last 7 Days</AdminButtonDark>
                             <AdminButtonDark
                                 variant="primary"
                                 icon={FaGift}
+                                size="sm"
+                                className="flex-1 sm:flex-none"
                                 onClick={() => window.location.href = '/admin/offers'}
                             >
                                 Gift Offers
                             </AdminButtonDark>
-
-                            <AdminButtonDark variant="primary" icon={TrendingUp}>View Reports</AdminButtonDark>
-
+                            <AdminButtonDark variant="primary" icon={TrendingUp} size="sm" className="w-full sm:w-auto">View Reports</AdminButtonDark>
                         </div>
                     </div>
 

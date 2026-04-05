@@ -23,12 +23,10 @@ const AdminTableDark = ({
         if (!sortConfig.key) return data;
 
         return [...data].sort((a, b) => {
-            if (a[sortConfig.key] < b[sortConfig.key]) {
-                return sortConfig.direction === 'asc' ? -1 : 1;
-            }
-            if (a[sortConfig.key] > b[sortConfig.key]) {
-                return sortConfig.direction === 'asc' ? 1 : -1;
-            }
+            const aVal = a[sortConfig.key];
+            const bVal = b[sortConfig.key];
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
     }, [data, sortConfig]);
@@ -64,23 +62,23 @@ const AdminTableDark = ({
 
     return (
         <div className={`${tw.bgSecondary} rounded-xl border ${tw.borderPrimary} overflow-hidden shadow-lg`}>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-[#414868] scrollbar-track-transparent">
                 <table className="w-full">
                     <thead>
                         <tr className={`border-b ${tw.borderPrimary} ${tw.bgInput}`}>
                             {columns.map((column, index) => (
                                 <th
                                     key={index}
-                                    className={`px-6 py-4 text-left text-xs font-semibold ${tw.textSecondary} uppercase tracking-wider ${column.sortable ? 'cursor-pointer hover:text-[#7aa2f7]' : ''
+                                    className={`px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs font-semibold ${tw.textSecondary} uppercase tracking-wider ${column.sortable ? 'cursor-pointer hover:text-[#7aa2f7]' : ''
                                         }`}
                                     onClick={() => column.sortable && handleSort(column.key)}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-2 whitespace-nowrap">
                                         {column.label}
                                         {column.sortable && sortConfig.key === column.key && (
                                             sortConfig.direction === 'asc'
-                                                ? <ChevronUp className="w-4 h-4" />
-                                                : <ChevronDown className="w-4 h-4" />
+                                                ? <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                                                : <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
                                         )}
                                     </div>
                                 </th>
@@ -92,12 +90,12 @@ const AdminTableDark = ({
                             <tr
                                 key={item._id || rowIndex}
                                 onClick={() => onRowClick && onRowClick(item)}
-                                className={`transition-colors duration-200 ${onRowClick ? 'cursor-pointer hover:bg-[#414868]/50' : 'hover:bg-[#414868]/30'
+                                className={`transition-all duration-200 ${onRowClick ? 'cursor-pointer hover:bg-[#414868]/50 active:bg-[#414868]' : 'hover:bg-[#414868]/30'
                                     }`}
                             >
                                 {columns.map((column, colIndex) => (
-                                    <td key={colIndex} className={`px-6 py-4 whitespace-nowrap text-sm ${tw.textPrimary}`}>
-                                        {column.render ? column.render(item[column.key], item) : item[column.key]}
+                                    <td key={colIndex} className={`px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm ${tw.textPrimary}`}>
+                                        {column.render ? column.render(item[column.key], item) : <span className="truncate max-w-[150px] block">{item[column.key]}</span>}
                                     </td>
                                 ))}
                             </tr>
@@ -108,30 +106,35 @@ const AdminTableDark = ({
 
             {/* Pagination */}
             {pagination && totalPages > 1 && (
-                <div className={`px-6 py-4 border-t ${tw.borderPrimary} flex items-center justify-between`}>
-                    <div className={`text-sm ${tw.textSecondary}`}>
+                <div className={`px-3 sm:px-6 py-3 sm:py-4 border-t ${tw.borderPrimary} flex flex-col sm:flex-row items-center justify-between gap-4`}>
+                    <div className={`text-[11px] sm:text-sm ${tw.textSecondary} order-2 sm:order-1`}>
                         {serverSidePagination
-                            ? `Showing page ${currentPage} of ${totalPages} (${data.length} items loaded)`
-                            : `Showing ${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, data.length)} of ${data.length} results`
+                            ? `Showing page ${currentPage} of ${totalPages}`
+                            : `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, data.length)} of ${data.length}`
                         }
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
                         <button
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
-                            className={`p-2 rounded-lg ${tw.borderPrimary} border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#414868] ${tw.textPrimary}`}
+                            className={`p-1.5 sm:p-2 rounded-lg ${tw.borderPrimary} border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#414868] ${tw.textPrimary} transition-colors`}
                         >
-                            <ChevronLeft className="w-4 h-4" />
+                            <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
-                        <span className={`px-4 py-2 rounded-lg ${tw.bgInput} ${tw.textPrimary} font-medium`}>
-                            {currentPage} / {totalPages}
-                        </span>
+                        
+                        <div className="flex items-center gap-1">
+                            <span className={`px-3 py-1 sm:px-4 sm:py-2 rounded-lg ${tw.bgInput} ${tw.accentBlue} text-xs sm:text-sm font-bold border ${tw.borderPrimary}`}>
+                                {currentPage}
+                            </span>
+                            <span className={`text-xs ${tw.textSecondary}`}>/ {totalPages}</span>
+                        </div>
+
                         <button
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
-                            className={`p-2 rounded-lg ${tw.borderPrimary} border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#414868] ${tw.textPrimary}`}
+                            className={`p-1.5 sm:p-2 rounded-lg ${tw.borderPrimary} border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#414868] ${tw.textPrimary} transition-colors`}
                         >
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                     </div>
                 </div>

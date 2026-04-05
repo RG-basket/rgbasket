@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw, FileDown, Filter } from 'lucide-react';
+import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw, RefreshCw, FileDown, Filter, Edit } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -297,20 +297,21 @@ const AdminUsersDark = () => {
         <AdminLayoutDark>
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className={`text-2xl font-bold ${tw.textPrimary}`}>Users</h1>
-                        <p className={`text-sm ${tw.textSecondary}`}>
-                            {activeFilter === 'online' ? 'Viewing Live Users (Active in last 5m)' :
-                                activeFilter === 'dau' ? 'Viewing Daily Active Users (Last 24h)' :
+                        <h1 className={`text-xl sm:text-2xl font-bold ${tw.textPrimary}`}>Users</h1>
+                        <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>
+                            {activeFilter === 'online' ? 'Live Users (Last 5m)' :
+                                activeFilter === 'dau' ? 'Daily Active Users (24h)' :
                                     'Manage registered customers'}
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <AdminButtonDark
                             variant="secondary"
                             size="sm"
                             icon={RefreshCcw}
+                            className="flex-1 sm:flex-none"
                             onClick={() => {
                                 toast.success('Refreshing data...');
                                 fetchUsers(page);
@@ -322,21 +323,22 @@ const AdminUsersDark = () => {
                             variant="outline"
                             size="sm"
                             icon={FileDown}
-                            className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                            className="flex-1 sm:flex-none border-green-500/50 text-green-400 hover:bg-green-500/10"
                             onClick={handleExport}
                         >
-                            Export Excel
+                            Export
                         </AdminButtonDark>
                         {activeFilter !== 'all' && (
                             <AdminButtonDark
                                 variant="outline"
                                 size="sm"
+                                className="w-full sm:w-auto"
                                 onClick={() => {
                                     setActiveFilter('all');
                                     fetchUsers(1, null, 'all');
                                 }}
                             >
-                                Reset Filters
+                                Reset
                             </AdminButtonDark>
                         )}
                     </div>
@@ -428,10 +430,12 @@ const AdminUsersDark = () => {
                     serverSidePagination={true}
                     totalServerPages={totalPages}
                     currentServerPage={page}
-                    onPageChange={(newPage) => fetchUsers(newPage)}
+                    onPageChange={(newPage) => {
+                        setPage(newPage);
+                        fetchUsers(newPage);
+                    }}
                     onRowClick={(user) => {
-                        setSelectedUser(user);
-                        setExpandedOrders(false);
+                        setEditingUser(user);
                         setIsModalOpen(true);
                     }}
                 />
