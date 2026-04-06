@@ -8,6 +8,7 @@ const MemoizedProductCard = React.memo(ProductCard);
 const TwentyRupeeStore = () => {
   const { products: contextProducts } = useAppContext();
   const navigate = useNavigate();
+  const [maxPrice, setMaxPrice] = useState(20);
   const [allStoreProducts, setAllStoreProducts] = useState([]);
   const [visibleCount, setVisibleCount] = useState(16); // Initial visible
   const [displayProducts, setDisplayProducts] = useState({ row1: [], row2: [] });
@@ -19,12 +20,12 @@ const TwentyRupeeStore = () => {
   const animationFrameRef = useRef(null);
   const pauseTimeoutRef = useRef(null);
 
-  // Filter products under 20rs
+  // Filter products under maxPrice
   useEffect(() => {
     if (contextProducts && contextProducts.length > 0) {
       const filtered = contextProducts.filter(p => {
         const minPrice = Math.min(...(p.weights || []).map(w => w.offerPrice || w.price || 999));
-        return p.active !== false && p.inStock && p.stock > 0 && minPrice <= 20;
+        return p.active !== false && p.inStock && p.stock > 0 && minPrice <= maxPrice;
       });
       // Sort by price ascending
       filtered.sort((a, b) => {
@@ -34,7 +35,7 @@ const TwentyRupeeStore = () => {
       });
       setAllStoreProducts(filtered);
     }
-  }, [contextProducts]);
+  }, [contextProducts, maxPrice]);
 
   // Update display products based on visible count
   useEffect(() => {
@@ -88,24 +89,78 @@ const TwentyRupeeStore = () => {
     setTimeout(() => setIsShuffling(false), 500);
   };
 
-  if (allStoreProducts.length === 0) return null;
+  const handleStoreSwitch = (price) => {
+    if (maxPrice === price) return;
+    setIsShuffling(true);
+    setTimeout(() => {
+      setMaxPrice(price);
+      setVisibleCount(16);
+      setIsShuffling(false);
+    }, 400);
+  };
+
+  // Check if any products exist for the toggle tiers to decide whether to show the component
+  const hasStoreProducts = contextProducts ? contextProducts.some(p => {
+    const minPrice = Math.min(...(p.weights || []).map(w => w.offerPrice || w.price || 999));
+    return p.active !== false && p.inStock && p.stock > 0 && minPrice <= 30;
+  }) : false;
+
+  if (!hasStoreProducts) return null;
 
   return (
-    <section className="w-full bg-gradient-to-r from-emerald-50/40 via-teal-50/30 to-white py-6 md:py-8 my-1 overflow-hidden border-y border-emerald-100/50">
+    <section className="w-full bg-[#fcfdfd] py-6 md:py-8 my-1 overflow-hidden border-y border-emerald-50/30 transition-all duration-300">
       <div className="container mx-auto px-4">
-        {/* Header */}
+        {/* Compact Refined Header */}
         <div className="flex flex-col items-center mb-6 text-center">
-          <div className="relative inline-block px-6">
-            <h2 className="text-3xl md:text-5xl font-black text-[#1a3a34] italic tracking-tighter uppercase flex items-center gap-2">
-              ₹20 <span className="text-emerald-600 not-italic">STORE</span>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-2xl md:text-3xl font-black text-[#1a3a34] tracking-tight uppercase flex items-baseline gap-1">
+              <span className="text-emerald-600">₹{maxPrice}</span>
+              <span className="text-[0.4em] font-black text-[#1a3a34]/40 tracking-[0.2em]">STORE</span>
             </h2>
-           
-            <div className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent rounded-full"></div>
+            <div className="w-[1px] h-4 bg-emerald-100"></div>
+            
+            {/* Ultra-Compact Toggle with Periodic Vibration */}
+            <div className="inline-flex items-center p-0.5 bg-emerald-50/50 border border-emerald-100/50 rounded-xl animate-vibrate shadow-sm">
+              <button
+                onClick={() => handleStoreSwitch(20)}
+                className={`px-4 py-1 rounded-lg font-bold text-[9px] md:text-[10px] uppercase tracking-wide transition-all duration-300 ${
+                  maxPrice === 20 
+                  ? 'bg-emerald-600 text-white shadow-sm' 
+                  : 'text-emerald-800/40 hover:text-emerald-700'
+                }`}
+              >
+                20
+              </button>
+              <button
+                onClick={() => handleStoreSwitch(30)}
+                className={`px-4 py-1 rounded-lg font-bold text-[9px] md:text-[10px] uppercase tracking-wide transition-all duration-300 ${
+                  maxPrice === 30 
+                  ? 'bg-emerald-600 text-white shadow-sm' 
+                  : 'text-emerald-800/40 hover:text-emerald-700'
+                }`}
+              >
+                30
+              </button>
+            </div>
           </div>
-          <p className="text-gray-400 text-[9px] md:text-[11px] mt-4 font-black uppercase tracking-[0.3em] opacity-60">
-            Pocket Friendly • Farm Fresh
+
+          <p className="text-emerald-600 text-[8px] md:text-[9px] font-black uppercase tracking-[0.4em] opacity-40">
+            Pocket Friendly Selection
           </p>
         </div>
+
+        <style>{`
+          @keyframes vibrate {
+            0%, 90%, 100% { transform: translateX(0); }
+            92% { transform: translateX(-1.5px) rotate(-1deg); }
+            94% { transform: translateX(1.5px) rotate(1deg); }
+            96% { transform: translateX(-1.5px) rotate(-1deg); }
+            98% { transform: translateX(1.5px) rotate(1deg); }
+          }
+          .animate-vibrate {
+            animation: vibrate 6s infinite ease-in-out;
+          }
+        `}</style>
 
         {/* Top Row */}
         <div

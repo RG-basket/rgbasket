@@ -47,8 +47,8 @@ const Home = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
             </div>
             <ShareApp />
-            <NewArrivals />
             <TwentyRupeeStore />
+            <NewArrivals />
             <BestSeller />
             <PWAInstallBanner />
             <RecentViewed />
