@@ -190,13 +190,13 @@ const BottomBanner = () => {
                   />
                   
                   {/* Image Overlay with Text */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end">
+                  <div className="absolute inset-0 flex items-end">
                     <div className="p-4 lg:p-6 text-white w-full">
                       <motion.h3 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
-                        className="text-lg lg:text-xl font-bold mb-1"
+                        className="text-lg lg:text-xl font-bold mb-1 drop-shadow-lg"
                       >
                         {carouselImages[currentSlide].title}
                       </motion.h3>
@@ -204,7 +204,7 @@ const BottomBanner = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 }}
-                        className="text-xs lg:text-sm opacity-90"
+                        className="text-xs lg:text-sm opacity-90 drop-shadow-md"
                       >
                         {carouselImages[currentSlide].description}
                       </motion.p>

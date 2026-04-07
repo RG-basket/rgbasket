@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAppContext } from '../../context/AppContext';
 
 const BannerCarousel = ({ fallbackBanner }) => {
     const { API_URL } = useAppContext();
+    const navigate = useNavigate();
     const [banners, setBanners] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -100,7 +102,14 @@ const BannerCarousel = ({ fallbackBanner }) => {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
                         className={`absolute inset-0 ${activeBanner.linkUrl ? 'cursor-pointer' : ''}`}
-                        onClick={() => activeBanner.linkUrl && (window.location.href = activeBanner.linkUrl)}
+                         onClick={(e) => {
+                             if (activeBanner.linkUrl) {
+                                 e.preventDefault();
+                                 // Sanitize URL: Remove current origin if present to ensure SPA navigation
+                                 const url = activeBanner.linkUrl.replace(window.location.origin, '');
+                                 navigate(url);
+                             }
+                         }}
                     >
                         {/* Background Image */}
                         <div className="absolute inset-0">
@@ -111,8 +120,6 @@ const BannerCarousel = ({ fallbackBanner }) => {
                                 fetchPriority="high"
                                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent"></div>
-                            <div className="absolute inset-0 bg-black/10"></div>
                         </div>
 
                         {/* Content overlay */}
