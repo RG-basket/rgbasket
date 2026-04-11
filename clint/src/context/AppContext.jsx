@@ -4,6 +4,8 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { auth, provider } from '../Firebase.js';
 import { signInWithPopup, signOut } from 'firebase/auth';
+import useCartStore from '../store/useCartStore';
+
 
 /* -------------------------------
    IST Timezone Utilities
@@ -905,7 +907,23 @@ export const AppContextProvider = ({ children }) => {
       return newCart;
     });
 
+    // Bridge to Instamart Experience - Moved outside state update to fix React warning
+    const weight = product.weights?.[parseInt(itemKey.split('_')[1])];
+    const itemPrice = weight?.offerPrice || weight?.price || product.price;
+    
+    useCartStore.getState().addItem({
+      id: itemKey,
+      name: product.name,
+      weight: `${weight?.weight}${weight?.unit || ""}`,
+      price: itemPrice,
+      originalPrice: weight?.price || product.price,
+      image: product.images?.[0] || ""
+    });
+
+
     toast.success('Item added to cart');
+
+
   };
 
   const updateCartItem = (itemKey, quantity) => {
@@ -928,6 +946,11 @@ export const AppContextProvider = ({ children }) => {
         localStorage.setItem('cartItems', JSON.stringify(newCart));
         return newCart;
       });
+      
+      // Bridge to Instamart Experience - Moved outside state update to fix React warning
+      useCartStore.getState().updateItemQuantity(itemKey, quantity);
+
+
     }
   };
 
@@ -938,6 +961,12 @@ export const AppContextProvider = ({ children }) => {
       localStorage.setItem('cartItems', JSON.stringify(newCart));
       return newCart;
     });
+
+    // Bridge to Instamart Experience - Moved outside state update to fix React warning
+    useCartStore.getState().deleteItem(itemKey);
+
+
+
 
     setCustomizationData(prev => {
       const newData = { ...prev };
@@ -954,8 +983,13 @@ export const AppContextProvider = ({ children }) => {
     setCustomizationData({});
     localStorage.removeItem('cartItems');
     localStorage.removeItem('customizationData');
+    
+    // Bridge to Instamart Experience
+    useCartStore.setState({ items: [], giftTier: 0 });
+
     toast.success('Cart cleared');
   };
+
 
   const getCartTotal = () => {
     return getCartItemsWithDetails().reduce((total, item) => {

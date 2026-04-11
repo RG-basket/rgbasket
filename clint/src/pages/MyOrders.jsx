@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Check } from 'lucide-react';
+import { Phone, Check, Calendar, Clock } from 'lucide-react';
 
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -149,6 +149,39 @@ const MyOrders = () => {
       return 'Out for Delivery';
     }
     return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
+  };
+
+  const formatSlotTime = (slot) => {
+    if (!slot || slot === 'Standard Delivery') return 'Standard Delivery';
+    
+    let name = '';
+    let time = '';
+
+    const match = slot.match(/^(.*?)\s*\((.*?)\)$/);
+    if (match) {
+      name = match[1];
+      time = match[2];
+    } else {
+      const fallbacks = {
+        'morning': '7:00 AM - 10:00 AM',
+        'morning - first half': '7:00 AM - 8:30 AM',
+        'morning - second half': '8:30 AM - 10:00 AM',
+        'noon': '1:00 PM - 4:00 PM',
+        'afternoon': '1:00 PM - 4:00 PM',
+        'evening': '4:00 PM - 7:00 PM',
+        'evening - first half': '4:00 PM - 5:30 PM',
+        'night': '7:00 PM - 10:00 PM',
+        'night - second half': '8:30 PM - 10:00 PM'
+      };
+      const clean = slot.toLowerCase().trim();
+      name = slot;
+      time = fallbacks[clean] || (slot.includes(':') ? '' : 'Scheduled Window');
+    }
+
+    // Strip space-consuming suffixes
+    name = name.replace(/\s*-\s*(First|Second)\s*Half/gi, '').trim();
+    
+    return time && time !== 'Scheduled Window' ? `${name} • ${time}` : (time === 'Scheduled Window' ? `${name} • ${time}` : name);
   };
 
   // Check if order can be cancelled
@@ -745,20 +778,43 @@ const MyOrders = () => {
                     onClick={() => toggleOrderExpansion(orderId)}
                     className="p-4 sm:p-5 cursor-pointer flex items-center justify-between gap-4 select-none active:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 ${getOrderStatusColor(order.status).split(' ')[0]}`}>
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl shrink-0 ${getOrderStatusColor(order.status).split(' ')[0]}`}>
                         {getStatusIcon(order.status)}
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-bold text-gray-900 truncate flex items-center gap-2">
-                          #{orderId.slice(-8).toUpperCase()}
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter ${getOrderStatusColor(order.status)}`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h3 className="text-sm font-black text-gray-900 truncate">
+                            #{orderId.slice(-8).toUpperCase()}
+                          </h3>
+                          <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${getOrderStatusColor(order.status)}`}>
                             {getDisplayStatus(order.status)}
                           </span>
-                        </h3>
-                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">
-                          {new Date(order.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })} • {order.items?.length} Items
-                        </p>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="p-1 bg-emerald-50 rounded-md">
+                              <Calendar size={10} className="text-emerald-600" />
+                            </div>
+                            <span className="text-[10px] sm:text-11px font-bold text-gray-600">
+                              {new Date(order.deliveryDate || order.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <div className="p-1 bg-indigo-50 rounded-md">
+                              <Clock size={10} className="text-indigo-600" />
+                            </div>
+                            <span className="text-[10px] sm:text-11px font-black text-slate-700">
+                              {formatSlotTime(order.timeSlot)}
+                            </span>
+                          </div>
+
+                          <div className="hidden sm:flex items-center gap-1.5 border-l border-gray-100 pl-3 ml-1">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{order.items?.length} Items</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 

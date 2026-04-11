@@ -64,6 +64,10 @@ import ProtectedRoute from "./components/Auth/ProtectedRoute.jsx";
 import LoginGuard from "./components/Auth/LoginGuard.jsx";
 import InstallPopup from "./components/Install/InstallPopup.jsx";
 import PhoneCollectionPopup from "./components/User/PhoneCollectionPopup.jsx";
+import InstamartLiveOrderCard from "./components/Instamart/InstamartLiveOrderCard.jsx";
+import InstamartFloatingBar from "./components/Instamart/InstamartFloatingBar.jsx";
+import CartSync from "./components/Instamart/CartSync.jsx";
+import useCartStore from "./store/useCartStore";
 
 
 
@@ -103,6 +107,18 @@ const App = () => {
   const isAdminPath = location.pathname.startsWith("/admin");
   const isRiderPath = location.pathname.startsWith("/rider");
   const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady } = useAppContext();
+  const activeOrder = useCartStore(state => state.activeOrder);
+  const syncActiveOrder = useCartStore(state => state.syncActiveOrder);
+  const items = useCartStore(state => state.items);
+  
+  // Calculate if cart has items (excluding gifts)
+  const cartCount = items.filter(item => !item.isGift).reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    if (isAppReady && user) {
+      syncActiveOrder(user.id || user._id);
+    }
+  }, [user, isAppReady, syncActiveOrder]);
 
   // console.log('Current User in App:', user);
 
@@ -129,8 +145,19 @@ const App = () => {
         <>
           <Navbar />
           <CategoryStrip />
+          <CartSync />
+          
+          {/* Show Live Order Bar ONLY on Home AND only if cart is empty */}
+          {location.pathname === '/' && activeOrder && cartCount === 0 && <InstamartLiveOrderCard />}
+
+          {/* Show Cart Bar if items exist, prioritize it over order bar */}
+          {!['/cart', '/orders', '/profile', '/add-address'].includes(location.pathname) && cartCount > 0 && (
+            <InstamartFloatingBar />
+          )}
         </>
       )}
+
+
 
       {showUserLogin && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4 sm:px-0 bg-white/60">

@@ -54,6 +54,18 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+// Strict rate limiting for Admin Login
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login requests per 15 mins
+  message: {
+    success: false,
+    message: 'Too many login attempts. Please try again after 15 minutes.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -131,6 +143,7 @@ const deliveryPartnerRoutes = require('./routes/deliveryPartnerRoutes');
 const { checkBanned } = require('./middleware/auth');
 
 // Use routes
+app.use('/api/admin/login', adminLoginLimiter); // Apply strict limit to login only
 app.use('/api/admin', adminRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/products', productRoutes);

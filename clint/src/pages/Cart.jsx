@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import AddressForm from "../components/Address/AddressForm";
+import useCartStore from "../store/useCartStore";
 import toast from "react-hot-toast";
 import {
   OutOfStockBanner,
@@ -630,8 +631,6 @@ const Cart = () => {
         userImage: user?.photo || ''
       }));
 
-      const slotName = selectedSlot?.timeSlot?.split(' (')[0] || '';
-
       const orderData = {
         items: orderItems,
         shippingAddress: {
@@ -647,7 +646,7 @@ const Cart = () => {
         },
         paymentMethod: paymentOption === "COD" ? "cash_on_delivery" : "online",
         deliveryDate: selectedSlot.date,
-        timeSlot: slotName,
+        timeSlot: selectedSlot.timeSlot, // Save full string like "Morning (7:00 AM - 10:00 AM)"
         userId: user?.id || user?._id,
         userInfo: {
           name: user?.name || 'Guest',
@@ -679,6 +678,21 @@ const Cart = () => {
 
       if (data.success) {
         toast.success('Order placed successfully!');
+
+        // Bridge to Instamart Experience - Set active order for real-time tracking bar
+        useCartStore.setState({ 
+          activeOrder: {
+            id: data.order._id || data.order.id,
+            status: (data.order.status || 'Confirmed').toLowerCase(),
+            displayStatus: data.order.status || 'Confirmed',
+            items: data.order.items || [],
+            total: data.order.totalAmount || data.order.total || 0,
+            timestamp: data.order.createdAt || new Date().toISOString(),
+            deliveryDate: data.order.deliveryDate,
+            timeSlot: data.order.timeSlot,
+            eta: 18 // Default ETA
+          }
+        });
 
         localStorage.removeItem('cartItems');
         localStorage.removeItem('cartInstruction');
