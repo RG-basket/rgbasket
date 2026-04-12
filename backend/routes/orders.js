@@ -415,6 +415,13 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
 
     console.log(`✅ Order ${orderId} status updated to:`, status);
 
+    // Send Telegram notification if order was cancelled
+    if (status === 'cancelled') {
+      TelegramService.sendOrderCancellationNotification(order, 'Cancelled by Admin').catch(err => {
+        console.error('Failed to send admin cancellation telegram msg:', err.message);
+      });
+    }
+
     res.json({
       success: true,
       message: 'Order status updated successfully',
@@ -486,6 +493,13 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
     }
 
     console.log(`✅ Order ${orderId} updated successfully`);
+
+    // Send Telegram notification if order was cancelled in this full update
+    if (updateData.status === 'cancelled') {
+      TelegramService.sendOrderCancellationNotification(order, 'Cancelled by Admin (Full Update)').catch(err => {
+        console.error('Failed to send full update cancellation telegram msg:', err.message);
+      });
+    }
 
     res.json({
       success: true,
