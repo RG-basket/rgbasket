@@ -306,7 +306,7 @@ const AdminUsersDark = () => {
                         <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>
                             {activeFilter === 'online' ? 'Live Users (Last 5m)' :
                                 activeFilter === 'dau' ? 'Daily Active Users (24h)' :
-                                    'Manage registered customers'}
+                                    'Manage registered customers properly'}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
