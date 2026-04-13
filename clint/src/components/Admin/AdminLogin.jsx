@@ -7,7 +7,7 @@ const AdminLogin = () => {
   });
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [token, setToken] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -33,7 +33,7 @@ const AdminLogin = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setToken(data.token);
+        setLoginSuccess(true);
         setMessage('Login successful! Redirecting to admin dashboard...');
         localStorage.setItem('adminToken', data.token);
 
@@ -160,14 +160,14 @@ const AdminLogin = () => {
 
             {/* Message Display */}
             {message && (
-              <div className={`rounded-2xl p-5 border-l-4 ${token
+              <div className={`rounded-2xl p-5 border-l-4 ${loginSuccess
                   ? 'bg-green-900/30 border-green-400'
                   : 'bg-red-900/30 border-red-400'
                 } backdrop-blur-sm transform transition-all duration-300`}>
                 <div className="flex items-start">
-                  <div className={`flex-shrink-0 ${token ? 'text-green-400' : 'text-red-400'
+                  <div className={`flex-shrink-0 ${loginSuccess ? 'text-green-400' : 'text-red-400'
                     }`}>
-                    {token ? (
+                    {loginSuccess ? (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -178,11 +178,11 @@ const AdminLogin = () => {
                     )}
                   </div>
                   <div className="ml-3">
-                    <p className={`text-sm font-medium ${token ? 'text-green-300' : 'text-red-300'
+                    <p className={`text-sm font-medium ${loginSuccess ? 'text-green-300' : 'text-red-300'
                       }`}>
                       {message}
                     </p>
-                    {token && (
+                    {loginSuccess && (
                       <div className="mt-2">
                         <div className="w-full bg-green-900/50 rounded-full h-1.5">
                           <div className="bg-green-500 h-1.5 rounded-full animate-pulse"></div>

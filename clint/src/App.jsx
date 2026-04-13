@@ -110,7 +110,8 @@ const App = () => {
   const activeOrder = useCartStore(state => state.activeOrder);
   const syncActiveOrder = useCartStore(state => state.syncActiveOrder);
   const items = useCartStore(state => state.items);
-  
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   // Calculate if cart has items (excluding gifts)
   const cartCount = items.filter(item => !item.isGift).reduce((sum, item) => sum + item.quantity, 0);
 
@@ -143,7 +144,7 @@ const App = () => {
 
       {!isAdminPath && !isRiderPath && (
         <>
-          <Navbar />
+          <Navbar onProfileToggle={setIsProfileOpen} />
           <CategoryStrip />
           <CartSync />
           
@@ -151,7 +152,7 @@ const App = () => {
           {location.pathname === '/' && activeOrder && cartCount === 0 && <InstamartLiveOrderCard />}
 
           {/* Show Cart Bar if items exist, prioritize it over order bar */}
-          {!['/cart', '/orders', '/profile', '/add-address'].includes(location.pathname) && cartCount > 0 && (
+          {!['/cart', '/orders', '/profile', '/add-address', '/complaint', '/contact-us'].includes(location.pathname) && cartCount > 0 && !isProfileOpen && (
             <InstamartFloatingBar />
           )}
         </>

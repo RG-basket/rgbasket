@@ -1,11 +1,22 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+const safeCompare = (a, b) => {
+  try {
+    return crypto.timingSafeEqual(Buffer.from(String(a)), Buffer.from(String(b)));
+  } catch {
+    return false;
+  }
+};
 
 const adminLogin = async (req, res) => {
   try {
     const { adminId, password } = req.body;
 
-    // Validate credentials against environment variables
-    if (adminId !== process.env.ADMIN_ID || password !== process.env.ADMIN_PASSWORD) {
+    // Validate credentials using timing-safe comparison
+    const idMatch = safeCompare(adminId, process.env.ADMIN_ID);
+    const pwMatch = safeCompare(password, process.env.ADMIN_PASSWORD);
+    if (!idMatch || !pwMatch) {
       return res.status(401).json({
         message: 'Invalid admin credentials'
       });

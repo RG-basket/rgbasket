@@ -11,6 +11,9 @@ const authenticateAdmin = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden.' });
+    }
     req.admin = decoded;
     next();
   } catch (error) {

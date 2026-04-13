@@ -10,7 +10,7 @@ import AutoDetectLocation from "../Address/AutoDetectLocation";
 
 const MOBILE_BREAKPOINT = 768;
 
-const Navbar = ({ onLocationClick }) => {
+const Navbar = ({ onLocationClick, onProfileToggle }) => {
   const { getCartCount } = useAppContext();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
@@ -34,12 +34,16 @@ const Navbar = ({ onLocationClick }) => {
   }, []);
 
   const toggleDrawer = useCallback(() => {
-    setIsDrawerOpen(prev => !prev);
-  }, []);
+    setIsDrawerOpen(prev => {
+      onProfileToggle?.(!prev);
+      return !prev;
+    });
+  }, [onProfileToggle]);
 
   const closeDrawer = useCallback(() => {
     setIsDrawerOpen(false);
-  }, []);
+    onProfileToggle?.(false);
+  }, [onProfileToggle]);
   const LogoSection = () => (
     <NavLink
       to="/"
