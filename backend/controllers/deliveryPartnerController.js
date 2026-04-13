@@ -1,6 +1,7 @@
 const DeliveryPartner = require('../models/DeliveryPartner');
 const Order = require('../models/Order');
 const crypto = require('crypto');
+const TelegramService = require('../services/TelegramService');
 
 // --- ADMIN ENDPOINTS ---
 
@@ -263,6 +264,9 @@ exports.acceptOrder = async (req, res) => {
 
         await order.save();
 
+        // Notify Telegram on pickup
+        TelegramService.sendRiderPickupNotification(order, partner).catch(() => {});
+
         res.json({ success: true, message: 'Order accepted successfully', order });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -326,6 +330,12 @@ exports.completeOrder = async (req, res) => {
         });
 
         await order.save();
+
+        // Notify Telegram on delivery
+        const partner = await DeliveryPartner.findById(partnerId).lean();
+        if (partner) {
+            TelegramService.sendRiderDeliveryNotification(order, partner).catch(() => {});
+        }
 
         res.json({ success: true, message: 'Order marked as delivered', order });
     } catch (error) {
