@@ -11,7 +11,7 @@ const CACHE_DURATION = 60000; // 1 minute cache
 
 const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = true, unavailabilityReason = '', hideIfUnavailable = false, className = "", onClick = null }) => {
     const {
-        currency,
+        CURRENCY,
         addToCart,
         removeCartItem,
         cartItems,
@@ -20,7 +20,8 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         selectedSlot,
         checkProductAvailability,
         findNextAvailableSlotForProduct,
-        validateAndSetSlot
+        validateAndSetSlot,
+        isNonVegTheme
     } = useAppContext();
 
     const navigate = useNavigate();
@@ -28,8 +29,6 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     // Use product from context if productId is provided, otherwise use initialProduct
     const contextProduct = productId ? getProductById(productId) : initialProduct;
     const product = contextProduct || initialProduct;
-
-
 
     const [imageError, setImageError] = useState(false);
     const [slotAvailability, setSlotAvailability] = useState(isAvailableForSlot);
@@ -52,7 +51,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                     }
                 });
             },
-            { rootMargin: '200px' } // Start loading 200px before entering viewport
+            { rootMargin: '200px' }
         );
 
         if (imageContainerRef.current) {
@@ -71,7 +70,6 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         return val;
     };
 
-    // Create a sorted version of weights while keeping track of original index
     const weightOptions = (product.weights || []).map((w, idx) => ({ ...w, originalIndex: idx }))
         .sort((a, b) => getNumericalWeightValue(a) - getNumericalWeightValue(b));
 
@@ -80,9 +78,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const weights = product.weights || [];
     const selectedWeight = weights[selectedWeightIndex] || {};
 
-    // ✅ Optimized slot availability check with caching and debouncing
     useEffect(() => {
-        // Clear any pending checks
         if (checkTimeoutRef.current) {
             clearTimeout(checkTimeoutRef.current);
         }
@@ -90,31 +86,23 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         const checkSlotAvailability = async () => {
             if (product && selectedSlot && selectedSlot.date && selectedSlot.timeSlot) {
                 try {
-                    // Create cache key
                     const cacheKey = `${product._id}_${selectedSlot.date}_${selectedSlot.timeSlot}`;
-
-                    // Check cache first
                     const cached = slotAvailabilityCache.get(cacheKey);
                     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
                         setSlotAvailability(cached.available);
                         setSlotUnavailabilityReason(cached.reason || '');
                         return;
                     }
-
-                    // Make API call
                     const availability = await checkProductAvailability(
                         product._id,
                         selectedSlot.date,
                         selectedSlot.timeSlot
                     );
-
-                    // Update cache
                     slotAvailabilityCache.set(cacheKey, {
                         available: availability.available,
                         reason: availability.reason,
                         timestamp: Date.now()
                     });
-
                     setSlotAvailability(availability.available);
                     setSlotUnavailabilityReason(availability.reason);
                 } catch (error) {
@@ -127,10 +115,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                 setSlotUnavailabilityReason('');
             }
         };
-
-        // Debounce the check by 100ms to batch multiple cards loading together
         checkTimeoutRef.current = setTimeout(checkSlotAvailability, 100);
-
         return () => {
             if (checkTimeoutRef.current) {
                 clearTimeout(checkTimeoutRef.current);
@@ -138,19 +123,14 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         };
     }, [product?._id, selectedSlot?.date, selectedSlot?.timeSlot]);
 
-    // ✅ REAL-TIME: Get stock status from context
     const stockStatus = getProductStockStatus ? getProductStockStatus(product?._id, selectedWeightIndex) : {
         inStock: selectedWeight?.inStock ?? product?.inStock ?? false,
         stock: selectedWeight?.stock ?? product?.stock ?? 0
     };
 
-    // Product is available if it's in stock AND available for the selected slot
     const isStockAvailable = (stockStatus.inStock && stockStatus.stock > 0);
     const isAvailable = isStockAvailable && slotAvailability;
 
-
-
-    // ✅ Find next available slot if current one is restricted
     useEffect(() => {
         if (!slotAvailability && isStockAvailable) {
             const getNextSlot = async () => {
@@ -173,7 +153,6 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const baseUrl = import.meta.env.VITE_API_URL;
     const imageUrl = product?.images?.[0] ? product.images[0] : null;
 
-    // ✅ Reset to smallest weight if product or weights change
     useEffect(() => {
         if (weightOptions.length > 0) {
             setSelectedWeightIndex(weightOptions[0].originalIndex);
@@ -181,25 +160,19 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     }, [product?._id]);
 
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : true);
-
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // ✅ Variant/Cart Logic: Determine what to show on the card
-    // Calculate total quantity across all variants
     const variantQuantities = weights.map((w, idx) => {
         const key = `${product._id}_${idx}`;
         return { index: idx, qty: cartItems[key] || 0 };
     });
     const totalQuantity = variantQuantities.reduce((sum, item) => sum + item.qty, 0);
-
-    // If something is in cart, find the active one
     const activeInCart = variantQuantities.find(v => v.qty > 0);
-    
-    // Update selectedWeightIndex if something is in cart and we haven't manually changed it
+
     useEffect(() => {
         if (activeInCart && (!isModalOpen || !isMobile)) {
             setSelectedWeightIndex(activeInCart.index);
@@ -210,7 +183,6 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const offerPrice = Number(selectedWeight?.offerPrice) || price;
     const discount = price > offerPrice ? price - offerPrice : 0;
 
-    // Helper: return integer (no decimals)
     const formatPrice = (v) => {
         const n = Number(v) || 0;
         return Math.round(n);
@@ -225,27 +197,17 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const handleCartAction = (e, action, isAdjustment = false) => {
         e.stopPropagation();
         if (!isAvailable) return;
-        
-        // ONLY open modal if on MOBILE. On desktop, proceed directly.
         if (isMobile) {
-            // Count how many different variants are currently in cart
             const variantsInCartCount = variantQuantities.filter(v => v.qty > 0).length;
-
-            // If it's an "ADD" action (quantity is 0) and there are multiple variants, show modal
             if (totalQuantity === 0 && weights.length > 1) {
                 setIsModalOpen(true);
                 return;
             }
-
-            // If it's an adjustment (+ or -) and there are multiple DIFFERENT variants in cart,
-            // we MUST show the modal so user can choose which one to adjust
             if (isAdjustment && variantsInCartCount > 1) {
                 setIsModalOpen(true);
                 return;
             }
         }
-        
-        // Otherwise (or if it's desktop), perform the action directly on the 'selectedWeightIndex'
         action();
     };
 
@@ -253,7 +215,6 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         setImageError(true);
     };
 
-    // Get unavailability message
     const getUnavailabilityMessage = () => {
         if (!isStockAvailable) return 'Out of Stock';
         if (!slotAvailability) return 'Unavailable';
@@ -264,19 +225,19 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     if (hideIfUnavailable && !isAvailable) return null;
 
     return (
-        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] h-full flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale-[0.3]' : 'hover:border-emerald-200 hover:scale-[1.02]'} ${className}`}>
-            {/* Badges Container - Top Right */}
+        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] h-full flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale-[0.3]' : (isNonVegTheme ? 'hover:border-red-200 hover:scale-[1.02]' : 'hover:border-emerald-200 hover:scale-[1.02]')} ${className}`}>
+            {/* Badges Container */}
             <div className="absolute top-1.5 right-1.5 z-10 flex flex-col gap-1 pointer-events-none">
                 {!isStockAvailable ? (
-                    <div className="bg-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
+                    <div className="bg-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-xl shadow-sm">
                         Out of Stock
                     </div>
                 ) : !slotAvailability ? (
-                    <div className="bg-orange-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
+                    <div className="bg-orange-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-xl shadow-sm">
                         Unavailable
                     </div>
                 ) : discount > 0 ? (
-                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-xl shadow-sm">
                         Save ₹{formatPrice(discount)}
                     </div>
                 ) : null}
@@ -285,7 +246,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
             {/* Image Container */}
             <div
                 ref={imageContainerRef}
-                className="group cursor-pointer flex items-center justify-center mb-2 relative"
+                className="group cursor-pointer flex items-center justify-center mb-1 relative"
                 onClick={handleCardClick}
             >
                 <div className="w-full h-24 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
@@ -307,41 +268,39 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
             <div className="flex-grow flex flex-col space-y-1.5">
                 {/* Product Name */}
                 <h3
-                    className="text-xs font-semibold text-gray-900 line-clamp-2 h-8 leading-tight cursor-pointer hover:text-emerald-600 transition-colors"
+                    className={`text-xs font-semibold text-gray-900 line-clamp-2 h-8 leading-tight cursor-pointer ${isNonVegTheme ? 'hover:text-red-600' : 'hover:text-emerald-600'} transition-colors`}
                     onClick={handleCardClick}
                     title={product.name}
                 >
                     {product.name}
                 </h3>
 
-                {/* Customizable Indicator - Simple & Subtle */}
+                {/* Customizable Indicator */}
                 {product.isCustomizable && isStockAvailable && slotAvailability && (
                     <div className="flex items-center gap-1 opacity-80">
-                        <span className="text-[9px] bg-[#26544a]/10 text-[#26544a] px-1 py-0.5 rounded font-bold uppercase tracking-tighter">
+                        <span className={`text-[9px] ${isNonVegTheme ? 'bg-red-50 text-red-600' : 'bg-[#26544a]/10 text-[#26544a]'} px-1 py-0.5 rounded font-bold uppercase tracking-tighter`}>
                             ✨ {totalQuantity > 0 ? 'Check Cart' : 'Customizable'}
                         </span>
                     </div>
                 )}
 
-                {/* Weight Selector / Variant indicator */}
+                {/* Weight Selector */}
                 <div className="relative group/variant" onClick={(e) => e.stopPropagation()}>
                     {weights.length > 1 ? (
                         <>
-                            {/* Mobile: Premium Button */}
                             <button
                                 onClick={() => setIsModalOpen(true)}
-                                className="md:hidden w-full flex items-center justify-between text-[11px] p-2 border border-gray-100 rounded-xl bg-gray-50/50 hover:bg-[#26544a]/5 hover:border-[#26544a]/20 transition-all duration-300 cursor-pointer group"
+                                className={`md:hidden w-full flex items-center justify-between text-[11px] p-2 border border-gray-100 rounded-xl bg-gray-50/50 ${isNonVegTheme ? 'hover:bg-red-50' : 'hover:bg-[#26544a]/5'} transition-all duration-300 cursor-pointer group`}
                             >
-                                <span className="font-bold text-gray-700 group-hover:text-[#26544a]">
+                                <span className={`font-bold text-gray-700 ${isNonVegTheme ? 'group-hover:text-red-600' : 'group-hover:text-[#26544a]'}`}>
                                     {formatWeight(selectedWeight)}
                                 </span>
                                 <div className="flex items-center gap-1">
                                     <span className="text-[9px] text-gray-400 font-medium">{weights.length} variants</span>
-                                    <FaChevronDown className="w-2 h-2 text-gray-400 group-hover:text-[#26544a] transition-transform group-hover:translate-y-0.5" />
+                                    <FaChevronDown className={`w-2 h-2 text-gray-400 ${isNonVegTheme ? 'group-hover:text-red-500' : 'group-hover:text-[#26544a]'} transition-transform group-hover:translate-y-0.5`} />
                                 </div>
                             </button>
 
-                            {/* Desktop: Interactive Chips/Buttons */}
                             <div className="hidden md:flex flex-wrap gap-1 w-full mt-1">
                                 {weights.slice(0, 3).map((w, idx) => (
                                     <button
@@ -349,18 +308,13 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                                         onClick={() => setSelectedWeightIndex(idx)}
                                         className={`text-[9px] px-1.5 py-0.5 rounded-lg font-bold border transition-all ${
                                             selectedWeightIndex === idx
-                                            ? 'bg-[#26544a] text-white border-[#26544a] shadow-sm'
-                                            : 'bg-white text-gray-600 border-gray-100 hover:border-[#26544a]/40 hover:text-[#26544a]'
+                                            ? `${isNonVegTheme ? 'bg-red-600 border-red-600' : 'bg-[#26544a] border-[#26544a]'} text-white shadow-sm`
+                                            : `bg-white text-gray-600 border-gray-100 ${isNonVegTheme ? 'hover:border-red-400 hover:text-red-600' : 'hover:border-[#26544a]/40 hover:text-[#26544a]'}`
                                         }`}
                                     >
                                         {formatWeight(w)}
                                     </button>
                                 ))}
-                                {weights.length > 3 && (
-                                    <div className="text-[9px] text-gray-300 font-bold self-center px-1">
-                                        +{weights.length - 3} more
-                                    </div>
-                                )}
                             </div>
                         </>
                     ) : (
@@ -373,12 +327,12 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                 {/* Price Section */}
                 <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-[10px] text-gray-500 font-medium">Price:</span>
-                    <span className={`text-sm font-bold ${!isAvailable ? 'text-gray-400' : 'text-gray-900'}`}>
-                        {import.meta.env.VITE_CURRENCY}{formatPrice(offerPrice)}
+                    <span className={`text-sm md:text-base font-black ${!isAvailable ? 'text-gray-400' : 'text-gray-900'} tracking-tight`}>
+                        {CURRENCY}{formatPrice(offerPrice)}
                     </span>
                     {price > offerPrice && (
-                        <span className="text-[10px] text-gray-400 line-through">
-                            {import.meta.env.VITE_CURRENCY}{formatPrice(price)}
+                        <span className="text-[10px] text-gray-400 line-through font-medium">
+                            {CURRENCY}{formatPrice(price)}
                         </span>
                     )}
                 </div>
@@ -388,24 +342,24 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                     {totalQuantity > 0 ? (
                         <div className={`flex items-center justify-between border rounded-xl h-7 px-1 transition-all ${!isAvailable
                             ? 'bg-gray-100 border-gray-200'
-                            : 'bg-[#26544a]/5 border-[#26544a]/20 hover:bg-[#26544a]/10'}`}>
+                            : (isNonVegTheme ? 'bg-red-50 border-red-200' : 'bg-[#26544a]/5 border-[#26544a]/20')}`}>
                             <button
                                 onClick={(e) => handleCartAction(e, () => removeCartItem(`${product._id}_${selectedWeightIndex}`), true)}
                                 className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all ${!isAvailable
                                     ? 'text-gray-400 cursor-not-allowed'
-                                    : 'text-[#26544a] hover:bg-white hover:shadow-sm active:scale-95'}`}
+                                    : 'text-[#26544a] hover:bg-white'}`}
                                 disabled={!isAvailable}
                             >
                                 <span className="font-bold">−</span>
                             </button>
-                            <span className={`text-xs font-bold min-w-[16px] text-center ${!isAvailable ? 'text-gray-500' : 'text-[#26544a]'}`}>
+                            <span className={`text-xs font-bold min-w-[16px] text-center ${!isAvailable ? 'text-gray-500' : (isNonVegTheme ? 'text-red-700' : 'text-[#26544a]')}`}>
                                 {totalQuantity}
                             </span>
                             <button
                                 onClick={(e) => handleCartAction(e, () => addToCart(`${product._id}_${selectedWeightIndex}`, 1), true)}
                                 className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all ${!isAvailable
                                     ? 'text-gray-400 cursor-not-allowed'
-                                    : 'text-[#26544a] hover:bg-white hover:shadow-sm active:scale-95'}`}
+                                    : (isNonVegTheme ? 'text-red-600 hover:bg-white' : 'text-[#26544a] hover:bg-white')}`}
                                 disabled={!isAvailable}
                             >
                                 <span className="font-bold">+</span>
@@ -417,7 +371,9 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                             disabled={!isAvailable}
                             className={`w-full h-7 text-xs font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-1 shadow-sm active:scale-95 ${!isAvailable
                                 ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                                : "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 hover:shadow-lg border border-emerald-500/20"
+                                : (isNonVegTheme 
+                                    ? "bg-red-600 text-white hover:bg-red-700 shadow-sm"
+                                    : "bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 shadow-sm")
                                 }`}
                         >
                             {!isAvailable ? (
@@ -431,31 +387,9 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                         </button>
                     )}
                 </div>
-
-                {/* Next Available Slot Action */}
-                {!slotAvailability && isStockAvailable && nextSlotInfo && (
-                    <div className="mt-2 p-1.5 bg-orange-50 rounded-lg border border-orange-100 flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1">
-                        <div>
-                            <p className="text-[10px] font-bold text-orange-800 uppercase tracking-wider">Next Available Delivery</p>
-                            <p className="text-xs font-extrabold text-orange-600">
-                                {nextSlotInfo.dayOfWeek}, {nextSlotInfo.date.split('-').reverse().join('/')} • {nextSlotInfo.timeSlot.split(' (')[0]}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => validateAndSetSlot(nextSlotInfo, true)}
-                            className="w-full py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-[9px] font-bold rounded-lg active:translate-y-0.5 transition-all flex items-center justify-center gap-1.5 border-b-2 border-orange-800 uppercase tracking-wider"
-                        >
-                            <span>Select This Slot</span>
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        </button>
-                    </div>
-                )}
             </div>
 
-            {/* Variant Selection Modal */}
-            <VariantSelectionModal 
+            <VariantSelectionModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 product={product}

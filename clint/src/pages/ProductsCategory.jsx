@@ -4,11 +4,12 @@ import { useParams } from 'react-router-dom';
 import ProductCard from '../components/Products/ProductCard';
 import { ChevronDown, ArrowUpDown, ArrowDownAz, ArrowUpAz, ArrowDown01, ArrowUp01, TrendingUp } from 'lucide-react';
 import SEO from '../components/SEO/SEO.jsx';
+import CategoryBackground from '../components/Products/CategoryBackground.jsx';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
 const ProductsCategory = () => {
-  const { products, selectedSlot, loading: globalLoading } = useAppContext();
+  const { products, selectedSlot, loading: globalLoading, isNonVegTheme } = useAppContext();
   const { category } = useParams();
   const [categories, setCategories] = useState([]);
   const [searchCategory, setSearchCategory] = useState(null);
@@ -59,12 +60,11 @@ const ProductsCategory = () => {
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     // Primary Sort: Availability (In Stock items first)
-    // We assume 'inStock' is true and 'stock' > 0 for available items.
     const aAvailable = (a.inStock && a.stock > 0) ? 1 : 0;
     const bAvailable = (b.inStock && b.stock > 0) ? 1 : 0;
 
     if (aAvailable !== bAvailable) {
-      return bAvailable - aAvailable; // Descending: Available (1) before Unavailable (0)
+      return bAvailable - aAvailable;
     }
 
     // Secondary Sort: User Selection
@@ -98,7 +98,7 @@ const ProductsCategory = () => {
   // Skeleton loader
   if (loading || globalLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20 px-4 md:px-8 lg:px-16">
+      <div className="min-h-screen bg-site pt-20 px-4 md:px-8 lg:px-16">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="h-8 bg-gray-200 rounded-lg w-64 mb-2"></div>
           <div className="h-4 bg-gray-200 rounded w-32"></div>
@@ -120,7 +120,8 @@ const ProductsCategory = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-10 px-4 md:px-8 lg:px-16 pb-12">
+    <div className="min-h-screen bg-site pt-10 px-4 md:px-8 lg:px-16 pb-12 relative overflow-hidden">
+      <CategoryBackground category={category} />
       {searchCategory && (
         <SEO
           title={`${searchCategory.name} - Fresh Grocery Delivery`}
@@ -128,8 +129,8 @@ const ProductsCategory = () => {
           keywords={`${searchCategory.name} online, ${searchCategory.name} delivery Cuttack, RG Basket`}
         />
       )}
-      <div className="max-w-7xl mx-auto">
-        {/* Compact Glassmorphism Header */}
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Header Section */}
         <div className="mb-6">
           {searchCategory ? (
             <div className="flex flex-col gap-3">
@@ -139,15 +140,15 @@ const ProductsCategory = () => {
                     {searchCategory.emoji}
                   </div>
                   <div className="min-w-0">
-                    <h1 className="text-lg font-bold text-gray-900 truncate flex items-center gap-2 capitalize">
+                    <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2 capitalize tracking-tight">
                       {searchCategory.name}
-                      <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded-md">{sortedProducts.length}</span>
+                      <span className={`text-[11px] ${isNonVegTheme ? 'text-red-500 bg-red-50/80 border-red-100' : 'text-emerald-600 bg-emerald-50/80 border-emerald-100'} font-black px-2 py-0.5 rounded-lg border shadow-sm`}>{sortedProducts.length}</span>
                     </h1>
                     {/* Inline Slot Pill for Desktop */}
                     {selectedSlot && selectedSlot.date && (
-                      <div className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 mt-0.5">
-                        <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span>Delivering: {selectedSlot.timeSlot} • {new Date(selectedSlot.date).toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>
+                      <div className={`hidden md:flex items-center gap-2 text-[10px] font-extrabold ${isNonVegTheme ? 'text-red-600 bg-red-50/30' : 'text-emerald-700 bg-emerald-50/30'} px-2.5 py-0.5 rounded-full border ${isNonVegTheme ? 'border-red-100/50' : 'border-emerald-100/50'} mt-1 shadow-sm`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${isNonVegTheme ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`}></div>
+                        <span className="uppercase tracking-wide">Delivering {selectedSlot.timeSlot} • {new Date(selectedSlot.date).toLocaleDateString([], { day: 'numeric', month: 'short' })}</span>
                       </div>
                     )}
                   </div>
@@ -157,13 +158,13 @@ const ProductsCategory = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsSortOpen(!isSortOpen)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-emerald-500 transition-all text-[11px] font-bold group"
+                    className={`flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-2xl shadow-[0_4px_15px_-5px_rgba(0,0,0,0.05)] ${isNonVegTheme ? 'hover:border-red-400' : 'hover:border-emerald-400'} transition-all text-xs font-bold group`}
                   >
-                    <ArrowUpDown size={12} className="text-emerald-500" />
-                    <span className="text-gray-600 group-hover:text-emerald-600 hidden sm:inline">
+                    <ArrowUpDown size={14} className={isNonVegTheme ? 'text-red-500' : 'text-emerald-500'} />
+                    <span className={`text-gray-700 ${isNonVegTheme ? 'group-hover:text-red-600' : 'group-hover:text-emerald-600'} hidden sm:inline`}>
                       {sortOptions.find(opt => opt.id === sortBy)?.label}
                     </span>
-                    <ChevronDown size={12} className={`text-gray-400 transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isSortOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {isSortOpen && (
@@ -174,7 +175,7 @@ const ProductsCategory = () => {
                           <button
                             key={option.id}
                             onClick={() => { setSortBy(option.id); setIsSortOpen(false); }}
-                            className={`w-full text-left px-4 py-2 text-[11px] font-bold flex items-center gap-3 transition-colors ${sortBy === option.id ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                            className={`w-full text-left px-4 py-2 text-[11px] font-bold flex items-center gap-3 transition-colors ${sortBy === option.id ? (isNonVegTheme ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50') : 'text-gray-500 hover:bg-gray-50'}`}
                           >
                             <option.icon size={14} />
                             {option.label}
@@ -188,23 +189,25 @@ const ProductsCategory = () => {
 
               {/* Mobile Slot Pill / Desktop Detailed Sub-banner */}
               {selectedSlot && selectedSlot.date && (
-                <div className="flex items-center justify-between px-3 py-2 bg-emerald-50/50 border border-emerald-100 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 bg-emerald-100 rounded-lg text-emerald-600">
-                      <TrendingUp size={12} />
+                <div className={`flex items-center justify-between px-4 py-3 ${isNonVegTheme ? 'bg-red-50/70 border-red-100/50' : 'bg-emerald-50/70 border-emerald-100/50'} border rounded-2xl backdrop-blur-sm shadow-sm`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 ${isNonVegTheme ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'} rounded-xl shadow-inner`}>
+                      <TrendingUp size={16} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-emerald-800 leading-none">
-                        Active Slot: {selectedSlot.timeSlot} • {new Date(selectedSlot.date).toLocaleDateString()}
+                      <p className={`text-[12px] font-black ${isNonVegTheme ? 'text-red-800' : 'text-emerald-900'} leading-none uppercase tracking-wide`}>
+                        Active Schedule: {selectedSlot.timeSlot}
                       </p>
-                      <p className="text-[9px] text-emerald-600 font-medium mt-1">Available items filtered for this schedule</p>
+                      <p className={`text-[10px] ${isNonVegTheme ? 'text-red-600/80' : 'text-emerald-600/80'} font-bold mt-1.5`}>
+                        Showing items available for {new Date(selectedSlot.date).toLocaleDateString([], { day: 'numeric', month: 'long' })}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 shadow-sm relative z-10">
               <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">🔍</div>
               <h1 className="text-xl font-bold text-gray-900 mb-1">Category Not Found</h1>
               <p className="text-gray-500 text-xs">The requested collection doesn't exist.</p>
@@ -214,13 +217,13 @@ const ProductsCategory = () => {
 
         {/* Products Grid */}
         {sortedProducts.length > 0 ? (
-          <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-4 md:gap-6">
+          <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-4 md:gap-6 relative z-10">
             {sortedProducts.map(product => (
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
         ) : (searchCategory && !globalLoading) ? (
-          <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-300">
+          <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-300 relative z-10">
             <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">
               📦
             </div>

@@ -8,11 +8,12 @@ import { useAppContext } from '../../context/AppContext';
 /**
  * InstamartFloatingBar
  * Restored original design with icons on timeline + dynamic "Add ₹X more" text.
+ * Updated to be theme-aware (Red for Non-Veg, Emerald for Veg).
  */
 const InstamartFloatingBar = () => {
   const navigate = useNavigate();
   const { items, giftTier, availableOffers, calculateSubtotal, fetchOffers } = useCartStore();
-  const { serviceAreas, selectedAddress } = useAppContext();
+  const { serviceAreas, selectedAddress, isNonVegTheme } = useAppContext();
   
   const [isMinimized, setIsMinimized] = useState(false);
   
@@ -68,13 +69,13 @@ const InstamartFloatingBar = () => {
           initial={false}
           animate={{ 
             width: isMinimized ? 'auto' : '100%',
-            height: isMinimized ? '44px' : '64px' // Slightly taller to fit text + timeline
+            height: isMinimized ? '44px' : '64px'
           }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className={`relative flex items-center shadow-[0_10px_40px_rgba(0,0,0,0.4)] border border-white/30 backdrop-blur-md overflow-hidden rounded-2xl ${
-            subtotal >= deliveryThreshold 
-              ? 'bg-gradient-to-r from-emerald-600 to-green-700 shadow-emerald-500/20' 
-              : 'bg-gradient-to-r from-emerald-500 to-green-600 border-emerald-400/20'
+            isNonVegTheme 
+              ? (subtotal >= deliveryThreshold ? 'bg-gradient-to-r from-red-600 to-red-800 shadow-red-500/20' : 'bg-gradient-to-r from-red-500 to-red-600 border-red-400/20')
+              : (subtotal >= deliveryThreshold ? 'bg-gradient-to-r from-emerald-600 to-green-700 shadow-emerald-500/20' : 'bg-gradient-to-r from-emerald-500 to-green-600 border-emerald-400/20')
           }`}
         >
           {/* Main Content Wrapper */}
@@ -85,7 +86,11 @@ const InstamartFloatingBar = () => {
               className="flex items-center gap-2 flex-shrink-0 cursor-pointer active:scale-95 transition-transform" 
               onClick={(e) => { e.stopPropagation(); navigate('/cart'); }}
             >
-              <div className={`flex flex-col items-center justify-center p-1.5 min-w-[40px] rounded-xl border transition-colors ${subtotal >= deliveryThreshold ? 'bg-white/20 border-white/30' : 'bg-emerald-400/20 border-emerald-400/30'}`}>
+              <div className={`flex flex-col items-center justify-center p-1.5 min-w-[40px] rounded-xl border transition-colors ${
+                subtotal >= deliveryThreshold 
+                  ? 'bg-white/20 border-white/30' 
+                  : (isNonVegTheme ? 'bg-red-400/20 border-red-400/30' : 'bg-emerald-400/20 border-emerald-400/30')
+              }`}>
                 <ShoppingBag size={14} className="text-white" />
                 {!isMinimized && (
                   <motion.span 
@@ -131,7 +136,7 @@ const InstamartFloatingBar = () => {
 
                    {/* Original Timeline Design (Bottom) */}
                    <div className="relative w-full h-6 flex items-center px-1">
-                      <div className="absolute inset-x-0 h-1 bg-emerald-900/40 rounded-full" />
+                      <div className={`absolute inset-x-0 h-1 rounded-full ${isNonVegTheme ? 'bg-red-900/40' : 'bg-emerald-900/40'}`} />
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${progressPercent}%` }}
@@ -147,12 +152,23 @@ const InstamartFloatingBar = () => {
                           return (
                             <div key={idx} className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center" style={{ left: `${Math.min(pos, 100)}%` }}>
                               <motion.div 
-                                animate={{ scale: isAchieved ? 1.1 : 1, backgroundColor: isAchieved ? '#ffffff' : '#064e3b' }}
-                                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center -translate-x-1/2 transition-colors z-10 ${isAchieved ? 'border-white shadow-[0_0_10px_rgba(255,255,255,0.6)]' : 'border-emerald-800'}`}
+                                animate={{ 
+                                  scale: isAchieved ? 1.1 : 1, 
+                                  backgroundColor: isAchieved ? '#ffffff' : (isNonVegTheme ? '#7f1d1d' : '#064e3b') 
+                                }}
+                                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center -translate-x-1/2 transition-colors z-10 ${
+                                  isAchieved 
+                                    ? 'border-white shadow-[0_0_10px_rgba(255,255,255,0.6)]' 
+                                    : (isNonVegTheme ? 'border-red-900' : 'border-emerald-800')
+                                }`}
                               >
-                                 <MilestoneIcon size={8} className={`${isAchieved ? 'text-emerald-700 font-bold' : 'text-emerald-400 opacity-40'}`} />
+                                 <MilestoneIcon size={8} className={`${isAchieved ? (isNonVegTheme ? 'text-red-700' : 'text-emerald-700') : (isNonVegTheme ? 'text-red-300 opacity-40' : 'text-emerald-400 opacity-40')} font-bold`} />
                               </motion.div>
-                              <span className={`absolute -bottom-3.5 -translate-x-1/2 text-[6px] font-black uppercase tracking-tighter whitespace-nowrap ${isAchieved ? 'text-white' : 'text-emerald-900/40'}`}>
+                              <span className={`absolute -bottom-3.5 -translate-x-1/2 text-[6px] font-black uppercase tracking-tighter whitespace-nowrap ${
+                                isAchieved 
+                                  ? 'text-white' 
+                                  : (isNonVegTheme ? 'text-red-900/40' : 'text-emerald-900/40')
+                              }`}>
                                  {ms.label}
                               </span>
                             </div>

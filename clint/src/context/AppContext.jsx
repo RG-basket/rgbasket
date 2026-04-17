@@ -76,6 +76,7 @@ export const AppContextProvider = ({ children }) => {
   const [slotsCache, setSlotsCache] = useState(null);
   const [serviceAreas, setServiceAreas] = useState([]);
   const [isAppReady, setIsAppReady] = useState(false);
+  const [isNonVegTheme, setIsNonVegTheme] = useState(false);
 
   // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
   const formatTime = (timeStr) => {
@@ -1099,7 +1100,9 @@ export const AppContextProvider = ({ children }) => {
     // Service Areas
     serviceAreas,
     fetchServiceAreas,
-    isAppReady
+    isAppReady,
+    isNonVegTheme,
+    setIsNonVegTheme
   };
 
   return (

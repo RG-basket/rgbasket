@@ -1,6 +1,29 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 
+:root {
+  --brand-primary: #10b981; /* emerald-500 */
+  --brand-dark: #059669;    /* emerald-600 */
+  --brand-light: #ecfdf5;  /* emerald-50 */
+  --bg-site: #f9fafb;      /* gray-50 */
+}
+
+.theme-red {
+  --brand-primary: #ef4444; /* red-500 */
+  --brand-dark: #dc2626;    /* red-600 */
+  --brand-light: #fef2f2;  /* red-50 */
+  --bg-site: #fff5f5;      /* very light red */
+}
+
+/* Custom classes using the variables */
+.text-brand { color: var(--brand-primary); }
+.bg-brand { background-color: var(--brand-primary); }
+.border-brand { border-color: var(--brand-primary); }
+.text-brand-dark { color: var(--brand-dark); }
+.bg-brand-dark { background-color: var(--brand-dark); }
+.bg-brand-light { background-color: var(--brand-light); }
+.bg-site { background-color: var(--bg-site); }
+
 * {
   font-family: 'Outfit', sans-serif;
 }

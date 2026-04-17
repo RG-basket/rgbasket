@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAppContext } from '../../context/AppContext';
 
 const CategoryStrip = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isNonVegTheme } = useAppContext();
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null); // nothing clicked initially
 
@@ -66,7 +68,7 @@ const CategoryStrip = () => {
   }, [location]);
 
   return (
-    <div className="w-full border-b border-gray-200 bg-white/95 flex justify-center sticky top-[102px] md:top-[64px] z-30 backdrop-blur-md shadow-sm transform-gpu" style={{ backfaceVisibility: 'hidden' }}>
+    <div className="w-full border-b border-gray-100/50 bg-white/70 flex justify-center sticky top-[102px] md:top-[64px] z-30 backdrop-blur-xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transform-gpu" style={{ backfaceVisibility: 'hidden' }}>
       <div
         className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory whitespace-nowrap px-4 md:px-6 py-3 space-x-4 md:space-x-6"
         style={{ WebkitOverflowScrolling: 'touch' }}
@@ -77,13 +79,16 @@ const CategoryStrip = () => {
             navigate(`/products/all`);
             scrollTo(0, 0);
           }}
-          className={`relative inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs md:text-sm font-medium text-gray-700 transition-all duration-300 snap-start ${activeCategory === 'all' ? 'scale-[1.15] font-semibold text-emerald-800' : 'scale-100'
+          className={`relative inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all duration-500 snap-start 
+            ${activeCategory === 'all' 
+              ? `${isNonVegTheme ? 'text-red-700 bg-red-50/80 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'text-emerald-800 bg-emerald-50/80 shadow-[0_0_15px_rgba(16,185,129,0.1)]'} scale-110` 
+              : 'text-gray-500 hover:text-gray-900 bg-transparent hover:bg-gray-50/50'
             }`}
         >
           <span className="text-sm md:text-base">🛒</span>
           <span>All</span>
           {activeCategory === 'all' && (
-            <span className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 h-[6px] w-12 rounded-full bg-gradient-to-r from-emerald-500 to-lime-500 transition-transform duration-300 origin-center"></span>
+            <span className={`absolute bottom-[-1px] left-[20%] right-[20%] h-[2px] rounded-full bg-gradient-to-r ${isNonVegTheme ? 'from-red-500 to-orange-500' : 'from-emerald-500 to-lime-500'} animate-in fade-in zoom-in duration-500`}></span>
           )}
         </button>
 
@@ -97,14 +102,17 @@ const CategoryStrip = () => {
                 navigate(`/products/${item.slug}`);
                 scrollTo(0, 0);
               }}
-              className={`relative inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs md:text-sm font-medium text-gray-700 transition-all duration-300 snap-start ${isActive ? 'scale-[1.15] font-semibold text-emerald-800' : 'scale-100'
+              className={`relative inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] md:text-xs font-bold uppercase tracking-wider transition-all duration-500 snap-start 
+                ${isActive 
+                  ? `${isNonVegTheme ? 'text-red-700 bg-red-50/80 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'text-emerald-800 bg-emerald-50/80 shadow-[0_0_15px_rgba(16,185,129,0.1)]'} scale-110` 
+                  : 'text-gray-500 hover:text-gray-900 bg-transparent hover:bg-gray-50/50'
                 }`}
               style={{ animationDelay: `${index * 60}ms` }}
             >
               <span className="text-sm md:text-base">{item.emoji}</span>
               <span>{item.name}</span>
               {isActive && (
-                <span className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 h-[6px] w-12 rounded-full bg-gradient-to-r from-emerald-500 to-lime-500 transition-transform duration-300 origin-center"></span>
+                <span className={`absolute bottom-[-1px] left-[20%] right-[20%] h-[2px] rounded-full bg-gradient-to-r ${isNonVegTheme ? 'from-red-500 to-orange-500' : 'from-emerald-500 to-lime-500'} animate-in fade-in zoom-in duration-500`}></span>
               )}
             </button>
           );

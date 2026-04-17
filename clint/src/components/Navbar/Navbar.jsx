@@ -11,7 +11,7 @@ import AutoDetectLocation from "../Address/AutoDetectLocation";
 const MOBILE_BREAKPOINT = 768;
 
 const Navbar = ({ onLocationClick, onProfileToggle }) => {
-  const { getCartCount } = useAppContext();
+  const { getCartCount, isNonVegTheme } = useAppContext();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
   const navigate = useNavigate();
@@ -55,13 +55,13 @@ const Navbar = ({ onLocationClick, onProfileToggle }) => {
         alt="RG Basket Logo"
         className="w-8 h-8 md:w-10 md:h-10"
       />
-      <span>RG <span className="text-[#26544a]">Basket</span></span>
+      <span>RG <span className={isNonVegTheme ? "text-red-700" : "text-[#26544a]"}>Basket</span></span>
     </NavLink>
   );
 
   return (
     <>
-      <header className="w-full bg-white shadow-md z-[100] sticky top-0">
+      <header className={`w-full ${isNonVegTheme ? 'bg-red-50/95' : 'bg-white/95'} backdrop-blur-md shadow-md z-[100] sticky top-0 transition-colors duration-500`}>
 
         {/* Desktop Layout */}
         {!isMobile && (

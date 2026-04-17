@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import ProductCard from '../components/Products/ProductCard';
 import SEO from '../components/SEO/SEO.jsx';
+import CategoryBackground from '../components/Products/CategoryBackground.jsx';
 
 const Products = () => {
   const { products, searchQuery, selectedSlot } = useAppContext();
@@ -21,7 +22,8 @@ const Products = () => {
   }, [products, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-10 px-4 md:px-8 lg:px-16 pb-12">
+    <div className="min-h-screen bg-site pt-10 px-4 md:px-8 lg:px-16 pb-12 relative overflow-hidden">
+      <CategoryBackground category="all" />
       <SEO
         title="All Products - Best Grocery Collection"
         description="Browse our wide selection of fresh vegetables, fruits, dairy, and pantry staples. RG Basket delivers quality products at your doorstep."

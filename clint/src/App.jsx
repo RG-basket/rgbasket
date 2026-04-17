@@ -106,11 +106,28 @@ const App = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
   const isRiderPath = location.pathname.startsWith("/rider");
-  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady } = useAppContext();
+  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady, isNonVegTheme, setIsNonVegTheme } = useAppContext();
   const activeOrder = useCartStore(state => state.activeOrder);
   const syncActiveOrder = useCartStore(state => state.syncActiveOrder);
   const items = useCartStore(state => state.items);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Theme Detection logic
+  useEffect(() => {
+    const nonVegKeywords = ['poultry', 'mutton', 'fish', 'seafood', 'meat', 'chicken', 'egg', 'prawn'];
+    
+    // Check if current path is a product category or product details page
+    // Pattern: /products/category-name
+    const pathParts = location.pathname.split('/');
+    if (pathParts[1] === 'products' && pathParts[2]) {
+      const currentCategory = pathParts[2].toLowerCase();
+      // Use some/includes to match keywords within the slug
+      const isNonVeg = nonVegKeywords.some(kw => currentCategory.includes(kw));
+      setIsNonVegTheme(isNonVeg);
+    } else {
+      setIsNonVegTheme(false);
+    }
+  }, [location.pathname, setIsNonVegTheme]);
 
   // Calculate if cart has items (excluding gifts)
   const cartCount = items.filter(item => !item.isGift).reduce((sum, item) => sum + item.quantity, 0);
@@ -128,7 +145,7 @@ const App = () => {
   // as per requirements.
 
   return (
-    <div className="min-h-screen flex flex-col justify-between">
+    <div className={`min-h-screen flex flex-col justify-between transition-colors duration-500 bg-site ${isNonVegTheme ? 'theme-red' : 'theme-default'}`}>
       {/* GLOBAL BLINKIT-STYLE LOADER - Hidden on Admin Paths and Rider Paths */}
       {!isAdminPath && !isRiderPath && <BlinkitLoader isAppReady={isAppReady} />}
 

@@ -3,15 +3,14 @@ import React, { useState } from "react";
 import { useAppContext } from "../../context/AppContext.jsx";
 
 const NavIcon = ({ item, isActive, onClick, showBadge = false, icon: Icon }) => {
-  // ✅ Use cartCount directly from context
-  const { cartCount } = useAppContext();
+  const { cartCount, isNonVegTheme } = useAppContext();
   const [clickedIcon, setClickedIcon] = useState(null);
 
   const iconVariants = {
     initial: { scale: 1 },
     hover: { scale: 1.1, y: -2 },
     tap: { scale: 0.9 },
-    active: { scale: 1.15, color: "#26544a" },
+    active: { scale: 1.15, color: isNonVegTheme ? "#ef4444" : "#26544a" },
   };
 
   const badgeVariants = {
@@ -49,7 +48,7 @@ const NavIcon = ({ item, isActive, onClick, showBadge = false, icon: Icon }) => 
           variants={badgeVariants}
           initial="hidden"
           animate="visible"
-          className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] flex items-center justify-center shadow-md"
+          className={`absolute -top-2 -right-2 ${isNonVegTheme ? 'bg-gray-900 border-white' : 'bg-red-600'} text-white text-[10px] font-black rounded-full px-1.5 py-0.5 min-w-[20px] flex items-center justify-center shadow-lg border-2`}
         >
           {cartCount}
         </motion.span>
