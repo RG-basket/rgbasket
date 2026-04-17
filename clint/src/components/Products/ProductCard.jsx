@@ -224,8 +224,11 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     if (!product || !product._id || !product.name) return null;
     if (hideIfUnavailable && !isAvailable) return null;
 
+    // Show the "Next Available" block ONLY if it's actually found and item is generally in stock
+    const showNextSlotBlock = !isAvailable && isStockAvailable && nextSlotInfo;
+
     return (
-        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] h-full flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-70 grayscale-[0.3]' : (isNonVegTheme ? 'hover:border-red-200 hover:scale-[1.02]' : 'hover:border-emerald-200 hover:scale-[1.02]')} ${className}`}>
+        <div className={`bg-white rounded-xl border border-gray-100 p-2 w-full max-w-[150px] min-w-[140px] h-full flex flex-col shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden ${!isAvailable ? 'opacity-90' : (isNonVegTheme ? 'hover:border-red-200 hover:scale-[1.02]' : 'hover:border-emerald-200 hover:scale-[1.02]')} ${className}`}>
             {/* Badges Container */}
             <div className="absolute top-1.5 right-1.5 z-10 flex flex-col gap-1 pointer-events-none">
                 {!isStockAvailable ? (
@@ -238,7 +241,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                     </div>
                 ) : discount > 0 ? (
                     <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-xl shadow-sm">
-                        Save ₹{formatPrice(discount)}
+                        Save {CURRENCY}{formatPrice(discount)}
                     </div>
                 ) : null}
             </div>
@@ -255,7 +258,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                             src={imageError ? "https://placehold.co/400x400?text=No+Image" : imageUrl}
                             alt={product.name}
                             onError={handleImageError}
-                            className={`w-full h-full object-contain transition-transform duration-300 group-hover:scale-110 ${!isAvailable ? 'opacity-60' : ''}`}
+                            className={`w-full h-full object-contain transition-transform duration-300 group-hover:scale-110 ${!isAvailable ? 'opacity-60 grayscale-[0.2]' : ''}`}
                             loading="lazy"
                         />
                     ) : (
@@ -337,9 +340,46 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                     )}
                 </div>
 
-                {/* Add to Cart Button */}
+                {/* Combined Action Section */}
                 <div className="mt-auto pt-1.5" onClick={(e) => e.stopPropagation()}>
-                    {totalQuantity > 0 ? (
+                    {showNextSlotBlock ? (
+                        /* Next Available Slot Block (Replaces button when unavailable but available later) */
+                        <div className={`p-2 rounded-xl border border-dashed flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500 ${isNonVegTheme ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                            <div className="flex flex-col items-center text-center">
+                                <span className={`text-[8px] font-black uppercase tracking-wider ${isNonVegTheme ? 'text-red-500' : 'text-emerald-600'}`}>Next Available Slot</span>
+                                <div className={`text-[10px] font-bold ${isNonVegTheme ? 'text-red-700' : 'text-emerald-800'} leading-tight`}>
+                                    <div className="font-black">{new Date(nextSlotInfo.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
+                                    <div className="text-[9px] opacity-70">{nextSlotInfo.timeSlot.split(' (')[0]}</div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    validateAndSetSlot(nextSlotInfo, true);
+                                }}
+                                className={`w-full py-1.5 text-[10px] font-black uppercase rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 relative overflow-hidden group/glow ${
+                                    isNonVegTheme 
+                                    ? 'bg-red-600 text-white hover:bg-red-700 shadow-[0_0_15px_rgba(239,68,68,0.4)]' 
+                                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                                }`}
+                            >
+                                {/* Animated Glow Border */}
+                                <div className="absolute inset-0 bg-white/20 animate-pulse opacity-0 group-hover/glow:opacity-100 transition-opacity" />
+                                <span className="relative z-10">Select Slot</span>
+                                
+                                <style dangerouslySetInnerHTML={{ __html: `
+                                    @keyframes buttonGlow {
+                                        0%, 100% { box-shadow: 0 0 5px currentColor; }
+                                        50% { box-shadow: 0 0 20px currentColor; }
+                                    }
+                                    .group\/glow:hover {
+                                        animation: buttonGlow 1.5s infinite ease-in-out;
+                                    }
+                                `}} />
+                            </button>
+                        </div>
+                    ) : totalQuantity > 0 ? (
+                        /* Traditional Qty Controls */
                         <div className={`flex items-center justify-between border rounded-xl h-7 px-1 transition-all ${!isAvailable
                             ? 'bg-gray-100 border-gray-200'
                             : (isNonVegTheme ? 'bg-red-50 border-red-200' : 'bg-[#26544a]/5 border-[#26544a]/20')}`}>
@@ -366,6 +406,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                             </button>
                         </div>
                     ) : (
+                        /* Standard Add Button OR Simple Unavailable Placeholder if NO next slot */
                         <button
                             onClick={(e) => handleCartAction(e, () => addToCart(`${product._id}_${selectedWeightIndex}`, 1))}
                             disabled={!isAvailable}
