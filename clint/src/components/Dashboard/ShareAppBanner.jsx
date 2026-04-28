@@ -1,9 +1,11 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppContext } from '../../context/AppContext';
+import { useNavigate } from 'react-router-dom';
+import { FaCoins } from 'react-icons/fa';
 
 // Lazy load icons
 const Share2 = lazy(() => import('lucide-react').then(module => ({ default: module.Share2 })));
-const Heart = lazy(() => import('lucide-react').then(module => ({ default: module.Heart })));
 const MessageCircle = lazy(() => import('lucide-react').then(module => ({ default: module.MessageCircle })));
 
 // Skeleton components
@@ -16,26 +18,33 @@ const ButtonSkeleton = () => (
 );
 
 const ShareAppBanner = () => {
+  const { user, rewardSettings } = useAppContext();
+  const navigate = useNavigate();
   const [showShare, setShowShare] = useState(false);
-  const [emoji, setEmoji] = useState('👋');
+  const [emoji, setEmoji] = useState('🎁');
   const [isSupported, setIsSupported] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const appUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const shareText = "Check out RGBasket! 🛒 Fresh groceries at insane prices. Your go-to for veggies, fruits, meats & more!";
+  const referralCode = user?.referralCode || '';
+  const appUrl = window.location.origin + (referralCode ? `?ref=${referralCode}` : '');
+  const referralReward = rewardSettings?.referralRewardCoins || 500;
+
+  const shareText = referralCode 
+    ? `Hey! Shop fresh groceries on RG Basket using my code ${referralCode} and we both get rewards! 🛒✨`
+    : "Check out RG Basket! 🛒 Fresh groceries at insane prices. Your go-to for veggies, fruits, meats & more!";
 
   // Initialize component after mount
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
-  // Rotate emojis when idle - optimized with requestAnimationFrame
+  // Rotate emojis when idle
   useEffect(() => {
     if (!isLoaded || isSupported) return;
 
     let animationFrameId;
     let lastUpdate = 0;
-    const emojis = ['👋', '🤔', '👀', '💭', '🛒', '🚚'];
+    const emojis = ['🎁', '🪙', '✨', '🤝', '🛒', '🚚'];
     let currentIndex = 0;
 
     const updateEmoji = (timestamp) => {
@@ -67,7 +76,7 @@ const ShareAppBanner = () => {
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'RGBasket', text: shareText, url: appUrl });
+        await navigator.share({ title: 'RG Basket Referral', text: shareText, url: appUrl });
         handleSupport();
       } catch (error) {
         // Silent fail for cancelled shares
@@ -80,7 +89,7 @@ const ShareAppBanner = () => {
   const handleSupport = () => {
     if (!isLoaded) return;
     setIsSupported(true);
-    setEmoji('❤️');
+    setEmoji('✅');
   };
 
   const shareActions = [
@@ -103,7 +112,6 @@ const ShareAppBanner = () => {
           setShowShare(false);
           handleSupport();
         } catch (error) {
-          // Fallback for clipboard
           const textArea = document.createElement('textarea');
           textArea.value = appUrl;
           document.body.appendChild(textArea);
@@ -114,25 +122,20 @@ const ShareAppBanner = () => {
           handleSupport();
         }
       },
-      color: 'bg-gradient-to-r from-emerald-500 to-lime-500 hover:from-emerald-600 hover:to-lime-600'
+      color: 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
     }
   ];
 
-  // Skeleton loader
   if (!isLoaded) {
     return (
-      <div className="w-full bg-gradient-to-r from-emerald-50 via-lime-50 to-white border-b border-emerald-200 px-4 py-3">
+      <div className="w-full bg-amber-50 border-b border-amber-100 px-4 py-3 md:py-6">
         <div className="flex items-center justify-between gap-3 max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-8 h-8 bg-gray-300 rounded-full animate-pulse" />
-            <div className="space-y-2 flex-1">
-              <div className="h-4 bg-gray-300 rounded animate-pulse w-3/4" />
-              <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+          <div className="flex items-center gap-2 flex-1">
+            <div className="w-8 h-8 bg-amber-200 rounded-full animate-pulse" />
+            <div className="space-y-1 flex-1">
+              <div className="h-3 bg-amber-200 rounded animate-pulse w-3/4" />
+              <div className="h-2 bg-amber-100 rounded animate-pulse w-1/2" />
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <ButtonSkeleton />
-            <ButtonSkeleton />
           </div>
         </div>
       </div>
@@ -141,101 +144,79 @@ const ShareAppBanner = () => {
 
   return (
     <>
-      {/* Main Banner - Always Visible */}
       <motion.div
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="w-full bg-gradient-to-r from-emerald-50 via-lime-50 to-white border-b border-emerald-200 px-4 py-3 relative overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="w-full bg-amber-50/90 border-b border-amber-200/50 px-4 py-2 md:py-6 relative overflow-hidden backdrop-blur-sm"
       >
-        <div className="flex items-center justify-between gap-3 max-w-6xl mx-auto">
-          {/* Message & Emoji */}
-          <div className="flex items-center gap-3 flex-1">
-            <motion.span 
+        {/* Visual flares */}
+        <div className="absolute top-0 right-0 w-32 h-32 md:w-64 md:h-64 bg-amber-200/40 rounded-full blur-2xl md:blur-3xl -mr-16 -mt-16" />
+        
+        {/* Animated Background Sparkles - More visible on desktop */}
+        <div className="absolute inset-0 pointer-events-none hidden md:block">
+            <motion.div animate={{ opacity: [0.1, 0.4, 0.1], y: [0, -20, 0] }} transition={{ duration: 4, repeat: Infinity }} className="absolute top-4 left-1/4 text-xl">✨</motion.div>
+            <motion.div animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.2, 1] }} transition={{ duration: 5, repeat: Infinity, delay: 1 }} className="absolute top-10 right-1/4 text-2xl">🪙</motion.div>
+            <motion.div animate={{ opacity: [0.1, 0.4, 0.1], x: [0, 20, 0] }} transition={{ duration: 6, repeat: Infinity, delay: 2 }} className="absolute bottom-4 left-1/3 text-lg">✨</motion.div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 max-w-6xl mx-auto relative z-10">
+          {/* Left: Gold Theme Text */}
+          <div className="flex items-center gap-2 md:gap-5 min-w-0 flex-1">
+            <motion.div 
               animate={{ 
-                scale: isSupported ? [1, 1.3, 1] : [1, 1.1, 1],
-                rotate: isSupported ? [0, 10, -10, 0] : 0
+                boxShadow: [
+                  "0 0 0 0px rgba(251, 191, 36, 0)",
+                  "0 0 0 10px rgba(251, 191, 36, 0.1)",
+                  "0 0 0 0px rgba(251, 191, 36, 0)"
+                ]
               }}
-              transition={{ duration: isSupported ? 0.6 : 2, repeat: isSupported ? 0 : Infinity }}
-              className="text-2xl"
+              transition={{ duration: 2, repeat: Infinity }}
+              className="flex-shrink-0 w-7 h-7 md:w-16 md:h-16 rounded-full bg-gradient-to-tr from-yellow-400 via-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg ring-2 md:ring-4 ring-amber-100 relative overflow-hidden"
             >
-              {emoji}
-            </motion.span>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">
-                {isSupported ? (
-                  <>Thanks for supporting <span className="text-pink-500">RGBasket</span>! 💝</>
-                ) : (
-                  <>Love <span className="text-emerald-600">RGBasket</span>? Help us grow!</>
-                )}
-              </p>
-              <p className="text-xs text-gray-600 hidden sm:block">
-                {isSupported 
-                  ? "You're awesome! Share with more friends 🚀" 
-                  : "Share with friends who'd love fresh, affordable groceries 🛒"
-                }
+              <span className="text-[9px] md:text-2xl font-black drop-shadow-md relative z-10 uppercase">RG</span>
+              {/* Shine effect overlay */}
+              <motion.div 
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+                className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12"
+              />
+            </motion.div>
+            <div className="min-w-0">
+              <h4 className="text-[8.5px] md:text-2xl font-black text-amber-900 leading-none uppercase md:normal-case tracking-tighter truncate">
+                {isSupported ? "Link Shared! ✅" : `Refer & Earn ${referralReward} Coins`}
+              </h4>
+              <p className="text-[6px] md:text-sm font-black md:font-medium text-orange-600/80 md:text-gray-500 uppercase md:normal-case tracking-widest md:tracking-normal leading-none mt-0.5 md:mt-2 truncate">
+                {isSupported ? "Reward after friend's 1st order 🎁" : "Click Invite & Earn ✨"}
               </p>
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <motion.span
-              whileHover={!isSupported ? { scale: 1.05 } : {}}
-              whileTap={!isSupported ? { scale: 0.95 } : {}}
-              onClick={handleSupport}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-semibold transition-all ${
-                isSupported 
-                  ? 'bg-pink-500 border-pink-500 text-white cursor-default' 
-                  : 'bg-white border-lime-300 text-lime-700 hover:bg-lime-50'
-              }`}
+          {/* Right: Compact Action Grid */}
+          <div className="flex items-center gap-1.5 md:gap-4 flex-shrink-0">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/profile', { state: { openRules: true } })}
+              className="px-2.5 md:px-6 py-1 md:py-3 bg-white/60 md:bg-white text-amber-800 rounded-lg md:rounded-2xl text-[8px] md:text-sm font-black uppercase tracking-widest border border-amber-200 active:scale-95 transition-all shadow-sm"
             >
-              <Suspense fallback={<IconSkeleton />}>
-                <motion.div
-                  animate={isSupported ? { scale: [1, 1.5, 1] } : {}}
-                  transition={{ duration: 0.5 }}
-                >
-                  <Heart size={16} fill={isSupported ? "currentColor" : "none"} />
-                </motion.div>
-              </Suspense>
-              <span className="hidden sm:inline">
-                {isSupported ? 'Supported!' : 'Support'}
-              </span>
-            </motion.span>
+              Rules
+            </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleShare}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                isSupported
-                  ? 'bg-pink-400 text-white hover:bg-pink-500'
-                  : 'bg-gradient-to-r from-emerald-500 to-lime-500 text-white hover:shadow-lg'
-              }`}
+              className="flex items-center gap-1 md:gap-3 px-3 md:px-8 py-1 md:py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg md:rounded-2xl text-[8px] md:text-sm font-black uppercase tracking-widest shadow-xl shadow-amber-200 active:scale-95 transition-all border border-amber-400"
             >
               <Suspense fallback={<IconSkeleton />}>
-                <Share2 size={16} />
+                <Share2 className="w-3 h-3 md:w-5 md:h-5" strokeWidth={3} />
               </Suspense>
-              <span className="hidden sm:inline">Share</span>
+              <span>Invite</span>
             </motion.button>
           </div>
         </div>
-
-        {/* Optimized Background Animation */}
-        <motion.div
-          animate={{ x: [0, 100, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-          className="absolute top-0 left-0 w-20 h-20 bg-emerald-200/30 rounded-full blur-xl -translate-y-10"
-          style={{ willChange: 'transform' }}
-        />
-        <motion.div
-          animate={{ x: [0, -80, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "linear", delay: 1 }}
-          className="absolute bottom-0 right-0 w-24 h-24 bg-lime-200/30 rounded-full blur-xl translate-y-8"
-          style={{ willChange: 'transform' }}
-        />
       </motion.div>
 
-      {/* Share Modal */}
       <AnimatePresence>
         {showShare && (
           <>
@@ -243,20 +224,23 @@ const ShareAppBanner = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-4"
               onClick={() => setShowShare(false)}
             />
-            
+
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-emerald-200 overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[101] w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-amber-100"
             >
-              <div className="p-6">
-                <div className="text-center mb-4">
-                  <h3 className="text-lg font-bold text-gray-800">Share the Love! 💫</h3>
-                  <p className="text-sm text-gray-600 mt-1">Help friends discover RGBasket</p>
+              <div className="p-8">
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-100 shadow-inner animate-bounce">
+                    <FaCoins size={32} />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none uppercase">Spread the Word 🪙</h3>
+                  <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-2">Earn {referralReward} Coins per friend ✨</p>
                 </div>
 
                 <div className="space-y-3">
@@ -269,24 +253,22 @@ const ShareAppBanner = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={item.action}
-                      className={`w-full flex items-center gap-3 p-3 text-white rounded-xl font-semibold transition-all ${item.color}`}
+                      className={`w-full flex items-center justify-center gap-3 p-4 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg ${item.color}`}
                     >
                       <Suspense fallback={<IconSkeleton />}>
-                        <item.icon size={20} />
+                        <item.icon size={18} strokeWidth={3} />
                       </Suspense>
-                      <span>Share via {item.label}</span>
+                      <span>{item.label}</span>
                     </motion.button>
                   ))}
                 </div>
 
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-xs text-center text-gray-500 mt-4"
-                >
-                  Every share helps us serve more fresh groceries! 🌱
-                </motion.p>
+                <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+                    Coins added automatically <br/>
+                    after successful order 🪙✨
+                  </p>
+                </div>
               </div>
             </motion.div>
           </>

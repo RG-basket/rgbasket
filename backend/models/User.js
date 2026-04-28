@@ -76,9 +76,41 @@ const UserSchema = new mongoose.Schema({
   browsingActivity: {
     type: Date,
     default: Date.now
+  },
+  // RG Coin System
+  rgCoins: {
+    type: Number,
+    default: 0
+  },
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true // Allows multiple nulls if we don't generate it immediately
+  },
+  referredBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User',
+  default: null
+  },
+  deviceId: {
+    type: String,
+    default: null
+  },
+  lastIp: {
+    type: String,
+    default: null
   }
-}, {
+  }, {
   timestamps: true // This automatically adds `createdAt` and `updatedAt` fields
+  });
+
+// Middleware to generate referral code before saving if not present
+UserSchema.pre('save', function (next) {
+  if (!this.referralCode) {
+    // Generate a simple 8-character alphanumeric code
+    this.referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+  }
+  next();
 });
 
 // Create the model from the schema

@@ -4,32 +4,32 @@ import toast from 'react-hot-toast';
 import debounce from 'lodash/debounce';
 import { useAppContext } from '../../context/AppContext';
 
-const AddressForm = ({ user, onAddressSaved, onCancel }) => {
+const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
   const { serviceAreas } = useAppContext();
   const [formData, setFormData] = useState({
-    fullName: '',
-    phoneNumber: '',
-    confirmPhoneNumber: '',
-    alternatePhone: '',
-    street: '',
-    locality: '',
-    city: '',
-    state: '',
-    pincode: '',
-    landmark: '',
-    isDefault: true
+    fullName: initialData?.fullName || '',
+    phoneNumber: initialData?.phoneNumber || '',
+    confirmPhoneNumber: initialData?.phoneNumber || '',
+    alternatePhone: initialData?.alternatePhone || '',
+    street: initialData?.street || '',
+    locality: initialData?.locality || '',
+    city: initialData?.city || '',
+    state: initialData?.state || '',
+    pincode: initialData?.pincode || '',
+    landmark: initialData?.landmark || '',
+    isDefault: initialData?.isDefault ?? true
   });
 
   const [loading, setLoading] = useState(false);
-  const [pincodeStatus, setPincodeStatus] = useState(null);
+  const [pincodeStatus, setPincodeStatus] = useState(initialData?.pincode ? 'valid' : null);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const [showBudgetPopup, setShowBudgetPopup] = useState(true);
+  const [showBudgetPopup, setShowBudgetPopup] = useState(initialData ? false : true);
 
   // Phone validation state
   const [phoneValidation, setPhoneValidation] = useState({
-    status: 'idle', // 'idle' | 'valid' | 'invalid' | 'checking'
-    message: '',
-    showValidation: false // Only show validation after user has interacted
+    status: initialData?.phoneNumber ? 'valid' : 'idle',
+    message: initialData?.phoneNumber ? 'Phone numbers match ✓' : '',
+    showValidation: initialData?.phoneNumber ? true : false
   });
 
   // Debounced phone validation function
@@ -135,15 +135,53 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
     }
   };
 
-  // Set user name when component mounts
+  // Synchronize form when initialData changes (handles Add vs Edit)
   useEffect(() => {
-    if (user?.name) {
-      setFormData(prev => ({
-        ...prev,
-        fullName: user.name
-      }));
+    if (initialData) {
+      setFormData({
+        fullName: initialData.fullName || '',
+        phoneNumber: initialData.phoneNumber || '',
+        confirmPhoneNumber: initialData.phoneNumber || '',
+        alternatePhone: initialData.alternatePhone || '',
+        street: initialData.street || '',
+        locality: initialData.locality || '',
+        city: initialData.city || '',
+        state: initialData.state || '',
+        pincode: initialData.pincode || '',
+        landmark: initialData.landmark || '',
+        isDefault: initialData.isDefault ?? true
+      });
+      setPincodeStatus('valid');
+      setPhoneValidation({
+        status: 'valid',
+        message: 'Phone numbers match ✓',
+        showValidation: true
+      });
+      setShowBudgetPopup(false);
+    } else {
+      // Reset for NEW address
+      setFormData({
+        fullName: user?.name || '',
+        phoneNumber: '',
+        confirmPhoneNumber: '',
+        alternatePhone: '',
+        street: '',
+        locality: '',
+        city: '',
+        state: '',
+        pincode: '',
+        landmark: '',
+        isDefault: true
+      });
+      setPincodeStatus(null);
+      setPhoneValidation({
+        status: 'idle',
+        message: '',
+        showValidation: false
+      });
+      setShowBudgetPopup(true);
     }
-  }, [user]);
+  }, [initialData, user]);
 
   // Auto-detect location and fill landmark
   useEffect(() => {
@@ -359,8 +397,14 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
         user: userId
       };
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/addresses`, {
-        method: 'POST',
+      const url = initialData?._id 
+        ? `${import.meta.env.VITE_API_URL}/api/addresses/${initialData._id}`
+        : `${import.meta.env.VITE_API_URL}/api/addresses`;
+      
+      const method = initialData?._id ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -380,7 +424,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
       }
 
       if (data.success) {
-        toast.success('Address saved successfully!');
+        toast.success(initialData?._id ? 'Address updated successfully!' : 'Address saved successfully!');
         onAddressSaved(data.address);
       } else {
         throw new Error(data.message || 'Failed to save address');
@@ -395,7 +439,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
 
         if (userId) {
           const addressData = {
-            _id: 'addr_' + Date.now(),
+            _id: initialData?._id || 'addr_' + Date.now(),
             fullName: formData.fullName,
             phoneNumber: formData.phoneNumber,
             alternatePhone: formData.alternatePhone,
@@ -407,19 +451,29 @@ const AddressForm = ({ user, onAddressSaved, onCancel }) => {
             landmark: formData.landmark,
             isDefault: formData.isDefault,
             user: userId,
-            createdAt: new Date().toISOString(),
+            createdAt: initialData?.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
 
-          const existingAddresses = JSON.parse(localStorage.getItem('userAddresses') || '[]');
+          let existingAddresses = JSON.parse(localStorage.getItem('userAddresses') || '[]');
+          
           if (addressData.isDefault) {
             existingAddresses.forEach(addr => {
               if (addr.user === userId) addr.isDefault = false;
             });
           }
 
-          const newAddresses = [...existingAddresses, addressData];
-          localStorage.setItem('userAddresses', JSON.stringify(newAddresses));
+          if (initialData?._id) {
+            // Update existing in local storage
+            existingAddresses = existingAddresses.map(addr => 
+              addr._id === initialData._id ? addressData : addr
+            );
+          } else {
+            // Add new to local storage
+            existingAddresses.push(addressData);
+          }
+          
+          localStorage.setItem('userAddresses', JSON.stringify(existingAddresses));
 
           toast.success('Address saved successfully! (Saved locally)');
           onAddressSaved(addressData);

@@ -5,6 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 /**
  * PricingSummary
  * Updated to be theme-aware (Red for Non-Veg, Emerald for Veg).
+ * Includes Wallet Debt Recovery logic.
  */
 const PricingSummary = ({
     subtotal,
@@ -20,7 +21,9 @@ const PricingSummary = ({
     standardFee = 29,
     distanceSurcharge = 0,
     tipAmount = 0,
-    instruction = ""
+    instruction = "",
+    coinDiscount = 0,
+    coinDebtRecovery = 0
 }) => {
     const { isNonVegTheme } = useAppContext();
     const [isExpanded, setIsExpanded] = useState(false);
@@ -50,7 +53,7 @@ const PricingSummary = ({
     return (
         <div ref={summaryRef} className={`text-gray-700 space-y-2 sm:space-y-3 mb-4 sm:mb-6 text-sm`}>
             {/* Collapsible Pricing Details */}
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'}`}>
                 {/* Total MRP */}
                 <div className="flex justify-between text-gray-500 pt-2">
                     <span>Original Price (MRP)</span>
@@ -77,12 +80,34 @@ const PricingSummary = ({
                     </div>
                 )}
 
+                {/* RG Coin Discount */}
+                {coinDiscount > 0 && (
+                    <div className={`flex justify-between text-amber-700 font-medium bg-amber-50/50 p-1.5 rounded-lg border border-amber-200 border-dashed mt-2 animate-in slide-in-from-right-2 duration-500`}>
+                        <span className="flex items-center gap-2">
+                            <span className={`w-2 h-2 bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.6)]`} />
+                            RG Coins Applied 🪙
+                        </span>
+                        <span>- {currencySymbol}{coinDiscount.toFixed(2)}</span>
+                    </div>
+                )}
+
+                {/* RG Coin Debt Recovery (Wallet Surcharge) */}
+                {coinDebtRecovery > 0 && (
+                    <div className={`flex justify-between text-rose-700 font-medium bg-rose-50/50 p-1.5 rounded-lg border border-rose-200 border-dashed mt-2 animate-in slide-in-from-right-2 duration-500`}>
+                        <span className="flex items-center gap-2">
+                            <span className={`w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]`} />
+                            Wallet Adjustment (Debt)
+                        </span>
+                        <span>+ {currencySymbol}{coinDebtRecovery.toFixed(2)}</span>
+                    </div>
+                )}
+
                 <hr className={`border-${accentColor}-100 my-2 border-dashed`} />
 
                 {/* Subtotal */}
                 <div className="flex justify-between font-medium">
                     <span>Items Subtotal</span>
-                    <span className="font-bold text-gray-900">{currencySymbol}{(subtotal - discountAmount).toFixed(2)}</span>
+                    <span className="font-bold text-gray-900">{currencySymbol}{(subtotal - discountAmount - coinDiscount + coinDebtRecovery).toFixed(2)}</span>
                 </div>
 
                 {/* Convenience Fee Split */}
@@ -165,10 +190,10 @@ const PricingSummary = ({
                     <span className={`text-${themeColor}-700 font-extrabold text-2xl sm:text-3xl tracking-tighter`}>
                         {currencySymbol}{totalAmount.toFixed(2)}
                     </span>
-                    {!isExpanded && totalSavings > 0 && (
+                    {!isExpanded && (totalSavings + coinDiscount) > 0 && (
                         <p className={`text-[10px] font-bold text-${themeColor}-600 flex items-center justify-end gap-1`}>
                             <span className={`w-1.5 h-1.5 bg-${themeColor}-500 rounded-full animate-pulse`} />
-                            Saved {currencySymbol}{totalSavings.toFixed(2)}
+                            Saved {currencySymbol}{(totalSavings + coinDiscount).toFixed(2)}
                         </p>
                     )}
                 </div>

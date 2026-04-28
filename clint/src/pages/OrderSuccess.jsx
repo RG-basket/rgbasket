@@ -26,14 +26,25 @@ const OrderSuccess = () => {
           const deliveryDate = new Date(order.deliveryDate || Date.now());
           const dateString = deliveryDate.toISOString().split('T')[0];
 
-          window.gapi.surveyoptin.render({
+          // Filter only items that have a valid GTIN to avoid console errors
+          const validProducts = (order.items || [])
+            .filter(item => item.gtin && item.gtin.length >= 8)
+            .map(item => ({ "gtin": item.gtin }));
+
+          const surveyConfig = {
             "merchant_id": 5701308546,
             "order_id": order._id || order.id,
             "email": order.userInfo.email,
             "delivery_country": "IN",
-            "estimated_delivery_date": dateString,
-            "products": (order.items || []).map(item => ({ "gtin": item.gtin || "" }))
-          });
+            "estimated_delivery_date": dateString
+          };
+
+          // Only add products array if we actually have GTINs
+          if (validProducts.length > 0) {
+            surveyConfig.products = validProducts;
+          }
+
+          window.gapi.surveyoptin.render(surveyConfig);
         });
       };
 

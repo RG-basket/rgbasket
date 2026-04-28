@@ -36,7 +36,7 @@ const AddressSection = ({
                         )}
                     </div>
                     <p className="text-gray-600 text-xs sm:text-sm mb-1">{selectedAddress.street}</p>
-                    <p className="text-gray-600 text-xs sm:text-sm mb-1">{selectedAddress.locality}, {selectedAddress.city}</p>
+                    <p className="text-gray-600 text-xs sm:text-sm mb-1">{selectedAddress.locality}, {selectedAddress.city} - {selectedAddress.pincode}</p>
                     <p className="text-gray-600 text-xs sm:text-sm">📞 {selectedAddress.phoneNumber}</p>
                     {selectedAddress.alternatePhone && (
                         <p className="text-gray-600 text-xs sm:text-sm">📞 {selectedAddress.alternatePhone} (Alt)</p>

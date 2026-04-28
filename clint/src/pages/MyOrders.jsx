@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Check, Calendar, Clock } from 'lucide-react';
+import { useAppContext } from "../context/AppContext";
 
 const MyOrders = () => {
+  const { refreshUserCoins } = useAppContext();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -220,6 +222,8 @@ const MyOrders = () => {
 
       await response.json();
       await fetchUserOrders();
+      await refreshUserCoins();
+      toast.success('Order cancelled. Coins refunded to wallet! 🪙');
 
       setError('');
       setShowCancelConfirm(false);
@@ -277,6 +281,8 @@ const MyOrders = () => {
 
       await response.json();
       await fetchUserOrders();
+      await refreshUserCoins();
+      toast.success('Order Received! Cashback coins added to your wallet! 🪙✨');
 
       setError('');
       setShowDeliveryConfirm(false);
@@ -592,6 +598,7 @@ const MyOrders = () => {
         <div class="total-row"><span>Subtotal:</span><span>₹${order.subtotal.toFixed(2)}</span></div>
         <div class="total-row"><span>Shipping Fee:</span><span>₹${order.shippingFee.toFixed(2)}</span></div>
         ${order.discountAmount > 0 ? `<div class="total-row" style="color: #059669;"><span>Discount:</span><span>-₹${order.discountAmount.toFixed(2)}</span></div>` : ''}
+        ${order.coinDiscount > 0 ? `<div class="total-row" style="color: #b45309;"><span>RG Coins Used:</span><span>-₹${order.coinDiscount.toFixed(2)}</span></div>` : ''}
         <div class="total-row final"><span>TOTAL AMOUNT:</span><span>₹${order.totalAmount.toFixed(2)}</span></div>
       </div>
 
@@ -921,13 +928,37 @@ const MyOrders = () => {
                                     <span>- ₹{order.discountAmount?.toFixed(2)}</span>
                                   </div>
                                 )}
+
+                                {order.coinDiscount > 0 && (
+                                  <div className="flex justify-between text-xs font-bold text-amber-600">
+                                    <span className="flex items-center gap-1">RG Coins 🪙</span>
+                                    <span>- ₹{order.coinDiscount?.toFixed(2)}</span>
+                                  </div>
+                                )}
                                 <div className="pt-3 border-t-2 border-gray-200 space-y-2">
                                   <div className="flex justify-between items-center">
                                     <span className="text-sm font-black text-gray-900">Total Amount</span>
                                     <span className="text-lg font-black text-emerald-700">₹{order.totalAmount?.toFixed(2)}</span>
                                   </div>
-                                  <div className="bg-gray-50 px-3 py-2 rounded-lg">
-                                    <p className="text-[10px] text-gray-500 font-medium">Paid via {order.paymentMethod?.replace(/_/g, ' ')}</p>
+                                  <div className="bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-100 flex flex-col gap-2">
+                                    <div className="flex justify-between items-center">
+                                      <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Payment Method</p>
+                                      <p className="text-[10px] text-slate-700 font-black uppercase tracking-tight bg-slate-200/50 px-2 py-0.5 rounded-md">
+                                        {order.paymentMethod?.replace(/_/g, ' ')}
+                                      </p>
+                                    </div>
+                                    
+                                    {order.status === 'delivered' && (
+                                      <div className="flex justify-between items-center pt-2 border-t border-gray-200/50">
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center text-[10px]">🪙</div>
+                                          <p className="text-[10px] text-amber-700 font-black uppercase tracking-widest">RG Coins Earned</p>
+                                        </div>
+                                        <p className="text-xs font-black text-amber-600 animate-pulse">
+                                          +{order.coinsEarned || 0} Coins
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>

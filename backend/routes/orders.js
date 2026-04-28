@@ -176,10 +176,12 @@ router.put('/admin/orders/bulk-status', authenticateAdmin, async (req, res) => {
           };
         }
 
-        // Handle Stock & Promo reversion if status is changing TO 'cancelled' from a non-cancelled status
+        // Handle Stock, Promo & Coins reversion if status is changing TO 'cancelled' from a non-cancelled status
         if (status === 'cancelled' && oldOrder.status !== 'cancelled') {
           try {
-            // Revert Stock
+            const CoinService = require('../services/CoinService');
+
+            // 1. Revert Stock
             const itemsToRevert = oldOrder.items.map(item => ({
               productId: item.productId,
               quantity: item.quantity
@@ -188,17 +190,39 @@ router.put('/admin/orders/bulk-status', authenticateAdmin, async (req, res) => {
               await orderSvc.updateProductInventory(itemsToRevert, 'increment');
             }
 
-            // Revert Promo Usage
+            // 2. Revert Promo Usage
             if (oldOrder.promoCode) {
               await promoModel.revertUsageAtomic(oldOrder.promoCode, oldOrder.user, orderId);
             }
+
+            // 3. Revert Earned Coins (removal)
+            if (oldOrder.coinsEarned > 0) {
+              await CoinService.revertEarnedCoins(oldOrder);
+            }
+
+            // 4. Refund Spent Coins
+            if (oldOrder.coinsUsed > 0) {
+              await CoinService.revertSpentCoins(oldOrder);
+            }
+
+            // 5. RECURSIVE REVERSAL: Claw back referral bonuses
+            await CoinService.revertReferralBonus(orderId);
+
+            // 6. Send Telegram Notification
+            TelegramService.sendOrderCancellationNotification(oldOrder, 'Cancelled by Admin (Bulk Update)').catch(() => {});
           } catch (ResourceError) {
             console.error(`[Bulk-Admin] Resource reversion failed for ${orderId}:`, ResourceError.message);
-            // Non-critical, continue update
           }
         }
 
-        await Order.findByIdAndUpdate(orderId, updateData);
+        const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true });
+        
+        // Award RG Coins if marking as delivered and NOT already earned
+        if (status === 'delivered' && (!updatedOrder.coinsEarned || updatedOrder.coinsEarned === 0)) {
+          const CoinService = require('../services/CoinService');
+          await CoinService.awardOrderCoins(updatedOrder).catch(e => console.error('[Bulk] Coin award failed'));
+        }
+
         results.push(orderId);
       } catch (err) {
         console.error(`Error in bulk update for order ${orderId}:`, err);
@@ -381,13 +405,14 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
       console.log(`[Admin] Resetting delivery data and deleting Cloudinary image for order ${orderId}`);
     }
 
-    // Handle Stock & Promo reversion if status is changing TO 'cancelled' from a non-cancelled status
+    // Handle Stock, Promo & Coins reversion if status is changing TO 'cancelled' from a non-cancelled status
     if (status === 'cancelled' && oldOrder.status !== 'cancelled') {
       try {
         const OrderService = require('../services/OrderService');
         const PromoCode = require('../models/PromoCode');
+        const CoinService = require('../services/CoinService');
 
-        // Revert Stock
+        // 1. Revert Stock
         const itemsToRevert = oldOrder.items.map(item => ({
           productId: item.productId,
           quantity: item.quantity
@@ -397,11 +422,26 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
           console.log(`[Admin] Reverted stock for cancelled order ${orderId}`);
         }
 
-        // Revert Promo Usage
+        // 2. Revert Promo Usage
         if (oldOrder.promoCode) {
           await PromoCode.revertUsageAtomic(oldOrder.promoCode, oldOrder.user, orderId);
           console.log(`[Admin] Reverted promo usage for cancelled order ${orderId}`);
         }
+
+        // 3. Revert Earned Coins (Cashback removal)
+        if (oldOrder.coinsEarned > 0) {
+          await CoinService.revertEarnedCoins(oldOrder);
+          console.log(`[Admin] Reverted earned coins for cancelled order ${orderId}`);
+        }
+
+        // 4. Refund Spent Coins (Redemption refund)
+        if (oldOrder.coinsUsed > 0) {
+          await CoinService.revertSpentCoins(oldOrder);
+          console.log(`[Admin] Refunded spent coins for cancelled order ${orderId}`);
+        }
+
+        // 5. RECURSIVE REVERSAL: Claw back referral bonuses
+        await CoinService.revertReferralBonus(orderId);
       } catch (err) {
         console.error('[Admin] Resource reversion failed during cancellation:', err);
       }
@@ -414,6 +454,17 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
     );
 
     console.log(`✅ Order ${orderId} status updated to:`, status);
+
+    // Award RG Coins if marking as delivered and NOT already earned
+    if (status === 'delivered' && (!order.coinsEarned || order.coinsEarned === 0)) {
+      try {
+        const CoinService = require('../services/CoinService');
+        await CoinService.awardOrderCoins(order);
+        console.log(`[Admin] Awarded RG coins for order ${orderId}`);
+      } catch (coinErr) {
+        console.error('[Admin] Coin awarding failed:', coinErr.message);
+      }
+    }
 
     // Send Telegram notification if order was cancelled
     if (status === 'cancelled') {
@@ -533,49 +584,33 @@ router.put("/:orderId/cancel", checkBanned, async (req, res) => {
       });
     }
 
-    // Find the order
-    const order = await Order.findById(orderId);
-
-    if (!order) {
+    const OrderService = require('../services/OrderService');
+    
+    // Check if order exists before calling service to retain old error messages
+    const orderExists = await Order.findById(orderId);
+    if (!orderExists) {
       return res.status(404).json({
         success: false,
         message: "Order not found",
       });
     }
 
-    // Check if order can be cancelled
-    const cancellableStatuses = ['pending', 'confirmed'];
-    if (!cancellableStatuses.includes(order.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Order cannot be cancelled. Current status: ${order.status}`,
-      });
-    }
+    // Call OrderService to handle cancellation and resource reversion (Coins, Stock, Promo)
+    const cancelledOrder = await OrderService.cancelOrder(orderId, orderExists.user, cancelReason);
 
-    // Update the order status
-    order.status = 'cancelled';
-
-    // Add cancellation reason if provided
-    if (cancelReason) {
-      order.cancelReason = cancelReason;
-    }
-
-    // Set cancelled timestamp
-    order.cancelledAt = new Date();
-
-    await order.save();
-
-    console.log(`✅ Order ${orderId} cancelled successfully`);
+    console.log(`✅ Order ${orderId} cancelled successfully via OrderService. Sending Telegram...`);
 
     // Send Telegram notification for cancellation
-    TelegramService.sendOrderCancellationNotification(order, cancelReason || 'User cancelled').catch(err => {
-      console.error('Failed to send cancellation telegram msg:', err.message);
+    TelegramService.sendOrderCancellationNotification(cancelledOrder, cancelReason || 'User cancelled').catch(err => {
+      console.error('❌ CRITICAL: Failed to send cancellation telegram msg:', err.message);
     });
+
+    console.log(`🚀 Telegram trigger fired for order ${orderId}`);
 
     res.json({
       success: true,
       message: "Order cancelled successfully",
-      order,
+      order: cancelledOrder,
     });
   } catch (error) {
     console.error("💥 Error cancelling order:", error);
@@ -617,6 +652,17 @@ router.put('/:orderId/delivered', async (req, res) => {
     await order.save();
 
     console.log(`✅ User confirmed delivery for order ${orderId}`);
+
+    // Award RG Coins for delivery if NOT already earned
+    if (!order.coinsEarned || order.coinsEarned === 0) {
+      try {
+        const CoinService = require('../services/CoinService');
+        await CoinService.awardOrderCoins(order);
+        console.log(`[User] Awarded RG coins for self-confirmed order ${orderId}`);
+      } catch (coinErr) {
+        console.error('[User] Coin awarding failed:', coinErr.message);
+      }
+    }
 
     res.json({
       success: true,

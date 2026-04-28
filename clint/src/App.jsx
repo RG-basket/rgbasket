@@ -46,6 +46,7 @@ const AdminPromoCodes = lazy(() => import("./components/Admin/AdminPromoCodesDar
 const AdminBanners = lazy(() => import("./components/Admin/AdminBanners.jsx"));
 const AdminOffers = lazy(() => import("./components/Admin/AdminOffersDark.jsx"));
 const AdminServiceAreas = lazy(() => import("./components/Admin/AdminServiceAreasDark.jsx"));
+const AdminRewards = lazy(() => import("./components/Admin/AdminRewardsDark.jsx"));
 
 
 const InfluencerDashboard = lazy(() => import("./pages/InfluencerDashboard.jsx"));
@@ -111,6 +112,16 @@ const App = () => {
   const syncActiveOrder = useCartStore(state => state.syncActiveOrder);
   const items = useCartStore(state => state.items);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Capture Referral Code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref');
+    if (refCode) {
+      console.log('🎁 Captured referral code:', refCode);
+      localStorage.setItem('pendingReferralCode', refCode.toUpperCase());
+    }
+  }, []);
 
   // Theme Detection logic
   useEffect(() => {
@@ -342,6 +353,11 @@ const App = () => {
             <Route path="/admin/offers" element={
               <ProtectedRoute>
                 <AdminOffers />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/rewards" element={
+              <ProtectedRoute>
+                <AdminRewards />
               </ProtectedRoute>
             } />
             <Route path="/admin/complaints" element={

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus, Trash2, ExternalLink, CameraOff, Info, User } from 'lucide-react';
+import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus, Trash2, ExternalLink, CameraOff, Info, User, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -17,7 +17,8 @@ const statusIcons = {
   processing: Package,
   shipped: Truck,
   delivered: CheckCircle,
-  cancelled: XCircle
+  cancelled: XCircle,
+  under_review: AlertTriangle
 };
 
 // Helper function to recalculate totals for any order
@@ -63,8 +64,9 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
   const roundedTax = Math.round(tax * 100) / 100;
   const roundedTip = Math.round(tipAmount * 100) / 100;
   const roundedDiscount = Math.round(discountAmount * 100) / 100;
+  const roundedCoinDiscount = Math.round((order.coinDiscount || 0) * 100) / 100;
 
-  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount;
+  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount - roundedCoinDiscount;
   if (totalAmount < 0) totalAmount = 0;
   totalAmount = Math.round(totalAmount * 100) / 100;
 
@@ -74,6 +76,7 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
     shippingFee: roundedShipping,
     tax: roundedTax,
     discountAmount: roundedDiscount,
+    coinDiscount: roundedCoinDiscount,
     totalAmount
   };
 };
@@ -186,7 +189,8 @@ const AdminOrdersDark = () => {
     processing: 'bg-[#bb9af7]/20 text-[#bb9af7] border-[#bb9af7]/30',
     shipped: 'bg-[#7dcfff]/20 text-[#7dcfff] border-[#7dcfff]/30',
     delivered: 'bg-[#9ece6a]/20 text-[#9ece6a] border-[#9ece6a]/30',
-    cancelled: 'bg-[#f7768e]/20 text-[#f7768e] border-[#f7768e]/30'
+    cancelled: 'bg-[#f7768e]/20 text-[#f7768e] border-[#f7768e]/30',
+    under_review: 'bg-[#ff9e64]/20 text-[#ff9e64] border-[#ff9e64]/30'
   };
 
   const handleSaveLocation = async (data) => {
@@ -1032,6 +1036,12 @@ const AdminOrdersDark = () => {
         <div class="total-row" style="color: #10b981;">
           <span>Discount (${order.promoCode || 'PROMO'}):</span>
           <span>-₹${order.discountAmount.toFixed(2)}</span>
+        </div>
+        ` : ''}
+        ${order.coinDiscount > 0 ? `
+        <div class="total-row" style="color: #d97706;">
+          <span>RG Coins 🪙:</span>
+          <span>-₹${order.coinDiscount.toFixed(2)}</span>
         </div>
         ` : ''}
         <div class="total-row final">
@@ -1967,6 +1977,13 @@ const AdminOrdersDark = () => {
                         </div>
                       )}
 
+                      {displayOrder.coinDiscount > 0 && (
+                        <div className="flex justify-between items-center text-xs sm:text-sm border-t border-dashed border-gray-700 pt-2">
+                          <span className="text-amber-400 font-bold flex items-center gap-1">🪙 RG Coins</span>
+                          <span className="text-amber-400 font-bold">- ₹{displayOrder.coinDiscount?.toFixed(2)}</span>
+                        </div>
+                      )}
+
                       {displayOrder.tipAmount > 0 && (
                         <div className="flex justify-between items-center text-xs sm:text-sm border-t border-dashed border-gray-700 pt-2">
                           <span className="text-orange-400 font-bold italic flex items-center gap-1">💝 Handling Tip</span>
@@ -1977,7 +1994,14 @@ const AdminOrdersDark = () => {
                       <div className={`flex justify-between items-center p-3 rounded-xl bg-[#7aa2f7]/10 border border-[#7aa2f7]/20 mt-2`}>
                         <div className="flex flex-col">
                           <span className={`text-[10px] uppercase font-black tracking-widest ${tw.textSecondary}`}>Total Payable</span>
-                          <span className={`text-[#7aa2f7] text-[10px] font-bold uppercase`}>{selectedOrder.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid Online'}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[#7aa2f7] text-[10px] font-bold uppercase`}>{selectedOrder.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid Online'}</span>
+                            {selectedOrder.coinsEarned > 0 && (
+                              <span className="text-[10px] font-black text-amber-500 flex items-center gap-1 border-l border-[#7aa2f7]/30 pl-2">
+                                +{selectedOrder.coinsEarned} 🪙 EARNED
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className={`text-xl sm:text-3xl font-black text-[#7aa2f7] drop-shadow-[0_0_15px_rgba(122,162,247,0.3)]`}>
                           ₹{displayOrder.totalAmount?.toFixed(2)}
@@ -2193,6 +2217,14 @@ const AdminOrdersDark = () => {
                       <span>- ₹{getCurrentOrderTotals().discountAmount.toFixed(2)}</span>
                     </div>
                   )}
+
+                  {getCurrentOrderTotals().coinDiscount > 0 && (
+                    <div className="flex justify-between text-amber-400 font-bold">
+                      <span>RG Coins 🪙</span>
+                      <span>- ₹{getCurrentOrderTotals().coinDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between border-t-2 border-gray-600 pt-2 mt-2 font-bold text-lg">
                     <span className={tw.textPrimary}>Total Amount</span>
                     <span className="text-[#7aa2f7]">₹{getCurrentOrderTotals().totalAmount.toFixed(2)}</span>

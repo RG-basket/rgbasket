@@ -87,7 +87,7 @@ exports.getAllPartners = async (req, res) => {
             // Get Current Active Orders
             const activeOrders = await Order.find({
                 deliveryPartner: p._id,
-                status: { $in: ['shipped', 'processing', 'confirmed'] }
+                status: { $in: ['shipped', 'processing', 'confirmed', 'under_review'] }
             }).select('_id totalAmount status createdAt userInfo shippingAddress').lean();
 
             return {
@@ -279,7 +279,7 @@ exports.getMyOrders = async (req, res) => {
         const { partnerId } = req.params;
 
         const records = await Order.find({ deliveryPartner: partnerId })
-            .select('userInfo shippingAddress items status subtotal shippingFee tax discountAmount tipAmount totalAmount paymentMethod deliveryLocation liveLocation createdAt instruction')
+            .select('userInfo shippingAddress items status subtotal shippingFee tax discountAmount tipAmount totalAmount paymentMethod deliveryLocation liveLocation createdAt instruction coinsUsed coinDiscount')
             .sort({ updatedAt: -1 });
 
         res.json({ success: true, orders: records });
@@ -292,6 +292,7 @@ exports.getMyOrders = async (req, res) => {
 exports.completeOrder = async (req, res) => {
     try {
         const { orderId, partnerId, latitude, longitude, isForcefullyDelivered } = req.body;
+        const isForced = isForcefullyDelivered === 'true' || isForcefullyDelivered === true;
 
         const order = await Order.findOne({ _id: orderId, deliveryPartner: partnerId });
         if (!order) return res.status(404).json({ success: false, message: 'Order not found or not assigned to you' });
@@ -300,8 +301,15 @@ exports.completeOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Order already delivered' });
         }
 
-        order.status = 'delivered';
-        order.deliveredAt = new Date();
+        // --- ANTI-CHEAT JAIL LOGIC ---
+        // If the rider is force-delivering (outside 500m), we move it to 'under_review'
+        // instead of 'delivered'. No coins are awarded until Admin manually approves.
+        const newStatus = isForced ? 'under_review' : 'delivered';
+        
+        order.status = newStatus;
+        if (newStatus === 'delivered') {
+            order.deliveredAt = new Date();
+        }
 
         // If delivery spot was missing, capture it now for future deliveries
         if (!order.deliveryLocation?.coordinates?.latitude && latitude && longitude) {
@@ -317,27 +325,46 @@ exports.completeOrder = async (req, res) => {
             image: req.file ? req.file.path : (order.proofOfDelivery?.image || ''),
             capturedAt: new Date(),
             location: latitude && longitude ? { latitude, longitude } : (order.proofOfDelivery?.location || undefined),
-            isForcefullyDelivered: isForcefullyDelivered === 'true' || isForcefullyDelivered === true
+            isForcefullyDelivered: isForced
         };
 
         order.statusHistory = order.statusHistory || [];
         order.statusHistory.push({
-            status: 'delivered',
+            status: newStatus,
             timestamp: new Date(),
-            comment: isForcefullyDelivered === 'true' || isForcefullyDelivered === true
-                ? 'Marked as delivered by Rider (FORCEFULLY - OUTSIDE GEOFENCE)'
+            comment: isForced 
+                ? 'Force Delivery requested by Rider (OUTSIDE GEOFENCE) - Pending Admin Approval'
                 : 'Marked as delivered by Rider'
         });
 
         await order.save();
 
-        // Notify Telegram on delivery
-        const partner = await DeliveryPartner.findById(partnerId).lean();
-        if (partner) {
-            TelegramService.sendRiderDeliveryNotification(order, partner).catch(() => {});
+        // Award coins ONLY if it's a direct 'delivered' status
+        if (newStatus === 'delivered') {
+            try {
+                const CoinService = require('../services/CoinService');
+                await CoinService.awardOrderCoins(order);
+            } catch (coinError) {
+                console.error('Error awarding RG coins:', coinError);
+            }
         }
 
-        res.json({ success: true, message: 'Order marked as delivered', order });
+        // Notify Telegram
+        const partner = await DeliveryPartner.findById(partnerId).lean();
+        if (partner) {
+            if (isForced) {
+                // SPECIAL ALERT FOR ADMIN REVIEW
+                TelegramService.sendOrderCancellationNotification(order, `🚨 FORCE DELIVERY ATTEMPTED! Rider ${partner.name} is outside geofence. Status set to #UNDER_REVIEW. Check Admin Dashboard.`).catch(() => {});
+            } else {
+                TelegramService.sendRiderDeliveryNotification(order, partner).catch(() => {});
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            message: isForced ? 'Delivery submitted for Admin review.' : 'Order marked as delivered', 
+            order 
+        });
     } catch (error) {
         console.error('Error completing order:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -365,7 +392,7 @@ exports.updateLivePing = async (req, res) => {
 // Update order delivery location (Capture live location)
 exports.updateOrderLocation = async (req, res) => {
     try {
-        const { orderId, partnerId, latitude, longitude, accuracy } = req.body;
+        const { orderId, partnerId, latitude, longitude, accuracy, isVerified } = req.body;
 
         const order = await Order.findOne({ _id: orderId, deliveryPartner: partnerId });
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
@@ -374,12 +401,17 @@ exports.updateOrderLocation = async (req, res) => {
             coordinates: { latitude, longitude },
             accuracy,
             timestamp: new Date(),
-            source: 'live' // Rider captured live
+            source: isVerified ? 'admin' : 'live', // Use 'admin' as a proxy for high-trust rider pin
+            isVerifiedByRider: isVerified || false
         };
 
         await order.save();
 
-        res.json({ success: true, message: 'Location captured successfully', deliveryLocation: order.deliveryLocation });
+        res.json({ 
+            success: true, 
+            message: isVerified ? 'Customer home location verified!' : 'Location captured successfully', 
+            deliveryLocation: order.deliveryLocation 
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Internal server error' });
     }

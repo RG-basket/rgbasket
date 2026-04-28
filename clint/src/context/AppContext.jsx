@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { auth, provider } from '../Firebase.js';
 import { signInWithPopup, signOut } from 'firebase/auth';
 import useCartStore from '../store/useCartStore';
+import { getBrowserFingerprint } from '../utils/fingerprint';
+import CoinEarnedPopup from '../components/Popups/CoinEarnedPopup';
 
 
 /* -------------------------------
@@ -47,6 +49,10 @@ export const AppContextProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showUserLogin, setShowUserLogin] = useState(false);
 
+  // Popup State
+  const [showCoinPopup, setShowCoinPopup] = useState(false);
+  const [coinAwardInfo, setCoinAwardInfo] = useState({ amount: 0, message: "" });
+
   // Products State
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -77,6 +83,38 @@ export const AppContextProvider = ({ children }) => {
   const [serviceAreas, setServiceAreas] = useState([]);
   const [isAppReady, setIsAppReady] = useState(false);
   const [isNonVegTheme, setIsNonVegTheme] = useState(false);
+  const [rewardSettings, setRewardSettings] = useState({
+    conversionRate: 10,
+    maxRedemptionRupees: 30,
+    orderRewardPercent: 2,
+    referralRewardCoins: 500,
+    refereeBonusCoins: 300,
+    signupBonusCoins: 100,
+    minOrderForReferral: 299,
+    minOrderForRedemption: 150
+  });
+
+  const fetchRewardSettings = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/reward-settings`);
+      if (response.data.success && response.data.settings) {
+        const settingsMap = {};
+        response.data.settings.forEach(s => {
+          settingsMap[s.key] = s.value;
+        });
+        setRewardSettings(prev => ({
+          ...prev,
+          ...settingsMap
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching reward settings:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchRewardSettings();
+  }, []);
 
   // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
   const formatTime = (timeStr) => {
@@ -208,6 +246,9 @@ export const AppContextProvider = ({ children }) => {
       console.error('Error loading slot state on mount:', err);
     });
 
+    // Start 5-minute price/stock polling
+    startProductPolling();
+
     // RE-VERIFY BAN STATUS when user brings tab back to focus
     // Optimized Ban Check: Don't ping server more than once every 2 minutes
     const throttledCheck = () => {
@@ -275,6 +316,28 @@ export const AppContextProvider = ({ children }) => {
         logout();
       }
       console.error('Error checking user status:', error);
+    }
+  };
+
+  const refreshUserCoins = async () => {
+    if (!user) return 0;
+    try {
+      const userId = user.id || user._id;
+      const response = await axios.get(`${API_URL}/api/users/${userId}`);
+      if (response.data.success) {
+        const freshCoins = response.data.user.rgCoins;
+        setUser(prev => {
+          const updated = { ...prev, rgCoins: freshCoins };
+          localStorage.setItem('user', JSON.stringify(updated));
+          return updated;
+        });
+        console.log(`💰 [AppContext] Wallet Refreshed! Current balance: ${freshCoins}`);
+        return freshCoins;
+      }
+      return user.rgCoins;
+    } catch (error) {
+      console.error('Failed to refresh user coins:', error);
+      return user.rgCoins;
     }
   };
 
@@ -447,15 +510,35 @@ export const AppContextProvider = ({ children }) => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
+      // Get any pending referral code from localStorage
+      const referralCode = localStorage.getItem('pendingReferralCode');
+      const deviceId = getBrowserFingerprint();
+
       const userData = {
         googleId: user.uid,
         name: user.displayName,
         email: user.email,
         photo: user.photoURL,
+        referralCode: referralCode || null,
+        deviceId
       };
 
       const response = await axios.post(`${API_URL}/api/auth/google`, userData);
       const backendUser = response.data.user;
+
+      // Handle coin award popup
+      if (response.data.coinsAwarded > 0) {
+        setCoinAwardInfo({
+          amount: response.data.coinsAwarded,
+          message: response.data.awardMessage
+        });
+        setShowCoinPopup(true);
+      }
+
+      // Clear referral code after successful login/registration
+      if (referralCode) {
+        localStorage.removeItem('pendingReferralCode');
+      }
 
       const userProfile = {
         ...backendUser,
@@ -1038,6 +1121,7 @@ export const AppContextProvider = ({ children }) => {
     logout,
     updateUserProfile,
     requireAuth,
+    refreshUserCoins,
 
     // Products
     products,
@@ -1102,12 +1186,19 @@ export const AppContextProvider = ({ children }) => {
     fetchServiceAreas,
     isAppReady,
     isNonVegTheme,
-    setIsNonVegTheme
+    setIsNonVegTheme,
+    rewardSettings
   };
 
   return (
     <AppContext.Provider value={value}>
       {children}
+      <CoinEarnedPopup 
+        isOpen={showCoinPopup} 
+        onClose={() => setShowCoinPopup(false)}
+        amount={coinAwardInfo.amount}
+        message={coinAwardInfo.message}
+      />
     </AppContext.Provider>
   );
 };
@@ -1119,3 +1210,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+

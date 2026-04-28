@@ -6,16 +6,29 @@ const Offer = require('../models/Offer');
 const TelegramService = require('./TelegramService');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
+const CoinService = require('./CoinService');
 
 class OrderService {
   /**
    * Create a new order with inventory validation and pricing calculation
    */
   async createOrder(orderData, userId) {
+    let validatedItems = [];
     try {
       // 1. INPUT SANITIZATION & USER AUTH CHECK
       const checkUserId = userId || orderData.user || orderData.userId;
       if (!checkUserId) throw new AppError('Authentication required to place order', 401);
+
+      // --- SECURITY GUARD: ENFORCE EXCLUSIVITY RULE ---
+      // We check if the user is trying to stack multiple rewards in one request.
+      let activeRewardsCount = 0;
+      if (orderData.promoCode) activeRewardsCount++;
+      if (orderData.useCoins === true || orderData.useCoins === 'true') activeRewardsCount++;
+      if (orderData.selectedGift) activeRewardsCount++;
+
+      if (activeRewardsCount > 1) {
+          throw new AppError('Reward stacking detected. You can only use one: Promo Code, RG Coins, or a Free Gift.', 400);
+      }
 
       // Sanitize delivery instructions to prevent XSS/Injection
       const instruction = orderData.instruction
@@ -24,7 +37,9 @@ class OrderService {
 
       console.log('🛒 OrderService receiving data. User:', checkUserId);
       // Validate products and inventory
-      const { validatedItems, subtotal } = await this.validateOrderItems(orderData.items);
+      const validationResult = await this.validateOrderItems(orderData.items);
+      validatedItems = validationResult.validatedItems;
+      const subtotal = validationResult.subtotal;
 
       // Validate and apply promo code
       let discountAmount = 0;
@@ -40,36 +55,81 @@ class OrderService {
           throw new AppError('Invalid or inactive promo code', 400);
         }
 
-        // Ensure we have a valid userId to check against
-        const checkUserId = userId || orderData.user || orderData.userId;
-
         console.log(`[OrderService] Validating promo ${promoCodeDoc.code} for user ${checkUserId}`);
-        console.log(`[OrderService] Code used by:`, promoCodeDoc.usedBy.map(u => u.user));
 
-        if (!checkUserId) {
-          console.warn('[OrderService] Warning: No userId provided for promo validation');
-        } else {
-          // Check if user has already used this code
-          const hasUsed = promoCodeDoc.usedBy.some(usage => {
-            // Handle both populated user objects or string IDs
-            const usedId = usage.user && usage.user._id ? usage.user._id.toString() : usage.user.toString();
-            return usedId === checkUserId.toString();
-          });
+        // Check if user has already used this code
+        const hasUsed = promoCodeDoc.usedBy.some(usage => {
+          const usedId = usage.user && usage.user._id ? usage.user._id.toString() : usage.user.toString();
+          return usedId === checkUserId.toString();
+        });
 
-          if (hasUsed) {
-            console.log(`[OrderService] Blocked: User ${checkUserId} already used ${promoCodeDoc.code}`);
-            throw new AppError('You have already used this promo code', 400);
-          }
+        if (hasUsed) {
+          throw new AppError('You have already used this promo code', 400);
         }
 
         // Calculate discount on subtotal
         discountAmount = promoCodeDoc.calculateDiscount(subtotal);
       }
 
-      // Calculate pricing (ignore client taxRate for security, use 0 or fetch from settings)
+      // 1.5. RG Coin System - Redemption & Debt Recovery Logic
+      let coinsUsed = 0;
+      let coinDiscountInRs = 0;
+      let coinDebtRecoveryInRs = 0;
+
+      const user = await User.findOne({ 
+          $or: [
+              { _id: checkUserId.match(/^[0-9a-fA-F]{24}$/) ? checkUserId : null },
+              { googleId: checkUserId }
+          ].filter(q => q._id !== null || q.googleId !== undefined)
+      });
+
+      if (user) {
+        const conversionRate = await CoinService.getConfig('conversionRate', 10);
+
+        // CASE A: User has Debt (Negative Coins)
+        if (user.rgCoins < 0) {
+          coinDebtRecoveryInRs = Math.abs(user.rgCoins) / conversionRate;
+          console.log(`[OrderService] User ${checkUserId} has debt. Surcharge of ₹${coinDebtRecoveryInRs} added.`);
+        }
+
+        // CASE B: User wants to Redeem (Positive Coins)
+        if (orderData.useCoins && user.rgCoins > 0) {
+          const maxRedemptionRupees = await CoinService.getConfig('maxRedemptionRupees', 30);
+          const minOrderForRedemption = await CoinService.getConfig('minOrderForRedemption', 0);
+          
+          const pincode = orderData.shippingAddress?.pincode;
+          let shippingFee = 29;
+          let freeDeliveryThreshold = 299;
+          if (pincode) {
+            const serviceArea = await ServiceArea.findOne({ pincode, isActive: true });
+            if (serviceArea) {
+              shippingFee = serviceArea.deliveryCharge !== undefined ? serviceArea.deliveryCharge : 29;
+              freeDeliveryThreshold = serviceArea.minOrderForFreeDelivery !== undefined ? serviceArea.minOrderForFreeDelivery : 299;
+            }
+          }
+          const finalShippingFee = (subtotal > 0 && (subtotal - discountAmount) < freeDeliveryThreshold) ? shippingFee : 0;
+          const tipAmount = Math.max(0, Number(orderData.tipAmount) || 0);
+          const totalBeforeCoins = subtotal + finalShippingFee + tipAmount - discountAmount;
+          
+          if (totalBeforeCoins >= minOrderForRedemption) {
+            const maxCoinsByAdmin = maxRedemptionRupees * conversionRate;
+            const maxCoinsByCartTotal = Math.floor(Math.max(0, totalBeforeCoins) * conversionRate);
+            const absoluteMaxCoins = Math.min(user.rgCoins, maxCoinsByAdmin, maxCoinsByCartTotal);
+            
+            const requestedCoins = Number(orderData.coinsUsed);
+            coinsUsed = (!isNaN(requestedCoins) && requestedCoins > 0) 
+              ? Math.min(absoluteMaxCoins, requestedCoins) 
+              : absoluteMaxCoins;
+            
+            coinDiscountInRs = coinsUsed / conversionRate;
+          }
+        }
+      }
+
+      // Calculate pricing
       const pincode = orderData.shippingAddress?.pincode;
       const tipAmount = Math.max(0, Number(orderData.tipAmount) || 0);
-      const pricing = await this.calculatePricing(subtotal, 0, discountAmount, pincode, tipAmount);
+      const pricing = await this.calculatePricing(subtotal, 0, discountAmount, pincode, tipAmount, coinDiscountInRs, coinDebtRecoveryInRs);
 
       // Validate Free Gift (Anti-Cheat)
       let finalSelectedGift = orderData.selectedGift;
@@ -83,63 +143,50 @@ class OrderService {
         const allValidGifts = validOffers.flatMap(o => o.options);
 
         if (!allValidGifts.includes(finalSelectedGift)) {
-          console.warn(`[OrderService] Anti-Cheat: Blocked invalid gift "${finalSelectedGift}" for subtotal ₹${pricing.subtotal}`);
           finalSelectedGift = null; // Strip the gift if they didn't earn it
         }
       }
+
       // 3. ATOMIC STOCK LOCKING
-      // We decrement stock BEFORE saving the order to ensure it's still there.
-      // If 10,000 people order at once, only those where stock >= quantity will pass.
       const stockUpdated = await this.updateProductInventory(validatedItems, 'decrement');
       if (!stockUpdated) {
-        throw new AppError('One or more items became out of stock during checkout. Please refresh your cart.', 400);
+        throw new AppError('One or more items became out of stock during checkout.', 400);
       }
 
-      // 4. ATOMIC PROMO LOCKING (Bank-Grade)
+      // 4. ATOMIC PROMO LOCKING
       let promoAppliedSuccessfully = false;
       if (promoCodeDoc) {
         try {
           await PromoCode.registerUsageAtomic(
             promoCodeDoc._id,
             checkUserId,
-            "PENDING_" + Date.now(), // Temporary ID since order isn't saved yet
+            "PENDING_" + Date.now(),
             pricing.discount
           );
           promoAppliedSuccessfully = true;
         } catch (err) {
-          // If promo fail (user cheated or used concurrently), we MUST REVERT the stock we just took!
           await this.updateProductInventory(validatedItems, 'increment');
-          throw new AppError('Promo code could not be applied. It may have been used in another tab.', 400);
+          throw new AppError('Promo code could not be applied.', 400);
         }
       }
 
-      // 5. LOCATION RESOLUTION (Scenario 1 & 2)
+      // 5. LOCATION RESOLUTION
       let liveLocation = null;
       let deliveryLocation = null;
-
-      // Capture Live GPS if provided - STRICT VALIDATION
       const incomingLoc = orderData.location;
       if (incomingLoc) {
         const coords = incomingLoc.coordinates || { latitude: incomingLoc.latitude, longitude: incomingLoc.longitude };
-
-        // Ensure we actually have numbers for latitude and longitude
         if (coords && typeof coords.latitude === 'number' && typeof coords.longitude === 'number') {
           liveLocation = {
-            coordinates: {
-              latitude: coords.latitude,
-              longitude: coords.longitude
-            },
+            coordinates: { latitude: coords.latitude, longitude: coords.longitude },
             accuracy: incomingLoc.accuracy || 0,
             timestamp: new Date()
           };
         }
       }
 
-      // Resolve Delivery Location: Priority Level 1: Smart Address Matching
       try {
         const UserAddress = require('../models/UserAddress');
-
-        // Try Exact Match first (User + Street + Pincode)
         let addressMatch = await UserAddress.findOne({
           user: checkUserId,
           street: orderData.shippingAddress.street,
@@ -147,14 +194,12 @@ class OrderService {
           'location.coordinates': { $exists: true, $ne: [] }
         }).sort({ updatedAt: -1 });
 
-        // If no exact street match, try "Loose Match" (User + Pincode + ANY saved location)
         if (!addressMatch) {
           addressMatch = await UserAddress.findOne({
             user: checkUserId,
             pincode: orderData.shippingAddress.pincode,
             'location.coordinates': { $exists: true, $ne: [] }
           }).sort({ updatedAt: -1 });
-          if (addressMatch) console.log(`[OrderService] Using Loose Address Match for ${checkUserId}`);
         }
 
         if (addressMatch && addressMatch.location?.coordinates?.length === 2) {
@@ -167,14 +212,10 @@ class OrderService {
             timestamp: addressMatch.location.capturedAt || addressMatch.updatedAt,
             source: addressMatch.savedByAdmin ? 'admin' : 'saved'
           };
-          console.log(`[OrderService] Found ${deliveryLocation.source} location for address matching: ${addressMatch._id}`);
-        } else if (liveLocation && liveLocation.coordinates?.latitude && liveLocation.coordinates?.longitude) {
-          // Priority Level 2: Use current Live GPS
+        } else if (liveLocation) {
           deliveryLocation = { ...liveLocation, source: 'live' };
-          console.log('[OrderService] Using Live GPS for delivery spot');
         } else {
           // Priority 3: Historical Fallback - Look for ANY previous order from this user with a location
-          // Search in BOTH legacy and new fields
           const lastOrderWithLoc = await Order.findOne({
             user: checkUserId,
             $or: [
@@ -185,18 +226,11 @@ class OrderService {
           }).sort({ createdAt: -1 });
 
           if (lastOrderWithLoc) {
-            // Check new field first
             if (lastOrderWithLoc.deliveryLocation?.coordinates?.latitude) {
-              deliveryLocation = {
-                ...lastOrderWithLoc.deliveryLocation,
-                source: 'historical'
-              };
-            }
-            // Then fallback to legacy field structure
-            else if (lastOrderWithLoc.location) {
+              deliveryLocation = { ...lastOrderWithLoc.deliveryLocation, source: 'historical' };
+            } else if (lastOrderWithLoc.location) {
               const loc = lastOrderWithLoc.location;
               const coords = loc.coordinates || { latitude: loc.lat, longitude: loc.lng };
-
               if (coords.latitude || coords.lat) {
                 deliveryLocation = {
                   coordinates: {
@@ -209,17 +243,13 @@ class OrderService {
                 };
               }
             }
-            if (deliveryLocation) {
-              console.log(`[OrderService] Historical Fallback: Using GPS from last known order ${lastOrderWithLoc._id}`);
-            }
           }
         }
       } catch (locError) {
-        console.error('[OrderService] Location resolution failed, using live as fallback:', locError.message);
         if (liveLocation) deliveryLocation = { ...liveLocation, source: 'live' };
       }
 
-      // 6. CREATE AND SAVE ORDER (Now with Dual Locations)
+      // 6. CREATE AND SAVE ORDER
       const order = new Order({
         ...orderData,
         user: checkUserId,
@@ -229,10 +259,13 @@ class OrderService {
         tax: pricing.taxAmount,
         totalAmount: pricing.totalAmount,
 
-        // Promo Fields
+        // Promo & Coin Fields
         promoCode: promoCodeDoc ? promoCodeDoc.code : null,
         discountAmount: pricing.discount,
-        originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount + pricing.tipAmount, // pre-discount
+        coinsUsed: coinsUsed,
+        coinDiscount: pricing.coinDiscount,
+        coinDebtRecovery: pricing.coinDebtRecovery, // Save the recovery amount
+        originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount + pricing.tipAmount,
         finalTotal: pricing.totalAmount,
         selectedGift: finalSelectedGift || null,
         tipAmount: pricing.tipAmount,
@@ -245,42 +278,52 @@ class OrderService {
 
       const savedOrder = await order.save();
 
-      // Finalize promo order link (Atomic update of the reference)
+      // Handle Coin Deduction Transaction
+      if (coinsUsed > 0) {
+        try {
+          await CoinService.spendCoins(checkUserId, coinsUsed, savedOrder._id);
+        } catch (coinErr) {
+          console.error('[OrderService] Coin deduction failed after order save:', coinErr.message);
+          // SECURITY FIX: Revert order creation if coin deduction fails to prevent double-spend cheat
+          await Order.findByIdAndDelete(savedOrder._id);
+          if (promoAppliedSuccessfully && promoCodeDoc) {
+             const PromoCodeModel = require('../models/PromoCode');
+             await PromoCodeModel.revertUsageAtomic(promoCodeDoc.code, checkUserId, savedOrder._id).catch(() => {});
+          }
+          throw new AppError('Insufficient RG Coins balance.', 400);
+        }
+      }
+
+      // DEBT RECOVERY: If user had negative coins, reset them to 0 after order placement
+      if (coinDebtRecoveryInRs > 0) {
+          await User.findOneAndUpdate(
+              { $or: [{ _id: checkUserId }, { googleId: checkUserId }] },
+              { $set: { rgCoins: 0 } }
+          );
+          console.log(`[OrderService] Debt recovered. User ${checkUserId} coin balance reset to 0.`);
+      }
+
+      // Finalize promo order link
       if (promoAppliedSuccessfully) {
         await PromoCode.updateOne(
           { _id: promoCodeDoc._id, "usedBy.user": checkUserId },
           { $set: { "usedBy.$.order": savedOrder._id } }
-        ).catch(e => console.error('[OrderService] Non-critical: Failed to link order ID to promo usage'));
+        ).catch(e => console.error('[OrderService] Promo link failed'));
       }
 
-      // Send Telegram Notification (Async)
-      TelegramService.sendOrderNotification(savedOrder).catch(err =>
-        console.error('[OrderService] Telegram Notification failed:', err.message)
-      );
+      TelegramService.sendOrderNotification(savedOrder).catch(() => {});
 
-      // 6. CLEAR INTENT DATA (Cleanup after order)
       User.findByIdAndUpdate(checkUserId, {
         $set: { "lastCartSnapshot.items": [] }
-      }).catch(e => console.error('[OrderService] Non-critical: Failed to clear user cart snapshot after order'));
+      }).catch(() => {});
 
       return this.formatOrderResponse(savedOrder);
 
     } catch (error) {
-      console.error('[OrderService] Order creation error:', error);
-
-      // Safety Revert: If stock was taken but order failed to save, try to restore it
-      try {
-        if (typeof validatedItems !== 'undefined' && validatedItems.length > 0) {
-          await this.updateProductInventory(validatedItems, 'increment');
-        }
-
-        // If promo was taken, we ideally should pull it from `usedBy`, but it's non-trivial 
-        // without knowing exactly if it was pushed. For now, stock restoration is most critical.
-      } catch (revertError) {
-        console.error('[OrderService] Critical: Failed to revert stock after order failure!', revertError);
+      if (validatedItems.length > 0) {
+        await this.updateProductInventory(validatedItems, 'increment').catch(() => {});
       }
-
-      if (error.statusCode) throw error; // Pass through AppErrors
+      if (error.statusCode) throw error;
       throw new AppError(`Order creation failed: ${error.message}`, 500);
     }
   }
@@ -298,69 +341,34 @@ class OrderService {
 
     for (const item of items) {
       const product = await Product.findById(item.productId);
+      if (!product) throw new AppError(`Product not found: ${item.productId}`, 404);
+      if (!product.active) throw new AppError(`Product is not available: ${product.name}`, 400);
+      if (product.stock < item.quantity) throw new AppError(`Insufficient stock for ${product.name}`, 400);
 
-      if (!product) {
-        throw new AppError(`Product not found: ${item.productId}`, 404);
-      }
-
-      if (!product.active) {
-        throw new AppError(`Product is not available: ${product.name}`, 400);
-      }
-
-      if (product.stock < item.quantity) {
-        throw new AppError(`Insufficient stock for ${product.name}. Available: ${product.stock}`, 400);
-      }
-
-      // Max item quantity anti-abuse (e.g. max 50 units per product per order)
-      if (item.quantity > 50) {
-        throw new AppError(`Quantity limit reached for ${product.name}. Max 50 units allowed.`, 400);
-      }
-
-      // Find the specific weight variant ordered
       const productVariant = product.weights.find(w => w.weight === item.weight);
-
-      if (!productVariant) {
-        throw new AppError(`Invalid weight/variant "${item.weight}" for product ${product.name}`, 400);
-      }
+      if (!productVariant) throw new AppError(`Invalid variant for ${product.name}`, 400);
 
       const price = productVariant.offerPrice || productVariant.price;
-
-      if (isNaN(price)) {
-        throw new AppError(`Invalid price for product ${product.name}`, 500);
-      }
-
       const validatedItem = {
         productId: product._id,
         name: product.name,
-        // Description in Product model is [String], but Order model expects String
-        description: Array.isArray(product.description)
-          ? product.description.join(', ')
-          : product.description || '',
+        description: Array.isArray(product.description) ? product.description.join(', ') : product.description || '',
         weight: productVariant.weight,
         unit: productVariant.unit,
         quantity: item.quantity,
-        price: price, // Mapped to 'price' in Order schema (not unitPrice)
-        totalPrice: price * item.quantity, // Not stored in schema item but used for subtotal calculation
+        price: price,
+        totalPrice: price * item.quantity,
         image: product.images[0] || '',
         sku: product.sku,
-        // Customization fields
         isCustomized: item.isCustomized || false,
         customizationInstructions: item.customizationInstructions || '',
         customizationCharge: 0
       };
 
-      // Server-side validation of customization charge
       if (validatedItem.isCustomized && product.isCustomizable) {
         const weightValue = parseFloat(productVariant.weight) || 0;
-        let totalGrams = 0;
-        if (productVariant.unit === 'kg') {
-          totalGrams = weightValue * 1000 * item.quantity;
-        } else if (productVariant.unit === 'g') {
-          totalGrams = weightValue * item.quantity;
-        }
-
-        const calculatedCharge = this.calculateCustomizationCharge(product, totalGrams);
-        validatedItem.customizationCharge = calculatedCharge;
+        let totalGrams = productVariant.unit === 'kg' ? weightValue * 1000 * item.quantity : weightValue * item.quantity;
+        validatedItem.customizationCharge = this.calculateCustomizationCharge(product, totalGrams);
       }
 
       validatedItems.push(validatedItem);
@@ -375,13 +383,9 @@ class OrderService {
    */
   calculateCustomizationCharge(product, weightInGrams) {
     if (!product || !product.isCustomizable || !product.customizationCharges || product.customizationCharges.length === 0) return 0;
-
-    // Sort charges by weight descending to match largest units first
     const sortedCharges = [...product.customizationCharges].sort((a, b) => b.weight - a.weight);
-
     let remainingWeight = weightInGrams;
     let totalCharge = 0;
-
     for (const rule of sortedCharges) {
       if (rule.weight <= 0) continue;
       const count = Math.floor(remainingWeight / rule.weight);
@@ -390,17 +394,20 @@ class OrderService {
         remainingWeight -= count * rule.weight;
       }
     }
-
     return totalCharge;
   }
 
   /**
    * Calculate order pricing with tax and discounts
    */
-  async calculatePricing(rawSubtotal, taxRate = 0, rawDiscount = 0, pincode = null, tipAmount = 0) {
+  async calculatePricing(rawSubtotal, taxRate = 0, rawDiscount = 0, pincode = null, tipAmount = 0, coinDiscountInRs = 0, coinDebtRecoveryInRs = 0) {
     const subtotal = Math.round(rawSubtotal * 100) / 100;
     const discount = Math.round(rawDiscount * 100) / 100;
-    const netValue = subtotal - discount;
+    const coinDiscount = Math.round(coinDiscountInRs * 100) / 100;
+    const coinDebtRecovery = Math.round(coinDebtRecoveryInRs * 100) / 100;
+    
+    // The amount that actually determines if delivery is free
+    const netPayableForShippingCheck = subtotal - discount - coinDiscount + coinDebtRecovery;
 
     let shippingFee = 29;
     let freeDeliveryThreshold = 299;
@@ -411,16 +418,17 @@ class OrderService {
         shippingFee = serviceArea.deliveryCharge !== undefined ? serviceArea.deliveryCharge : 29;
         freeDeliveryThreshold = serviceArea.minOrderForFreeDelivery !== undefined ? serviceArea.minOrderForFreeDelivery : 299;
       } else {
-        // Strict Security: Do not allow orders to unserviced pincodes at the API level
         throw new AppError(`We do not serve the pincode ${pincode} yet.`, 400);
       }
     } else {
       throw new AppError('Shipping pincode is required', 400);
     }
 
-    const finalShippingFee = (subtotal > 0 && netValue < freeDeliveryThreshold) ? shippingFee : 0;
+    // UPDATED LOGIC: If net amount after ALL discounts is below threshold, charge fee
+    const finalShippingFee = (subtotal > 0 && netPayableForShippingCheck < freeDeliveryThreshold) ? shippingFee : 0;
+    
     const taxAmount = (subtotal * taxRate) / 100;
-    let totalAmount = subtotal + finalShippingFee + taxAmount + tipAmount - discount;
+    let totalAmount = subtotal + finalShippingFee + taxAmount + tipAmount - discount - coinDiscount + coinDebtRecovery;
     if (totalAmount < 0) totalAmount = 0;
 
     return {
@@ -429,6 +437,8 @@ class OrderService {
       taxAmount: Math.round(taxAmount * 100) / 100,
       taxRate,
       discount: Math.round(discount * 100) / 100,
+      coinDiscount: coinDiscount,
+      coinDebtRecovery: coinDebtRecovery,
       tipAmount: Math.round(tipAmount * 100) / 100,
       totalAmount: Math.round(totalAmount * 100) / 100
     };
@@ -439,83 +449,44 @@ class OrderService {
    */
   async updateProductInventory(items, operation) {
     if (!items || items.length === 0) return true;
-
-    // Merge quantities by productId to avoid multiple updates to same document in one bulkWrite
     const mergedItems = items.reduce((acc, item) => {
       const id = item.productId.toString();
-      if (!acc[id]) {
-        acc[id] = { productId: item.productId, quantity: 0 };
-      }
+      if (!acc[id]) acc[id] = { productId: item.productId, quantity: 0 };
       acc[id].quantity += item.quantity;
       return acc;
     }, {});
 
     const itemsToUpdate = Object.values(mergedItems);
-
     const bulkOperations = itemsToUpdate.map(item => ({
       updateOne: {
-        filter: {
-          _id: item.productId,
-          ...(operation === 'decrement' ? { stock: { $gte: item.quantity } } : {})
-        },
-        update: {
-          $inc: {
-            stock: operation === 'decrement' ? -item.quantity : item.quantity,
-            'meta.purchases': operation === 'decrement' ? item.quantity : -item.quantity
-          }
-        }
+        filter: { _id: item.productId, ...(operation === 'decrement' ? { stock: { $gte: item.quantity } } : {}) },
+        update: { $inc: { stock: operation === 'decrement' ? -item.quantity : item.quantity, 'meta.purchases': operation === 'decrement' ? item.quantity : -item.quantity } }
       }
     }));
 
     const result = await Product.bulkWrite(bulkOperations);
-
-    // Check if all operations succeeded
-    const success = (result.modifiedCount || result.nModified) === itemsToUpdate.length;
-
-    // If partial failure occurred during decrement, we should ideally revert, 
-    // but without transactions, we at least prevent the order from being created.
-    return success;
+    return (result.modifiedCount || result.nModified) === itemsToUpdate.length;
   }
 
   /**
    * Get orders with pagination and filtering
    */
   async getOrders(filters = {}, pagination = {}) {
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
-    } = pagination;
-
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
     const query = this.buildOrderQuery(filters);
-
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
-      populate: [
-        { path: 'user', select: 'name email' },
-        { path: 'items.productId', select: 'name images sku' }
-      ]
+      populate: [{ path: 'user', select: 'name email' }, { path: 'items.productId', select: 'name images sku' }]
     };
 
-    const orders = await Order.find(query)
-      .populate(options.populate)
-      .sort(options.sort)
-      .limit(options.limit * 1)
-      .skip((options.page - 1) * options.limit);
-
+    const orders = await Order.find(query).populate(options.populate).sort(options.sort).limit(options.limit * 1).skip((options.page - 1) * options.limit);
     const total = await Order.countDocuments(query);
 
     return {
       orders: orders.map(order => this.formatOrderResponse(order)),
-      pagination: {
-        page: options.page,
-        limit: options.limit,
-        total,
-        pages: Math.ceil(total / options.limit)
-      }
+      pagination: { page: options.page, limit: options.limit, total, pages: Math.ceil(total / options.limit) }
     };
   }
 
@@ -524,7 +495,6 @@ class OrderService {
    */
   buildOrderQuery(filters) {
     const query = {};
-
     if (filters.userId) query.user = filters.userId;
     if (filters.status) query.status = filters.status;
     if (filters.startDate || filters.endDate) {
@@ -532,10 +502,7 @@ class OrderService {
       if (filters.startDate) query.createdAt.$gte = new Date(filters.startDate);
       if (filters.endDate) query.createdAt.$lte = new Date(filters.endDate);
     }
-    if (filters.orderNumber) {
-      query.orderNumber = { $regex: filters.orderNumber, $options: 'i' };
-    }
-
+    if (filters.orderNumber) query.orderNumber = { $regex: filters.orderNumber, $options: 'i' };
     return query;
   }
 
@@ -544,89 +511,89 @@ class OrderService {
    */
   formatOrderResponse(order) {
     const orderObj = order.toObject ? order.toObject() : order;
-
     return {
       id: orderObj._id,
       orderNumber: orderObj.orderNumber,
       user: orderObj.user,
       items: orderObj.items,
-      pricing: orderObj.pricing,
       status: orderObj.status,
-      statusHistory: orderObj.statusHistory,
       shippingAddress: orderObj.shippingAddress,
-      paymentInfo: orderObj.paymentInfo,
-      deliveryInfo: orderObj.deliveryInfo,
-      notes: orderObj.notes,
       createdAt: orderObj.createdAt,
       updatedAt: orderObj.updatedAt,
-      isDelivered: orderObj.isDelivered,
-      isCancellable: orderObj.isCancellable,
       instruction: orderObj.instruction,
       selectedGift: orderObj.selectedGift,
       liveLocation: orderObj.liveLocation || null,
-      deliveryLocation: (orderObj.deliveryLocation?.coordinates?.latitude || orderObj.deliveryLocation?.lat)
-        ? orderObj.deliveryLocation
-        : (orderObj.location || null),
-      location: orderObj.location || null,
+      deliveryLocation: orderObj.deliveryLocation || orderObj.location || null,
       subtotal: orderObj.subtotal,
       shippingFee: orderObj.shippingFee,
       tax: orderObj.tax,
       totalAmount: orderObj.totalAmount,
       promoCode: orderObj.promoCode,
       discountAmount: orderObj.discountAmount,
-      originalTotal: orderObj.originalTotal,
+      userInfo: orderObj.userInfo,
+      coinsUsed: orderObj.coinsUsed,
+      coinDiscount: orderObj.coinDiscount,
+      coinsEarned: orderObj.coinsEarned,
       finalTotal: orderObj.finalTotal,
       deliveryDate: orderObj.deliveryDate,
       timeSlot: orderObj.timeSlot,
       paymentMethod: orderObj.paymentMethod,
       tipAmount: orderObj.tipAmount
     };
-
-
-
   }
 
   /**
    * Cancel an order with proper validation
    */
   async cancelOrder(orderId, userId, reason = 'Cancelled by user') {
-    const order = await Order.findOne({ _id: orderId, user: userId });
+    // ATOMIC UPDATE: Only update to 'cancelled' if it's currently in a cancellable state.
+    // This prevents ghost cancels and double-dip refunds.
+    const cancelledOrderDoc = await Order.findOneAndUpdate(
+        { 
+            _id: orderId, 
+            user: userId,
+            status: { $in: ['pending', 'confirmed', 'under_review'] } 
+        },
+        { 
+            $set: { 
+                status: 'cancelled',
+                cancelledAt: new Date(),
+                cancelReason: reason
+            }
+        },
+        { new: true }
+    );
 
-    if (!order) {
-      throw new AppError('Order not found', 404);
+    if (!cancelledOrderDoc) {
+        throw new AppError('Order not found or cannot be cancelled at this stage.', 400);
     }
 
-    if (!order.isCancellable) {
-      throw new AppError('Order cannot be cancelled at this stage', 400);
-    }
+    const itemsToRevert = cancelledOrderDoc.items.map(item => ({ productId: item.productId, quantity: item.quantity }));
+    const promoToRevert = cancelledOrderDoc.promoCode;
 
-    // Capture items and promo before cancellation for cleanup
-    const itemsToRevert = order.items.map(item => ({
-      productId: item.productId,
-      quantity: item.quantity
-    }));
-    const promoToRevert = order.promoCode;
-
-    const cancelledOrder = await order.cancelOrder(reason);
-
-    // Atomic Reversions (Inventory and Promo)
     try {
-      if (itemsToRevert.length > 0) {
-        await this.updateProductInventory(itemsToRevert, 'increment');
-        console.log(`[OrderService] Reverted stock for cancelled order ${orderId}`);
+      // 1. Revert Stock
+      if (itemsToRevert.length > 0) await this.updateProductInventory(itemsToRevert, 'increment');
+      
+      // 2. Revert Promo
+      if (promoToRevert) await PromoCode.revertUsageAtomic(promoToRevert, userId, orderId);
+      
+      // 3. Revert RG Coins (Refund Spent)
+      await CoinService.revertSpentCoins(cancelledOrderDoc);
+
+      // 4. Revert RG Coins (Snatchback Earned)
+      if (cancelledOrderDoc.coinsEarned > 0) {
+          await CoinService.revertEarnedCoins(cancelledOrderDoc);
       }
 
-      if (promoToRevert) {
-        await PromoCode.revertUsageAtomic(promoToRevert, userId, orderId);
-        console.log(`[OrderService] Reverted promo usage for cancelled order ${orderId}`);
-      }
+      // 5. RECURSIVE REVERSAL: Claw back referral bonuses
+      await CoinService.revertReferralBonus(orderId);
+
     } catch (err) {
-      console.error('[OrderService] Critical Background Error: Failed to revert resources for cancelled order:', err);
-      // We don't throw here because the order IS cancelled in DB, 
-      // but we log it for admin manual reconciliation.
+      console.error('[OrderService] Resource reversion failed during cancellation:', err);
     }
 
-    return this.formatOrderResponse(cancelledOrder);
+    return this.formatOrderResponse(cancelledOrderDoc);
   }
 
   /**
@@ -634,59 +601,23 @@ class OrderService {
    */
   async getOrderStats(timeframe = 'month') {
     const dateRange = this.getDateRange(timeframe);
-
     const stats = await Order.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: dateRange.start, $lte: dateRange.end }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalOrders: { $sum: 1 },
-          totalRevenue: { $sum: '$pricing.totalAmount' },
-          pendingOrders: {
-            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
-          },
-          deliveredOrders: {
-            $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] }
-          },
-          averageOrderValue: { $avg: '$pricing.totalAmount' }
-        }
-      }
+      { $match: { createdAt: { $gte: dateRange.start, $lte: dateRange.end } } },
+      { $group: { _id: null, totalOrders: { $sum: 1 }, totalRevenue: { $sum: '$totalAmount' }, pendingOrders: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, deliveredOrders: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } }, averageOrderValue: { $avg: '$totalAmount' } } }
     ]);
-
-    return stats[0] || {
-      totalOrders: 0,
-      totalRevenue: 0,
-      pendingOrders: 0,
-      deliveredOrders: 0,
-      averageOrderValue: 0
-    };
+    return stats[0] || { totalOrders: 0, totalRevenue: 0, pendingOrders: 0, deliveredOrders: 0, averageOrderValue: 0 };
   }
 
   getDateRange(timeframe) {
     const end = new Date();
     const start = new Date();
-
     switch (timeframe) {
-      case 'day':
-        start.setHours(0, 0, 0, 0);
-        break;
-      case 'week':
-        start.setDate(start.getDate() - 7);
-        break;
-      case 'month':
-        start.setMonth(start.getMonth() - 1);
-        break;
-      case 'year':
-        start.setFullYear(start.getFullYear() - 1);
-        break;
-      default:
-        start.setMonth(start.getMonth() - 1);
+      case 'day': start.setHours(0, 0, 0, 0); break;
+      case 'week': start.setDate(start.getDate() - 7); break;
+      case 'month': start.setMonth(start.getMonth() - 1); break;
+      case 'year': start.setFullYear(start.getFullYear() - 1); break;
+      default: start.setMonth(start.getMonth() - 1);
     }
-
     return { start, end };
   }
 }

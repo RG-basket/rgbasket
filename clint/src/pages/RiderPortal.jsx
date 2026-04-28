@@ -177,6 +177,47 @@ const RiderPortal = () => {
         return R * c; // in meters
     };
 
+    // Super-Robust GPS helper with Retries and Active Warming
+    const getCurrentGPSLocation = async (retryCount = 3) => {
+        const getPos = (highAccuracy) => new Promise((resolve, reject) => {
+            if (!navigator.geolocation) return reject(new Error('NO_SUPPORT'));
+            
+            navigator.geolocation.getCurrentPosition(
+                (pos) => resolve(pos),
+                (err) => reject(err),
+                {
+                    enableHighAccuracy: highAccuracy,
+                    timeout: highAccuracy ? 10000 : 6000,
+                    maximumAge: 0 // Force fresh signal every time
+                }
+            );
+        });
+
+        let lastErr;
+        // Try High Accuracy first with multiple retries
+        for (let i = 0; i < retryCount; i++) {
+            try {
+                console.log(`🛰️ GPS Attempt ${i + 1} (High Accuracy)...`);
+                return await getPos(true);
+            } catch (err) {
+                lastErr = err;
+                // Code 1 = Permission Denied. No point in retrying.
+                if (err.code === 1) break; 
+                
+                // For other errors (Timeout/Position Unavailable), wait and retry
+                await new Promise(r => setTimeout(r, 1500)); 
+            }
+        }
+
+        // Final "Never Fail" Fallback: Network Location
+        try {
+            console.log('📡 GPS Final Fallback (Network Location)...');
+            return await getPos(false);
+        } catch (err) {
+            throw lastErr || err;
+        }
+    };
+
     const handleCompleteOrder = async (orderId) => {
         const order = myOrders.find(o => o._id === orderId);
         if (!order) return;
@@ -184,39 +225,58 @@ const RiderPortal = () => {
         setUploadingProof(true);
 
         // --- ANTI-CHEAT GEOFENCING CHECK ---
-        const checkGeofence = () => new Promise((resolve) => {
+        const checkGeofence = async () => {
             const hasLoc = order.deliveryLocation?.coordinates?.latitude;
             const histLoc = historicalLocations[order.user]?.coordinates;
             const targetLoc = hasLoc ? order.deliveryLocation.coordinates : (histLoc || null);
 
-            navigator.geolocation.getCurrentPosition((position) => {
+            try {
+                // UI feedback so rider knows the system is working hard
+                const scanToast = toast.loading('🛰️ Locking GPS signal...', { duration: 20000 });
+                const position = await getCurrentGPSLocation();
+                toast.dismiss(scanToast);
+                
                 if (!targetLoc) {
-                    resolve({ position, forced: false });
-                    return;
+                    return { position, forced: false };
                 }
 
-                const distance = getDistanceInMeters(
+                const rawDistance = getDistanceInMeters(
                     position.coords.latitude,
                     position.coords.longitude,
                     targetLoc.latitude,
                     targetLoc.longitude
                 );
 
-                if (distance > 500) { // 500 Meters limit
-                    const force = window.confirm(`ANTI-CHEAT: You are ${Math.round(distance)}m away from the customer's location. If you are actually at the door, click OK to mark as "Force Delivered". This will be audited by Admin.`);
+                // FARE-CHECK LOGIC: Subtract accuracy error from distance
+                // If phone says "I am 550m away but my error margin is 60m", 
+                // we treat it as 490m (SAFE). This gives riders the benefit of the doubt.
+                const accuracy = position.coords.accuracy || 0;
+                const fairDistance = Math.max(0, rawDistance - accuracy);
+
+                console.log(`📍 GPS Audit: Raw=${Math.round(rawDistance)}m, Accuracy=${Math.round(accuracy)}m, Fair=${Math.round(fairDistance)}m`);
+
+                if (fairDistance > 500) { // Still too far even with error margin
+                    const force = window.confirm(`GPS Check: You are ${Math.round(fairDistance)}m away from the customer's doorstep. If you are actually at the door, click OK to mark as "Force Delivered" for Admin review.`);
                     if (force) {
-                        resolve({ position, forced: true });
+                        return { position, forced: true };
                     } else {
-                        resolve(false);
+                        return false;
                     }
                 } else {
-                    resolve({ position, forced: false });
+                    // Within 500m (or close enough given GPS error)
+                    return { position, forced: false };
                 }
-            }, (err) => {
-                toast.error('GPS Required! Please enable location to verify your presence at the delivery spot.');
-                resolve(false);
-            }, { enableHighAccuracy: true, timeout: 5000 });
-        });
+            } catch (err) {
+                toast.dismiss();
+                let msg = 'GPS Signal Weak! ';
+                if (err.code === 1) msg = 'Location Permission Blocked! Please enable it in browser settings.';
+                else if (err.code === 3) msg = 'GPS Signal Timeout. Move to an open area (balcony/street) and try again.';
+                else msg = 'Location hardware error. Try toggling your phone GPS off and on.';
+                
+                toast.error(msg, { duration: 6000 });
+                return false;
+            }
+        };
 
         const geofenceResult = await checkGeofence();
         if (!geofenceResult) {
@@ -238,23 +298,10 @@ const RiderPortal = () => {
         formData.append('proofImage', proofImage);
         formData.append('isForcefullyDelivered', isForced);
 
-        // Include the location captured during verification (or fallback to a quick check)
+        // Include the location captured during verification
         if (geofencePosition) {
             formData.append('latitude', geofencePosition.coords.latitude);
             formData.append('longitude', geofencePosition.coords.longitude);
-        } else {
-            // Backup capture if verification was skipped or different flow
-            try {
-                const position = await new Promise((resolve) => {
-                    navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 3000 });
-                });
-                if (position) {
-                    formData.append('latitude', position.coords.latitude);
-                    formData.append('longitude', position.coords.longitude);
-                }
-            } catch (e) {
-                console.error("Audit location failed", e);
-            }
         }
 
         try {
@@ -277,42 +324,40 @@ const RiderPortal = () => {
         }
     };
 
-    const handleCaptureLocation = async (orderId) => {
-        if (!navigator.geolocation) {
-            toast.error('Geolocation not supported by your browser');
+    const handleCaptureLocation = async (orderId, isVerified = false) => {
+        if (isVerified && !window.confirm('Are you exactly at the customer\'s doorstep? This will save this spot as their PERMANENT home location for all future orders.')) {
             return;
         }
 
         setFetchingLocation(true);
-        navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+            const position = await getCurrentGPSLocation(true);
             const { latitude, longitude, accuracy } = position.coords;
-            try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/update-location`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        partnerId: partner._id,
-                        orderId,
-                        latitude,
-                        longitude,
-                        accuracy
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    toast.success('Location captured for future deliveries!');
-                    fetchOrders();
-                } else {
-                    toast.error(data.message);
-                }
-            } catch (err) {
-                toast.error('Failed to save location');
+            
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/update-location`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    partnerId: partner._id,
+                    orderId,
+                    latitude,
+                    longitude,
+                    accuracy,
+                    isVerified
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(isVerified ? '✅ CUSTOMER HOME VERIFIED!' : 'Location captured!');
+                fetchOrders();
+            } else {
+                toast.error(data.message);
             }
+        } catch (err) {
+            toast.error('GPS Signal Error. Please try again in 5 seconds.');
+        } finally {
             setFetchingLocation(false);
-        }, (err) => {
-            toast.error('Permission denied or GPS error');
-            setFetchingLocation(false);
-        }, { enableHighAccuracy: true });
+        }
     };
 
     const getHistoricalLocation = async (userId) => {
@@ -477,7 +522,9 @@ const RiderPortal = () => {
                                         <div className="bg-blue-50 p-1.5 rounded-lg text-blue-600 mt-0.5"><MapPin size={16} /></div>
                                         <div>
                                             <p className="font-bold text-gray-800 text-sm">{order.shippingAddress?.locality}</p>
-                                            <p className="text-gray-400 text-xs">{order.shippingAddress?.street}</p>
+                                            <p className="text-gray-400 text-[10px] font-medium leading-tight">
+                                                {order.shippingAddress?.street}, {order.shippingAddress?.city} - {order.shippingAddress?.pincode}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -558,7 +605,7 @@ const RiderPortal = () => {
                                                 <div className="bg-white p-2 rounded-lg text-blue-600 shadow-sm"><MapPin size={14} /></div>
                                                 <div>
                                                     <p className="text-xs font-bold text-gray-700">{order.shippingAddress?.locality}</p>
-                                                    <p className="text-[10px] text-gray-500 font-medium">{order.shippingAddress?.street}, {order.shippingAddress?.city}</p>
+                                                    <p className="text-[10px] text-gray-500 font-medium">{order.shippingAddress?.street}, {order.shippingAddress?.city} - {order.shippingAddress?.pincode}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -619,6 +666,12 @@ const RiderPortal = () => {
                                                             <span>- ₹{order.discountAmount}</span>
                                                         </div>
                                                     )}
+                                                    {order.coinDiscount > 0 && (
+                                                        <div className="flex justify-between text-xs font-medium text-amber-600">
+                                                            <span>RG Coins Used 🪙</span>
+                                                            <span>- ₹{order.coinDiscount}</span>
+                                                        </div>
+                                                    )}
                                                     {order.tipAmount > 0 && (
                                                         <div className="flex justify-between text-xs font-medium text-blue-600">
                                                             <span>Rider Tip</span>
@@ -629,6 +682,16 @@ const RiderPortal = () => {
                                                         <span className="text-sm font-black text-gray-800">Total Payable</span>
                                                         <span className="text-lg font-black text-emerald-700">₹{order.totalAmount}</span>
                                                     </div>
+
+                                                    {order.status === 'delivered' && order.coinsEarned > 0 && (
+                                                        <div className="mt-2 pt-2 border-t border-emerald-100 flex justify-between items-center">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-xs">🪙</span>
+                                                                <span className="text-[10px] font-black text-emerald-600 uppercase">User Earned</span>
+                                                            </div>
+                                                            <span className="text-xs font-black text-emerald-600">+{order.coinsEarned} RG Coins</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 

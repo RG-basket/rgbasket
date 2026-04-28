@@ -117,9 +117,26 @@ const OrderSchema = new mongoose.Schema({
     type: Number, // Total after discount (should match totalAmount if no discount)
     default: 0
   },
+  // RG Coin System Fields
+  coinsEarned: {
+    type: Number,
+    default: 0
+  },
+  coinsUsed: {
+    type: Number,
+    default: 0
+  },
+  coinDiscount: {
+    type: Number,
+    default: 0
+  },
+  coinDebtRecovery: {
+    type: Number,
+    default: 0
+  },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'under_review'],
     default: 'pending'
   },
   deliveredAt: {
@@ -164,7 +181,8 @@ const OrderSchema = new mongoose.Schema({
     },
     accuracy: { type: Number },
     timestamp: { type: Date },
-    source: { type: String, enum: ['live', 'saved', 'admin', 'historical'], default: 'live' }
+    source: { type: String, enum: ['live', 'saved', 'admin', 'historical'], default: 'live' },
+    isVerifiedByRider: { type: Boolean, default: false }
   },
   instruction: {
     type: String,
@@ -176,6 +194,23 @@ const OrderSchema = new mongoose.Schema({
     default: null
   },
   tipAmount: {
+    type: Number,
+    default: 0
+  },
+  // RG Coin System fields
+  coinsUsed: {
+    type: Number,
+    default: 0
+  },
+  coinDiscount: {
+    type: Number,
+    default: 0
+  },
+  coinDebtRecovery: {
+    type: Number,
+    default: 0
+  },
+  coinsEarned: {
     type: Number,
     default: 0
   },
@@ -206,7 +241,7 @@ const OrderSchema = new mongoose.Schema({
 
 // Logic to check if an order can be cancelled
 OrderSchema.virtual('isCancellable').get(function () {
-  const cancellableStatuses = ['pending', 'confirmed'];
+  const cancellableStatuses = ['pending', 'confirmed', 'under_review'];
   return cancellableStatuses.includes(this.status);
 });
 

@@ -57,7 +57,9 @@ const Cart = () => {
     validateCartForSlot,
     customizationData,
     getCustomizationCharge,
-    serviceAreas
+    serviceAreas,
+    rewardSettings,
+    refreshUserCoins
   } = useAppContext();
   const navigate = useNavigate();
   const summaryRef = useRef(null);
@@ -88,6 +90,71 @@ const Cart = () => {
   const [promoCode, setPromoCode] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [promoApplied, setPromoApplied] = useState(false);
+
+  // RG Coin State
+  const [useCoins, setUseCoins] = useState(false);
+  const [coinsUsed, setCoinsUsed] = useState(0);
+  const [coinDiscount, setCoinDiscount] = useState(0);
+  const [pendingCoinsAmount, setPendingCoinsAmount] = useState(null);
+
+  // Sync latest coins on entry to cart
+  useEffect(() => {
+    refreshUserCoins();
+  }, []);
+
+  // Define totalBeforeCoins early for use in toggleCoins
+  // These will be recalculated properly in the render cycle
+  const [currentTotalBeforeCoins, setCurrentTotalBeforeCoins] = useState(0);
+
+  const toggleCoins = (amount = null) => {
+    const { conversionRate = 10, maxRedemptionRupees = 30, minOrderForRedemption = 0 } = rewardSettings;
+
+    // Check for minimum coin balance (must be at least 10 coins to get ₹1 discount)
+    if (amount !== 0 && (user?.rgCoins || 0) < conversionRate) {
+      toast.error(`You need at least ${conversionRate} coins to start redeeming`);
+      return;
+    }
+
+    // Exclusivity Check: If promo or gift is applied, ask to switch
+    if (amount !== 0 && (promoApplied || selectedGift)) {
+        setPendingCoinsAmount(amount);
+        setExclusivityType('coins');
+        setShowExclusivityModal(true);
+        return;
+    }
+
+    // Check for minimum order threshold
+    if (amount !== 0 && currentTotalBeforeCoins < minOrderForRedemption) {
+      toast.error(`Minimum order of ${currencySymbol}${minOrderForRedemption} required to use RG Coins`);
+      return;
+    }
+
+    // Cap by both Admin limit AND current cart total
+    const maxCoinsByAdmin = maxRedemptionRupees * conversionRate;
+    const maxCoinsByCartTotal = Math.floor(Math.max(0, currentTotalBeforeCoins) * conversionRate);
+    const absoluteMaxCoins = Math.min(user?.rgCoins || 0, maxCoinsByAdmin, maxCoinsByCartTotal);
+
+    if (amount === 0 || (amount === null && useCoins)) {
+      setUseCoins(false);
+      setCoinsUsed(0);
+      setCoinDiscount(0);
+      if (amount === 0) toast.success("RG Coins removed");
+      return;
+    }
+
+    // Apply the absoluteMaxCoins limit
+    const coinsToUse = amount !== null ? Math.min(amount, absoluteMaxCoins) : absoluteMaxCoins;
+
+    if (coinsToUse <= 0) {
+      toast.error("Please select an amount of coins to use");
+      return;
+    }
+
+    setCoinsUsed(coinsToUse);
+    setCoinDiscount(coinsToUse / conversionRate);
+    setUseCoins(true);
+    toast.success(`Applied ${coinsToUse} RG Coins! Saved ₹${(coinsToUse / conversionRate).toFixed(2)}`);
+  };
   const [selectedGift, setSelectedGift] = useState(() => {
     return localStorage.getItem('cartSelectedGift') || null;
   });
@@ -178,7 +245,11 @@ const Cart = () => {
 
   // Round discount to match backend before comparison
   const roundedDiscountForShipping = Math.round(discountAmount * 100) / 100;
-  const netValueForShipping = subtotal - roundedDiscountForShipping;
+  const roundedCoinDiscountForShipping = Math.round(coinDiscount * 100) / 100;
+  
+  // Logic: Shipping is free if (Subtotal - Promo - Coins) >= Threshold. 
+  // Tip is NOT included in this threshold check.
+  const netValueForShipping = subtotal - roundedDiscountForShipping - roundedCoinDiscountForShipping;
 
   // Dynamic Shipping Fee based on Pincode
   const selectedArea = serviceAreas?.find(area => area.pincode === selectedAddress?.pincode && area.isActive);
@@ -199,8 +270,31 @@ const Cart = () => {
   const roundedTax = Math.round(tax * 100) / 100;
   const roundedTip = Math.round(tipAmount * 100) / 100;
   const roundedDiscount = Math.round(discountAmount * 100) / 100;
+  const roundedCoinDiscount = Math.round(coinDiscount * 100) / 100;
 
-  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount;
+  // Wallet Adjustment Logic (Auto-Recovery)
+  // Soft logic: Only show surcharge if the debt is at least 1 Rupee (10 coins)
+  const conversionRate = rewardSettings?.conversionRate || 10;
+  const coinDebtRecovery = (user && user.rgCoins < 0 && Math.abs(user.rgCoins) >= conversionRate) 
+    ? Math.abs(user.rgCoins) / conversionRate 
+    : 0;
+  const roundedCoinDebtRecovery = Math.round(coinDebtRecovery * 100) / 100;
+
+  // IMPORTANT: Thresholds for Redemption (RG Coins) and Shipping must IGNORE tips.
+  // totalForThresholds check if we reach min order values (₹150 for coins, ₹299 for shipping)
+  const totalForThresholds = Math.round((roundedSubtotal - roundedDiscount) * 100) / 100;
+
+  // Calculate total before coins to cap redemption. This INCLUDES shipping/tax/tip.
+  const totalBeforeCoins = Math.round((roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount) * 100) / 100;
+
+  // Keep track of totals for toggleCoins use
+  useEffect(() => {
+    // Pass both values so toggleCoins can differentiate between "amount I can pay" and "amount for threshold"
+    setCurrentTotalBeforeCoins(totalBeforeCoins);
+    // We'll use totalForThresholds inside the component or pass it down
+  }, [totalBeforeCoins]);
+
+  let totalAmount = totalBeforeCoins - roundedCoinDiscount + roundedCoinDebtRecovery;
   if (totalAmount < 0) totalAmount = 0;
   totalAmount = Math.round(totalAmount * 100) / 100;
 
@@ -375,7 +469,7 @@ const Cart = () => {
 
       const freshVariant = freshProduct.weights[variantIndex];
 
-      // Check stock availability
+    // Check stock availability
       if (!freshProduct.inStock || freshProduct.stock <= 0) {
         staleItems.push({
           ...cartItem,
@@ -656,9 +750,11 @@ const Cart = () => {
         },
         instruction: instruction || "",
         promoCode: promoCode || null,
+        useCoins: useCoins,
         selectedGift: selectedGift || null,
         tipAmount: tipAmount || 0,
-        location: locationData
+        location: locationData,
+        coinsUsed: coinsUsed // Add explicitly to ensure selected amount is used
       };
 
       console.log('📦 Final order payload being sent:', orderData);
@@ -678,6 +774,10 @@ const Cart = () => {
 
       if (data.success) {
         toast.success('Order placed successfully!');
+
+        // SECURITY FIX: Instantly refresh the user's coin balance from the backend
+        // This prevents the "Double Spend" UI glitch where coins still appear after an order
+        refreshUserCoins();
 
         // Bridge to Instamart Experience - Set active order for real-time tracking bar
         useCartStore.setState({ 
@@ -894,8 +994,8 @@ const Cart = () => {
 
 
   const handleApplyGift = (giftText) => {
-    // Exclusivity Check: If promo is applied, ask to switch
-    if (promoApplied) {
+    // Exclusivity Check: If promo or coins are applied, ask to switch
+    if (promoApplied || useCoins) {
       setPendingGift(giftText);
       setExclusivityType('gift');
       setShowExclusivityModal(true);
@@ -917,13 +1017,19 @@ const Cart = () => {
 
   const confirmExclusivitySwitch = () => {
     if (exclusivityType === 'promo') {
-      // Switch from Gift to Promo
+      // Switch from Gift/Coins to Promo
       setSelectedGift(null);
       setAppliedOfferThreshold(0);
-      applyPromoCode(pendingPromo, false, true); // Added 'bypass' flag
-    } else {
-      // Switch from Promo to Gift
+      setUseCoins(false);
+      setCoinsUsed(0);
+      setCoinDiscount(0);
+      applyPromoCode(pendingPromo, false, true); 
+    } else if (exclusivityType === 'gift') {
+      // Switch from Promo/Coins to Gift
       removePromoCode();
+      setUseCoins(false);
+      setCoinsUsed(0);
+      setCoinDiscount(0);
       setSelectedGift(pendingGift);
       setAppliedOfferThreshold(currentOffer.minOrderValue);
       setShowOfferModal(false);
@@ -933,11 +1039,29 @@ const Cart = () => {
       setShownThresholds(newShown);
       sessionStorage.setItem('shownOfferThresholds', JSON.stringify(newShown));
       toast.success("Free gift selected!");
+    } else if (exclusivityType === 'coins') {
+        // Switch from Promo/Gift to Coins
+        removePromoCode();
+        setSelectedGift(null);
+        setAppliedOfferThreshold(0);
+        // Now actually toggle the coins since benefit is cleared
+        setUseCoins(true);
+        const { conversionRate = 10 } = rewardSettings;
+        // Calculate max selectable coins to prevent cheating via manual switch
+        const maxCoinsByAdmin = (rewardSettings.maxRedemptionRupees || 30) * conversionRate;
+        const maxCoinsByCartTotal = Math.floor(Math.max(0, currentTotalBeforeCoins) * conversionRate);
+        const absoluteMaxCoins = Math.min(user?.rgCoins || 0, maxCoinsByAdmin, maxCoinsByCartTotal);
+        
+        const finalAmount = Math.min(pendingCoinsAmount, absoluteMaxCoins);
+        setCoinsUsed(finalAmount);
+        setCoinDiscount(finalAmount / conversionRate);
+        toast.success(`Applied ${finalAmount} RG Coins!`);
     }
 
     setShowExclusivityModal(false);
     setPendingPromo(null);
     setPendingGift(null);
+    setPendingCoinsAmount(null);
   };
 
   const removeGift = () => {
@@ -972,8 +1096,8 @@ const Cart = () => {
 
   const applyPromoCode = async (code, silent = false, bypassExclusivity = false) => {
     try {
-      // Exclusivity Check: If gift is selected, ask to switch
-      if (selectedGift && !silent && !bypassExclusivity) {
+      // Exclusivity Check: If gift or coins are selected, ask to switch
+      if ((selectedGift || useCoins) && !silent && !bypassExclusivity) {
         setPendingPromo(code);
         setExclusivityType('promo');
         setShowExclusivityModal(true);
@@ -1059,11 +1183,17 @@ const Cart = () => {
       {showAddressForm && (
         <AddressForm
           user={user}
+          initialData={selectedAddress}
           onAddressSaved={(newAddress) => {
-            setAddresses(prev => [newAddress, ...prev]);
+            if (selectedAddress?._id === newAddress._id) {
+              // Update existing
+              setAddresses(prev => prev.map(addr => addr._id === newAddress._id ? newAddress : addr));
+            } else {
+              // Add new
+              setAddresses(prev => [newAddress, ...prev]);
+            }
             setSelectedAddress(newAddress);
             setShowAddressForm(false);
-            toast.success('Address saved successfully!');
           }}
           onCancel={() => setShowAddressForm(false)}
         />
@@ -1276,16 +1406,23 @@ const Cart = () => {
             selectedGift={selectedGift}
             removeGift={removeGift}
             // Promo Props
-
             applyPromo={applyPromoCode}
             removePromo={removePromoCode}
             promoCode={promoCode}
             discountAmount={discountAmount}
+            // RG Coin Props
+            userCoins={user?.rgCoins || 0}
+            coinsUsed={coinsUsed}
+            coinDiscount={coinDiscount}
+            toggleCoins={toggleCoins}
             baseShippingFee={baseShippingFee}
             tipAmount={tipAmount}
             setTipAmount={setTipAmount}
             standardFee={standardFee}
             distanceSurcharge={distanceSurcharge}
+            totalBeforeCoins={totalBeforeCoins}
+            totalForThresholds={totalForThresholds}
+            coinDebtRecovery={roundedCoinDebtRecovery}
           />
         </div>
       )}

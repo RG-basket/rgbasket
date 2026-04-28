@@ -5,7 +5,7 @@ import {
     Calendar, MapPin, ChevronLeft, ChevronRight, LogOut,
     Bell, Search, Menu, X, Tag, Image as ImageIcon, AlertCircle, Truck
 } from 'lucide-react';
-import { FaGift } from 'react-icons/fa';
+import { FaGift, FaCoins } from 'react-icons/fa';
 
 
 
@@ -37,6 +37,7 @@ const AdminLayoutDark = ({ children }) => {
         { path: '/admin/complaints', icon: AlertCircle, label: 'Complaints' },
         { path: '/admin/users', icon: Users, label: 'Users' },
         { path: '/admin/delivery-partners', icon: Truck, label: 'Riders' },
+        { path: '/admin/rewards', icon: FaCoins, label: 'RG Coins' },
         { path: '/admin/offers', icon: FaGift, label: 'Gift Offers' },
         { path: '/admin/promocodes', icon: Tag, label: 'Promo Codes' },
         { path: '/admin/banners', icon: ImageIcon, label: 'Banners' },

@@ -9,63 +9,86 @@ class TelegramService {
         }
 
         try {
+            const orderId = order._id || order.id || 'N/A';
+            
+            // Helper to escape HTML characters
+            const escapeHTML = (str) => {
+                if (!str) return '';
+                return str.toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            };
+
             const itemsText = order.items
                 .map((item, index) => {
                     const lineTotal = (item.quantity * item.price) + (item.customizationCharge || 0);
                     let customizationText = '';
                     if (item.isCustomized) {
-                        customizationText = `\n   ├ ✨ <b>CUSTOMIZED:</b> ${item.customizationInstructions || 'No instructions'}\n   ├ 💰 Custom Charge: ₹${item.customizationCharge}`;
+                        customizationText = `\n   ├ ✨ <b>CUSTOM:</b> ${escapeHTML(item.customizationInstructions || 'No instructions')}\n   ├ 💰 Charge: ₹${item.customizationCharge}`;
                     }
-                    return `<b>${index + 1}. ${item.name}</b>\n   ├ Variant: ${item.weight}${item.unit}\n   ├ Price: ₹${item.price} x ${item.quantity}${customizationText}\n   └ Total: <b>₹${lineTotal}</b>`;
+                    return `<b>${index + 1}. ${escapeHTML(item.name)}</b>\n   ├ Variant: ${item.weight}${item.unit}\n   ├ Price: ₹${item.price} x ${item.quantity}${customizationText}\n   └ Total: <b>₹${lineTotal.toFixed(2)}</b>`;
                 })
                 .join('\n\n');
 
             const totalItemsCount = order.items.reduce((acc, item) => acc + item.quantity, 0);
 
+            const customerName = escapeHTML(order.userInfo?.name || (order.shippingAddress && order.shippingAddress.fullName) || 'Guest');
+            const customerPhone = escapeHTML(order.userInfo?.phone || (order.shippingAddress && order.shippingAddress.phoneNumber) || 'N/A');
+            const customerEmail = escapeHTML(order.userInfo?.email || 'N/A');
+            const deliverySlot = escapeHTML(order.timeSlot || 'N/A');
+            const instruction = escapeHTML(order.instruction || 'None');
+
             const message = `
 <b>🛍️ NEW ORDER RECEIVED!</b>
-------------------------------------
-🆔 <b>Order ID:</b> #${order._id.toString().slice(-6).toUpperCase()}
-👤 <b>Customer:</b> ${order.userInfo?.name || 'Guest'}
-📞 <b>Phone:</b> <code>${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</code>
+━━━━━━━━━━━━━━━━━━━━
+🆔 <b>Order ID:</b> #${orderId.toString().slice(-8).toUpperCase()}
+👤 <b>Customer:</b> ${customerName}
+📞 <b>Phone:</b> <code>${customerPhone}</code>
+📧 <b>Email:</b> ${customerEmail}
 
 <b>🛒 ORDERED ITEMS (${totalItemsCount}):</b>
-------------------------------------
+━━━━━━━━━━━━━━━━━━━━
 ${itemsText}
 
-------------------------------------
-💰 <b>Subtotal:</b> ₹${order.subtotal}
-🚚 <b>Shipping:</b> ₹${order.shippingFee} ${order.shippingFee > 29 ? `(Dist. Surcharge incl.)` : ''}
-💝 <b>Delivery Tip:</b> ₹${order.tipAmount || 0}
-🏷️ <b>Discount:</b> -₹${order.discountAmount}
-✨ <b>Final Amount:</b> <b>₹${order.totalAmount}</b>
-
-🎁 <b>Free Gift:</b> ${order.selectedGift || 'None'}
-💳 <b>Payment:</b> ${order.paymentMethod?.replace(/_/g, ' ').toUpperCase() || 'N/A'}
+<b>💰 BILL DETAILS:</b>
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>Subtotal:</b> ₹${order.subtotal.toFixed(2)}
+🚚 <b>Shipping:</b> ₹${order.shippingFee.toFixed(2)} ${order.shippingFee > 29 ? `(Extra Mile incl.)` : ''}
+💝 <b>Rider Tip:</b> ₹${(order.tipAmount || 0).toFixed(2)}
+🏷️ <b>Promo Discount:</b> -₹${(order.discountAmount || 0).toFixed(2)}
+🪙 <b>RG Coins Used:</b> -₹${(order.coinDiscount || 0).toFixed(2)} (${order.coinsUsed || 0} pts)
+━━━━━━━━━━━━━━━━━━━━
+✨ <b>FINAL TOTAL:</b> <b>₹${order.totalAmount.toFixed(2)}</b>
+💰 <b>PAYMENT:</b> <b>${order.paymentMethod?.replace(/_/g, ' ').toUpperCase() || 'N/A'}</b>
+━━━━━━━━━━━━━━━━━━━━
+🎁 <b>Free Gift:</b> ${escapeHTML(order.selectedGift || 'None')}
+🎉 <b>Coins to Earn:</b> +${order.coinsEarned || 0} 🪙
 
 📅 <b>Delivery:</b> ${new Date(order.deliveryDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
-⏰ <b>Slot:</b> ${order.timeSlot}
+⏰ <b>Slot:</b> ${deliverySlot}
 
 📍 <b>DELIVERY ADDRESS:</b>
-------------------------------------
-${order.shippingAddress.fullName}
-${order.shippingAddress.street}, ${order.shippingAddress.locality}
-${order.shippingAddress.city} - ${order.shippingAddress.pincode}
-${order.shippingAddress.landmark ? `<b>Landmark:</b> ${order.shippingAddress.landmark}` : ''}
+━━━━━━━━━━━━━━━━━━━━
+<b>${customerName}</b>
+${escapeHTML(order.shippingAddress?.street)}, ${escapeHTML(order.shippingAddress?.locality)}
+${escapeHTML(order.shippingAddress?.city)} - ${escapeHTML(order.shippingAddress?.pincode)}
+${order.shippingAddress?.landmark ? `<b>Landmark:</b> ${escapeHTML(order.shippingAddress.landmark)}` : ''}
+${order.shippingAddress?.alternatePhone ? `<b>Alt Phone:</b> <code>${escapeHTML(order.shippingAddress.alternatePhone)}</code>` : ''}
 
-📝 <b>Note:</b> ${order.instruction || 'None'}
+📝 <b>Note:</b> <i>${instruction}</i>
 
-📍 <b>GPS LOCATION:</b>
-------------------------------------
-${(order.deliveryLocation?.coordinates || order.location?.coordinates || (order.location?.lat && order.location))
-                    ? `<a href="https://www.google.com/maps?q=${order.deliveryLocation?.coordinates?.latitude || order.location?.coordinates?.latitude || order.location?.lat},${order.deliveryLocation?.coordinates?.longitude || order.location?.coordinates?.longitude || order.location?.lng}">🏠 Delivery Spot</a>`
-                    : 'Not captured'}
+📍 <b>LOCATION INTELLIGENCE:</b>
+━━━━━━━━━━━━━━━━━━━━
+${(order.location?.coordinates?.latitude && order.location?.coordinates?.longitude)
+                    ? `🏠 <b>Order GPS:</b> <a href="https://www.google.com/maps?q=${order.location.coordinates.latitude},${order.location.coordinates.longitude}">Open in Google Maps</a>`
+                    : '❌ GPS coordinates not captured'}
 
-${order.liveLocation?.coordinates
-                    ? `<a href="https://www.google.com/maps?q=${order.liveLocation.coordinates.latitude},${order.liveLocation.coordinates.longitude}">📍 Live Position (at order)</a>`
+${(order.liveLocation?.coordinates?.latitude)
+                    ? `📍 <b>Live Snapshot:</b> <a href="https://www.google.com/maps?q=${order.liveLocation.coordinates.latitude},${order.liveLocation.coordinates.longitude}">Current Position</a>`
                     : ''}
 
-------------------------------------
+━━━━━━━━━━━━━━━━━━━━
 ✅ <b>STATUS:</b> #NEW_ORDER
       `.trim();
 
@@ -98,6 +121,7 @@ ${order.liveLocation?.coordinates
         if (!TELEGRAM_TOKEN) return;
         const DELIVERY_CHAT_ID = '-5118338826';
         try {
+            const orderId = order._id || order.id || 'N/A';
             const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
             const itemsText = order.items
                 .map(item => `• ${item.name} (${item.weight}${item.unit}) x${item.quantity}`)
@@ -106,7 +130,7 @@ ${order.liveLocation?.coordinates
             const message = `
 🛵 <b>ORDER PICKED UP!</b>
 ━━━━━━━━━━━━━━━━━━━━
-🆔 <b>Order:</b> #${order._id.toString().slice(-6).toUpperCase()}
+🆔 <b>Order:</b> #${orderId.toString().slice(-6).toUpperCase()}
 🕐 <b>Picked At:</b> ${now}
 
 👷 <b>RIDER DETAILS:</b>
@@ -126,7 +150,7 @@ ${order.shippingAddress.landmark ? `🏷️ <b>Landmark:</b> ${order.shippingAdd
 ━━━━━━━━━━━━━━━━━━━━
 ${itemsText}
 
-💰 <b>Amount:</b> ₹${order.totalAmount} (${order.paymentMethod?.replace(/_/g, ' ').toUpperCase()})
+💰 <b>Amount:</b> ₹${order.totalAmount} (${order.paymentMethod?.replace(/_/g, ' ').toUpperCase() || 'N/A'})
 ━━━━━━━━━━━━━━━━━━━━
 🟡 <b>STATUS: OUT FOR DELIVERY</b>
             `.trim();
@@ -146,6 +170,7 @@ ${itemsText}
         if (!TELEGRAM_TOKEN) return;
         const DELIVERY_CHAT_ID = '-5118338826';
         try {
+            const orderId = order._id || order.id || 'N/A';
             const deliveredAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
             const acceptedAt = order.statusHistory?.find(h => h.status === 'shipped')?.timestamp || order.updatedAt || order.createdAt;
             const acceptedTime = new Date(acceptedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
@@ -153,7 +178,7 @@ ${itemsText}
             const message = `
 ✅ <b>ORDER DELIVERED!</b>
 ━━━━━━━━━━━━━━━━━━━━
-🆔 <b>Order:</b> #${order._id.toString().slice(-6).toUpperCase()}
+🆔 <b>Order:</b> #${orderId.toString().slice(-6).toUpperCase()}
 🕐 <b>Picked Up:</b> ${acceptedTime}
 🕑 <b>Delivered At:</b> ${deliveredAt}
 ${order.proofOfDelivery?.isForcefullyDelivered ? '⚠️ <b>FORCEFUL DELIVERY (Outside Geofence)</b>' : ''}
@@ -169,7 +194,7 @@ ${order.proofOfDelivery?.isForcefullyDelivered ? '⚠️ <b>FORCEFUL DELIVERY (O
 📱 <b>Phone:</b> <code>${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</code>
 📍 <b>Address:</b> ${order.shippingAddress.street}, ${order.shippingAddress.locality}, ${order.shippingAddress.city}
 
-💰 <b>Amount Collected:</b> ₹${order.totalAmount} (${order.paymentMethod?.replace(/_/g, ' ').toUpperCase()})
+💰 <b>Amount Collected:</b> ₹${order.totalAmount} (${order.paymentMethod?.replace(/_/g, ' ').toUpperCase() || 'N/A'})
 ━━━━━━━━━━━━━━━━━━━━
 🟢 <b>STATUS: DELIVERED ✓</b>
             `.trim();
@@ -192,20 +217,40 @@ ${order.proofOfDelivery?.isForcefullyDelivered ? '⚠️ <b>FORCEFUL DELIVERY (O
         }
 
         try {
+            console.log('[TelegramService] Preparing cancellation msg for Order:', order._id || order.id);
+            
+            // Helper to escape HTML characters
+            const escapeHTML = (str) => {
+                if (!str) return '';
+                return str.toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            };
+
+            // Robust data access
+            const orderId = order._id || order.id || 'N/A';
+            const customerName = escapeHTML(order.userInfo?.name || (order.shippingAddress && order.shippingAddress.fullName) || 'Guest');
+            const customerPhone = escapeHTML(order.userInfo?.phone || (order.shippingAddress && order.shippingAddress.phoneNumber) || 'N/A');
+            const totalAmount = order.totalAmount || 0;
+            const deliveryDate = order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' }) : 'N/A';
+            const timeSlot = escapeHTML(order.timeSlot || 'N/A');
+            const safeReason = escapeHTML(reason);
+
             const message = `
 <b>❌ ORDER CANCELLED!</b>
-------------------------------------
-🆔 <b>Order ID:</b> #${order._id.toString().slice(-6).toUpperCase()}
-👤 <b>Customer:</b> ${order.userInfo?.name || 'Guest'}
-📞 <b>Phone:</b> <code>${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</code>
+━━━━━━━━━━━━━━━━━━━━
+🆔 <b>Order ID:</b> #${orderId.toString().slice(-8).toUpperCase()}
+👤 <b>Customer:</b> ${customerName}
+📞 <b>Phone:</b> <code>${customerPhone}</code>
 
-⚠️ <b>Reason:</b> <i>${reason}</i>
+⚠️ <b>Reason:</b> <i>${safeReason}</i>
 
-💰 <b>Amount Saved:</b> ₹${order.totalAmount}
-📅 <b>Was Scheduled for:</b> ${new Date(order.deliveryDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
-⏰ <b>Slot:</b> ${order.timeSlot}
+💰 <b>Amount Saved:</b> ₹${totalAmount}
+📅 <b>Was Scheduled for:</b> ${deliveryDate}
+⏰ <b>Slot:</b> ${timeSlot}
 
-------------------------------------
+━━━━━━━━━━━━━━━━━━━━
 ❌ <b>STATUS:</b> #CANCELLED
       `.trim();
 
@@ -223,13 +268,13 @@ ${order.proofOfDelivery?.isForcefullyDelivered ? '⚠️ <b>FORCEFUL DELIVERY (O
 
             const data = await response.json();
             if (!data.ok) {
-                console.error('❌ Telegram API Error:', JSON.stringify(data));
-                throw new Error(data.description);
+                console.error('❌ Telegram API Error (Cancellation):', JSON.stringify(data));
+            } else {
+                console.log('✅ Telegram cancellation notification sent successfully');
             }
-
-            console.log('✅ Telegram cancellation notification sent successfully');
         } catch (error) {
             console.error('❌ Telegram Cancellation Notification Error:', error.message);
+            console.error('Order Data Received:', JSON.stringify(order));
         }
     }
 }

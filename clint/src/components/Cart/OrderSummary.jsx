@@ -7,6 +7,7 @@ import PlaceOrderButton from './PlaceOrderButton';
 import OutOfStockWarning from './OutOfStockWarning';
 import DeliveryInstruction from './DeliveryInstruction';
 import PromoCodeSection from './PromoCodeSection';
+import RGCoinSection from './RGCoinSection';
 import { FaTimes } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
@@ -45,17 +46,23 @@ const OrderSummary = ({
     tipAmount = 0,
     setTipAmount,
     standardFee = 29,
-    distanceSurcharge = 0
+    distanceSurcharge = 0,
+    // RG Coin props
+    userCoins = 0,
+    coinsUsed = 0,
+    coinDiscount = 0,
+    toggleCoins,
+    totalBeforeCoins = 0,
+    totalForThresholds = 0,
+    coinDebtRecovery = 0
 }) => {
     const tipOptions = [10, 20, 30];
     const [isCustomTip, setIsCustomTip] = React.useState(false);
     const [customTipValue, setCustomTipValue] = React.useState('');
+
     return (
         <div className="w-full lg:max-w-md bg-emerald-50/50 border border-emerald-100 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 h-fit sticky top-20 lg:top-24">
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-4 sm:mb-6 tracking-tight">Order Summary</h2>
-
-            {/* User Information - Hidden as per request */}
-            {/* <UserInfo user={user} /> */}
 
             {/* Address Section */}
             <AddressSection
@@ -74,9 +81,6 @@ const OrderSummary = ({
                         setInstruction={setInstruction}
                     />
 
-
-
-
                     {/* Payment and Delivery */}
                     <PaymentDeliverySection
                         paymentOption={paymentOption}
@@ -85,6 +89,16 @@ const OrderSummary = ({
                         setDeliveryDate={setDeliveryDate}
                         deliverySlot={deliverySlot}
                         setDeliverySlot={setDeliverySlot}
+                    />
+
+                    {/* RG Coin Section */}
+                    <RGCoinSection
+                        userCoins={userCoins}
+                        coinsUsed={coinsUsed}
+                        coinDiscount={coinDiscount}
+                        onToggle={toggleCoins}
+                        currencySymbol={currencySymbol}
+                        totalBeforeCoins={totalForThresholds}
                     />
 
                     {/* Promo Code Section */}
@@ -221,6 +235,8 @@ const OrderSummary = ({
                         standardFee={standardFee}
                         distanceSurcharge={distanceSurcharge}
                         instruction={instruction}
+                        coinDiscount={coinDiscount}
+                        coinDebtRecovery={coinDebtRecovery}
                     />
 
                     {/* Order Button */}

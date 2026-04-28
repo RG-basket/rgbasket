@@ -138,6 +138,8 @@ const bannerRoutes = require('./routes/banners');
 const offerRoutes = require('./routes/offerRoutes');
 const serviceAreaRoutes = require('./routes/serviceAreas');
 const deliveryPartnerRoutes = require('./routes/deliveryPartnerRoutes');
+const rewardSettingsRoutes = require('./routes/rewardSettings');
+const CoinService = require('./services/CoinService');
 
 // Import middleware
 const { checkBanned } = require('./middleware/auth');
@@ -160,33 +162,127 @@ app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/feeds', require('./routes/feeds'));
 app.use('/api/sitemap', require('./routes/sitemap'));
 app.use('/api/delivery-partners', deliveryPartnerRoutes);
+app.use('/api/reward-settings', rewardSettingsRoutes);
 
 
 // Your existing routes
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { googleId, name, email, photo } = req.body;
+    const { googleId, name, email, photo, referralCode, deviceId } = req.body;
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     let user = await User.findOne({ googleId });
+    let totalCoinsAwarded = 0;
+    let awardMessage = "";
 
     if (user) {
       user.name = name;
       user.photo = photo;
       user.lastActive = new Date(); // Update last active
+      
+      // Update deviceId if it changed or was missing
+      if (deviceId && user.deviceId !== deviceId) {
+        user.deviceId = deviceId;
+      }
+
+      // REMOVED LATE REFERRAL LOGIC: Existing users cannot add referral codes to get more coins.
+
+      user.lastIp = ipAddress;
       await user.save();
       console.log('User updated:', user.email);
-      res.status(200).json({ message: 'Login successful', user });
+      res.status(200).json({ 
+        message: 'Login successful', 
+        user,
+        coinsAwarded: 0,
+        awardMessage: ""
+      });
     } else {
+      let referredBy = null;
+      let usedReferral = false;
+
+      if (referralCode) {
+        const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
+        if (referrer) {
+          // ANTI-CHEAT: Check if ANY account was already created on this device/IP
+          const duplicateUser = await User.findOne({ 
+            $or: [
+              { deviceId: deviceId || 'MISSING-ID' },
+              { lastIp: ipAddress }
+            ]
+          });
+          
+          if (!duplicateUser) {
+            referredBy = referrer._id;
+            usedReferral = true;
+            console.log(`User ${email} referred by ${referrer.email}`);
+          } else {
+            console.log(`[FRAUD ALERT] Referral blocked for ${email}: Device/IP already used by ${duplicateUser.email}`);
+          }
+        }
+      }
+
       user = new User({
         googleId,
         name,
         email,
         photo,
+        referredBy,
+        deviceId, // Store the device fingerprint
+        lastIp: ipAddress, // Store IP for fraud detection
         lastActive: new Date() // Set last active for new user
       });
       await user.save();
+
+      // --- HARD MODE SECURITY: AWARD COINS ONLY TO UNIQUE DEVICES ---
+      const isDuplicateDevice = await User.findOne({ 
+        $or: [
+          { deviceId: deviceId || 'MISSING-ID' },
+          { lastIp: ipAddress }
+        ],
+        _id: { $ne: user._id } // Don't count the user we just created
+      });
+
+      if (isDuplicateDevice) {
+        console.log(`[FRAUD BLOCKED] User ${email} joined from a duplicate device/IP (${deviceId}). Awarding 0 coins.`);
+        totalCoinsAwarded = 0;
+        awardMessage = "Account created. No joining bonus awarded for duplicate devices.";
+      } else {
+        // Award Bonus Coins ONLY to unique users
+        if (usedReferral) {
+          // If referred and unique, they get ONLY the Referral Bonus (e.g. 300)
+          try {
+            const refTrans = await CoinService.awardRefereeBonus(user._id);
+            if (refTrans) {
+              totalCoinsAwarded += refTrans.amount;
+              awardMessage = "Referral Join Bonus awarded!";
+            }
+          } catch (refBonusError) {
+            console.error('Error awarding referral bonus:', refBonusError);
+          }
+        } else {
+          // Normal unique users get ONLY the Welcome Bonus (e.g. 100)
+          try {
+            const welcomeTrans = await CoinService.awardWelcomeBonus(user._id);
+            if (welcomeTrans) {
+              totalCoinsAwarded += welcomeTrans.amount;
+              awardMessage = "Welcome Bonus awarded!";
+            }
+          } catch (bonusError) {
+            console.error('Error awarding welcome bonus:', bonusError);
+          }
+        }
+      }
+
+      // Fetch the updated user with coins
+      const updatedUser = await User.findById(user._id);
+
       console.log('New user created:', user.email);
-      res.status(201).json({ message: 'User created successfully', user });
+      res.status(201).json({ 
+        message: 'User created successfully', 
+        user: updatedUser,
+        coinsAwarded: totalCoinsAwarded,
+        awardMessage
+      });
     }
 
   } catch (error) {
