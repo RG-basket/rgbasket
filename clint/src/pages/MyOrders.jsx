@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Check, Calendar, Clock } from 'lucide-react';
 import { useAppContext } from "../context/AppContext";
+import toast from 'react-hot-toast';
 
 const MyOrders = () => {
   const { refreshUserCoins } = useAppContext();
@@ -30,11 +31,13 @@ const MyOrders = () => {
     { value: 'cancelled', label: 'Cancelled', count: 0, color: 'bg-red-500' }
   ];
 
-  // Fetch user orders
-  const fetchUserOrders = async () => {
+  // Fetch user orders - supports silent background refresh
+  const fetchUserOrders = async (isSilent = false) => {
     try {
-      setLoading(true);
-      setError('');
+      if (!isSilent) {
+        setLoading(true);
+        setError('');
+      }
 
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       const userId = currentUser?.id || currentUser?._id;
@@ -58,10 +61,16 @@ const MyOrders = () => {
       }
 
     } catch (err) {
-      setError(err.message || 'Failed to load orders. Please try again.');
-      setOrders([]);
+      if (!isSilent) {
+        setError(err.message || 'Failed to load orders. Please try again.');
+        setOrders([]);
+      } else {
+        console.error('Silent refresh failed:', err);
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -216,22 +225,27 @@ const MyOrders = () => {
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Failed to cancel order: ${response.status}`);
+        throw new Error(data.message || `Failed to cancel order: ${response.status}`);
       }
 
-      await response.json();
-      await fetchUserOrders();
-      await refreshUserCoins();
+      // Success logic
       toast.success('Order cancelled. Coins refunded to wallet! 🪙');
-
-      setError('');
+      
+      // Close modal and reset fields IMMEDIATELY to prevent UI hang
       setShowCancelConfirm(false);
       setOrderToCancel(null);
       setCancelReason('');
 
+      // Refresh data in background (Silently)
+      fetchUserOrders(true).catch(e => console.error('BG Refresh orders failed', e));
+      refreshUserCoins().catch(e => console.error('BG Refresh coins failed', e));
+
     } catch (err) {
-      setError('Failed to cancel order. Please try again.');
+      console.error('Cancel Error:', err);
+      toast.error(err.message || 'Failed to cancel order. Please try again.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -280,21 +294,25 @@ const MyOrders = () => {
       }
 
       await response.json();
-      await fetchUserOrders();
-      await refreshUserCoins();
+      
+      // Success Logic
       toast.success('Order Received! Cashback coins added to your wallet! 🪙✨');
-
-      setError('');
+      
       setShowDeliveryConfirm(false);
       setOrderToDeliver(null);
 
-      // Show Google Review Popup after successful delivery confirmation
+      // Refresh data in background
+      fetchUserOrders(true).catch(e => console.error('BG Refresh orders failed', e));
+      refreshUserCoins().catch(e => console.error('BG Refresh coins failed', e));
+
+      // Show Google Review Popup
       setTimeout(() => {
         setShowReviewPopup(true);
       }, 500);
 
     } catch (err) {
-      setError('Failed to update order status. Please try again.');
+      console.error('Delivery Confirmation Error:', err);
+      toast.error(err.message || 'Failed to update order status. Please try again.');
     } finally {
       setUpdatingOrder(false);
     }
@@ -730,7 +748,7 @@ const MyOrders = () => {
           </div>
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={fetchUserOrders}
+            onClick={() => fetchUserOrders(false)}
             className="p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-emerald-600 hover:bg-emerald-50 transition-all"
             title="Refresh Orders"
           >

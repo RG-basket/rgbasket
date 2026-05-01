@@ -28,6 +28,7 @@ const ProductFormDark = () => {
         requiresSlotSelection: false,
         availableSlots: [],
         isCustomizable: false,
+        isSpecialRequest: false,
         customizationCharges: []
     });
 
@@ -88,6 +89,7 @@ const ProductFormDark = () => {
                     requiresSlotSelection: product.requiresSlotSelection || false,
                     availableSlots: product.availableSlots || [],
                     isCustomizable: product.isCustomizable || false,
+                    isSpecialRequest: product.isSpecialRequest || false,
                     customizationCharges: product.customizationCharges || []
                 });
                 setImagePreviews(product.images || []);
@@ -195,6 +197,7 @@ const ProductFormDark = () => {
             formDataToSend.append('active', formData.active);
             formDataToSend.append('requiresSlotSelection', formData.requiresSlotSelection);
             formDataToSend.append('isCustomizable', formData.isCustomizable);
+            formDataToSend.append('isSpecialRequest', formData.isSpecialRequest);
 
             // AUTOMATICALLY derive customization rules from variants if enabled
             let cleanedCharges = [];
@@ -494,6 +497,15 @@ const ProductFormDark = () => {
                                     className="rounded border-gray-600 bg-[#1a1b26] text-[#7aa2f7] focus:ring-[#7aa2f7]"
                                 />
                                 <span className={`text-sm ${tw.textPrimary}`}>Active</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.isSpecialRequest}
+                                    onChange={(e) => handleInputChange('isSpecialRequest', e.target.checked)}
+                                    className="rounded border-gray-600 bg-[#1a1b26] text-[#7aa2f7] focus:ring-[#7aa2f7]"
+                                />
+                                <span className={`text-sm ${tw.textPrimary}`}>Special Request (WhatsApp)</span>
                             </label>
                         </div>
                     </div>

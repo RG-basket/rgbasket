@@ -133,6 +133,11 @@ const ProductSchema = new mongoose.Schema({
     // e.g., ['Morning - First Half', 'Noon', 'Night - Second Half'] - restricts product to specific slots
   }],
 
+  isSpecialRequest: {
+    type: Boolean,
+    default: false
+  },
+
   slotRestrictions: [{
     date: {
       type: String, // YYYY-MM-DD format

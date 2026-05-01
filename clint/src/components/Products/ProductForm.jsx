@@ -21,7 +21,8 @@ const ProductForm = () => {
     featured: false,
     active: true,
     requiresSlotSelection: false,
-    availableSlots: []
+    availableSlots: [],
+    isSpecialRequest: false
   });
 
   const [images, setImages] = useState([]);
@@ -78,7 +79,8 @@ const ProductForm = () => {
           featured: product.featured,
           active: product.active,
           requiresSlotSelection: product.requiresSlotSelection || false,
-          availableSlots: product.availableSlots || []
+          availableSlots: product.availableSlots || [],
+          isSpecialRequest: product.isSpecialRequest || false
         });
         setImagePreviews(product.images || []);
       }
@@ -204,6 +206,7 @@ const ProductForm = () => {
       formDataToSend.append('featured', formData.featured);
       formDataToSend.append('active', formData.active);
       formDataToSend.append('requiresSlotSelection', formData.requiresSlotSelection);
+      formDataToSend.append('isSpecialRequest', formData.isSpecialRequest);
 
       formData.availableSlots.forEach(slot => {
         formDataToSend.append('availableSlots', slot);
@@ -426,6 +429,15 @@ const ProductForm = () => {
                   className="rounded text-green-600 focus:ring-green-500"
                 />
                 <span className="text-sm text-gray-700">Active</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isSpecialRequest}
+                  onChange={(e) => handleInputChange('isSpecialRequest', e.target.checked)}
+                  className="rounded text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700">Special Request (WhatsApp)</span>
               </label>
             </div>
           </div>

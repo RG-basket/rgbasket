@@ -25,13 +25,17 @@ const ShareAppBanner = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const referralCode = user?.referralCode || '';
-  const appUrl = window.location.origin + (referralCode ? `?ref=${referralCode}` : '');
-  const referralReward = rewardSettings?.referralRewardCoins || 500;
+  // Helper to get fresh, attractive share data at the moment of action
+  const getShareData = () => {
+    const code = user?.referralCode || '';
+    const url = window.location.origin + (code ? `?ref=${code}` : '');
+    const text = code 
+      ? `Hey! Get fresh veggies, fruits & meat at the best prices on RG Basket! 🛒🍇🐟🐔🍅 Use my Invite Code: ( ${code} ) to unlock your JOINING BONUS! 🎁✨ Grab the deal now:`
+      : "Check out RG Basket! 🛒 Fresh groceries at insane prices. Your go-to for veggies, fruits, meats & more! Get it here:";
+    return { url, text };
+  };
 
-  const shareText = referralCode 
-    ? `Hey! Shop fresh groceries on RG Basket using my code ${referralCode} and we both get rewards! 🛒✨`
-    : "Check out RG Basket! 🛒 Fresh groceries at insane prices. Your go-to for veggies, fruits, meats & more!";
+  const referralReward = rewardSettings?.referralRewardCoins || 500;
 
   // Initialize component after mount
   useEffect(() => {
@@ -73,10 +77,15 @@ const ShareAppBanner = () => {
 
   const handleShare = async () => {
     if (!isLoaded) return;
+    const { url, text } = getShareData();
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'RG Basket Referral', text: shareText, url: appUrl });
+        await navigator.share({ 
+            title: 'RG Basket Referral', 
+            text: text, 
+            url: url 
+        });
         handleSupport();
       } catch (error) {
         // Silent fail for cancelled shares
@@ -97,7 +106,8 @@ const ShareAppBanner = () => {
       icon: MessageCircle,
       label: 'WhatsApp',
       action: () => {
-        window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + appUrl)}`, '_blank');
+        const { url, text } = getShareData();
+        window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
         setShowShare(false);
         handleSupport();
       },
@@ -107,13 +117,14 @@ const ShareAppBanner = () => {
       icon: Share2,
       label: 'Copy Link',
       action: async () => {
+        const { url } = getShareData();
         try {
-          await navigator.clipboard.writeText(appUrl);
+          await navigator.clipboard.writeText(url);
           setShowShare(false);
           handleSupport();
         } catch (error) {
           const textArea = document.createElement('textarea');
-          textArea.value = appUrl;
+          textArea.value = url;
           document.body.appendChild(textArea);
           textArea.select();
           document.execCommand('copy');
@@ -147,57 +158,41 @@ const ShareAppBanner = () => {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="w-full bg-amber-50/90 border-b border-amber-200/50 px-4 py-2 md:py-6 relative overflow-hidden backdrop-blur-sm"
+        className="w-full bg-amber-50/90 border-b border-amber-200/50 px-4 py-1.5 md:py-6 relative overflow-hidden backdrop-blur-sm"
       >
-        {/* Visual flares */}
         <div className="absolute top-0 right-0 w-32 h-32 md:w-64 md:h-64 bg-amber-200/40 rounded-full blur-2xl md:blur-3xl -mr-16 -mt-16" />
-        
-        {/* Animated Background Sparkles - More visible on desktop */}
         <div className="absolute inset-0 pointer-events-none hidden md:block">
             <motion.div animate={{ opacity: [0.1, 0.4, 0.1], y: [0, -20, 0] }} transition={{ duration: 4, repeat: Infinity }} className="absolute top-4 left-1/4 text-xl">✨</motion.div>
             <motion.div animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.2, 1] }} transition={{ duration: 5, repeat: Infinity, delay: 1 }} className="absolute top-10 right-1/4 text-2xl">🪙</motion.div>
             <motion.div animate={{ opacity: [0.1, 0.4, 0.1], x: [0, 20, 0] }} transition={{ duration: 6, repeat: Infinity, delay: 2 }} className="absolute bottom-4 left-1/3 text-lg">✨</motion.div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 max-w-6xl mx-auto relative z-10">
-          {/* Left: Gold Theme Text */}
+        <div className="flex items-center justify-between gap-1 max-w-6xl mx-auto relative z-10">
           <div className="flex items-center gap-2 md:gap-5 min-w-0 flex-1">
             <motion.div 
-              animate={{ 
-                boxShadow: [
-                  "0 0 0 0px rgba(251, 191, 36, 0)",
-                  "0 0 0 10px rgba(251, 191, 36, 0.1)",
-                  "0 0 0 0px rgba(251, 191, 36, 0)"
-                ]
-              }}
+              animate={{ boxShadow: ["0 0 0 0px rgba(251,191,36,0)", "0 0 0 10px rgba(251,191,36,0.1)", "0 0 0 0px rgba(251,191,36,0)"] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="flex-shrink-0 w-7 h-7 md:w-16 md:h-16 rounded-full bg-gradient-to-tr from-yellow-400 via-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg ring-2 md:ring-4 ring-amber-100 relative overflow-hidden"
+              className="flex-shrink-0 w-8 h-8 md:w-16 md:h-16 rounded-full bg-gradient-to-tr from-yellow-400 via-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg ring-1 md:ring-4 ring-amber-100 relative overflow-hidden"
             >
               <span className="text-[9px] md:text-2xl font-black drop-shadow-md relative z-10 uppercase">RG</span>
-              {/* Shine effect overlay */}
-              <motion.div 
-                animate={{ x: ['-100%', '200%'] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
-                className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12"
-              />
+              <motion.div animate={{ x: ['-100%', '200%'] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }} className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12" />
             </motion.div>
             <div className="min-w-0">
-              <h4 className="text-[8.5px] md:text-2xl font-black text-amber-900 leading-none uppercase md:normal-case tracking-tighter truncate">
+              <h4 className="text-[10px] md:text-2xl font-black text-amber-900 leading-none uppercase md:normal-case tracking-tighter truncate">
                 {isSupported ? "Link Shared! ✅" : `Refer & Earn ${referralReward} Coins`}
               </h4>
-              <p className="text-[6px] md:text-sm font-black md:font-medium text-orange-600/80 md:text-gray-500 uppercase md:normal-case tracking-widest md:tracking-normal leading-none mt-0.5 md:mt-2 truncate">
+              <p className="text-[7px] md:text-sm font-black md:font-medium text-orange-600/80 md:text-gray-500 uppercase md:normal-case tracking-widest md:tracking-normal leading-none mt-0.5 md:mt-1.5 truncate">
                 {isSupported ? "Reward after friend's 1st order 🎁" : "Click Invite & Earn ✨"}
               </p>
             </div>
           </div>
 
-          {/* Right: Compact Action Grid */}
-          <div className="flex items-center gap-1.5 md:gap-4 flex-shrink-0">
+          <div className="flex items-center gap-1 md:gap-4 flex-shrink-0">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/profile', { state: { openRules: true } })}
-              className="px-2.5 md:px-6 py-1 md:py-3 bg-white/60 md:bg-white text-amber-800 rounded-lg md:rounded-2xl text-[8px] md:text-sm font-black uppercase tracking-widest border border-amber-200 active:scale-95 transition-all shadow-sm"
+              className="px-1.5 md:px-6 py-1 md:py-3 bg-white text-amber-800 rounded-lg md:rounded-2xl text-[7.5px] md:text-sm font-black uppercase tracking-widest border border-amber-200 active:scale-95 transition-all shadow-sm"
             >
               Rules
             </motion.button>
@@ -206,10 +201,10 @@ const ShareAppBanner = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleShare}
-              className="flex items-center gap-1 md:gap-3 px-3 md:px-8 py-1 md:py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg md:rounded-2xl text-[8px] md:text-sm font-black uppercase tracking-widest shadow-xl shadow-amber-200 active:scale-95 transition-all border border-amber-400"
+              className="flex items-center gap-1 md:gap-3 px-1.5 md:px-8 py-1 md:py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg md:rounded-2xl text-[7.5px] md:text-sm font-black uppercase tracking-widest shadow-xl shadow-amber-200 active:scale-95 transition-all border border-amber-400"
             >
               <Suspense fallback={<IconSkeleton />}>
-                <Share2 className="w-3 h-3 md:w-5 md:h-5" strokeWidth={3} />
+                <Share2 className="w-2.5 h-2.5 md:w-5 md:h-5" strokeWidth={3} />
               </Suspense>
               <span>Invite</span>
             </motion.button>
