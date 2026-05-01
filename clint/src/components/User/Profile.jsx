@@ -257,39 +257,42 @@ const Profile = () => {
                     className="overflow-hidden bg-gray-50/50"
                   >
                     <div className="p-6 space-y-6">
+                      {/* Order Rewards */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 mb-1">
                           <Zap size={14} className="text-emerald-600" />
-                          <h4 className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Earning Logic</h4>
+                          <h4 className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Every Order Earns</h4>
                         </div>
-                        <RuleRow label="Order Cashback" value="2% Rewards" />
-                        <p className="text-[9px] text-gray-500 font-bold uppercase leading-relaxed">
-                          Get 2% value back on every paid order. Coins are credited automatically once the order is marked <span className="text-emerald-600">Delivered</span>.
+                        <RuleRow label="Your Cashback" value={`${rewardSettings?.orderRewardPercent || 1}% Back`} />
+                        <p className="text-[9px] text-gray-400 font-bold uppercase leading-relaxed">
+                          Enjoy {rewardSettings?.orderRewardPercent || 1}% back on every purchase as a thank you. Coins are added as soon as your order is delivered.
                         </p>
                       </div>
 
+                      {/* Referral Rewards */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 mb-1">
                           <Users size={14} className="text-amber-600" />
-                          <h4 className="text-[11px] font-black text-amber-700 uppercase tracking-widest">Referral Rewards</h4>
+                          <h4 className="text-[11px] font-black text-amber-700 uppercase tracking-widest">Share the Joy</h4>
                         </div>
-                        <RuleRow label="You Earn" value={`+${referralAmount} Coins`} />
-                        <RuleRow label="Friend Earns" value="+300 Coins" />
-                        <p className="text-[9px] text-gray-500 font-bold uppercase leading-relaxed">
-                          Invite friends with your code. You get {referralAmount} coins after their <span className="text-amber-600">First delivered order</span> of ₹299 or more.
+                        <RuleRow label="You Receive" value={`+${referralAmount} Coins`} />
+                        <RuleRow label="Friend Receives" value={`+${friendBonus} Coins`} />
+                        <p className="text-[9px] text-gray-400 font-bold uppercase leading-relaxed">
+                          Invite a friend and you both get a gift! Reward is released after their first delivered order of ₹{minReferralOrder}+.
                         </p>
                       </div>
 
-                        <div className="space-y-2">
+                      {/* Usage & Limits */}
+                      <div className="space-y-2">
                         <div className="flex items-center gap-2 mb-1">
                           <Coins size={14} className="text-blue-600" />
-                          <h4 className="text-[11px] font-black text-blue-700 uppercase tracking-widest">Usage & Limits</h4>
+                          <h4 className="text-[11px] font-black text-blue-700 uppercase tracking-widest">How to Save</h4>
                         </div>
-                        <RuleRow label="Value" value={`${rewardSettings?.conversionRate || 10} Coins = ₹1`} />
-                        <RuleRow label="Min Order" value={`₹${rewardSettings?.minOrderForRedemption || 200}`} />
-                        <RuleRow label="Max Discount" value={`₹${rewardSettings?.maxRedemptionRupees || 30}`} />
-                        <p className="text-[9px] text-gray-500 font-bold uppercase leading-relaxed">
-                          Redeem your coins for instant discounts at checkout!
+                        <RuleRow label="Simple Value" value={`Save ₹1 per ${rewardSettings?.conversionRate || 10} Coins`} />
+                        <RuleRow label="Enjoy Savings on" value={`Orders over ₹${rewardSettings?.minOrderForRedemption || 200}`} />
+                        <RuleRow label="Max Savings" value={`₹${rewardSettings?.maxRedemptionRupees || 25} per order`} />
+                        <p className="text-[9px] text-gray-400 font-bold uppercase leading-relaxed">
+                          Redeem your coins for instant discounts at checkout. We love seeing you save!
                         </p>
                       </div>
                     </div>
@@ -404,11 +407,11 @@ const Profile = () => {
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
                             <Zap size={16} className="text-emerald-600" />
-                            <span className="text-xs font-black uppercase text-emerald-700 tracking-wider">Shopping Rewards</span>
+                            <span className="text-xs font-black uppercase text-emerald-700 tracking-wider">Every Purchase is a Gift</span>
                           </div>
-                          <RuleRow label="Order Cashback" value={`${rewardSettings?.orderRewardPercent || 2}% of Total`} />
+                          <RuleRow label="Your Cashback" value={`${rewardSettings?.orderRewardPercent || 1}% Back`} />
                           <p className="text-[11px] text-gray-400 font-bold uppercase leading-relaxed ml-6">
-                            Earn {rewardSettings?.orderRewardPercent || 2}% value back on every order. Coins are credited instantly after your order is successfully <span className="text-emerald-600">delivered</span>.
+                            Enjoy {rewardSettings?.orderRewardPercent || 1}% back as a thank you for every order. Coins arrive as soon as your order is successfully <span className="text-emerald-600">delivered</span>.
                           </p>
                         </div>
 
@@ -416,25 +419,25 @@ const Profile = () => {
                           <div className="flex items-center gap-2">
                             <Users size={16} className="text-amber-600" />
 
-                            <span className="text-xs font-black uppercase text-amber-700 tracking-wider">Referral Program</span>
+                            <span className="text-xs font-black uppercase text-amber-700 tracking-wider">Share the Joy</span>
                           </div>
-                          <RuleRow label="Referrer Bonus" value={`+${referralAmount} Coins`} />
-                          <RuleRow label="Friend Bonus" value={`+${friendBonus} Coins`} />
+                          <RuleRow label="You Receive" value={`+${referralAmount} Coins`} />
+                          <RuleRow label="Friend Receives" value={`+${friendBonus} Coins`} />
                           <p className="text-[11px] text-gray-400 font-bold uppercase leading-relaxed ml-6">
-                            Refer friends and get rewards! Bonus is released once your friend completes their <span className="text-amber-600">first order of ₹${minReferralOrder}+</span>.
+                            Refer friends and you both get a gift! Reward is released once your friend completes their <span className="text-amber-600">first order of ₹{minReferralOrder}+</span>.
                           </p>
                         </div>
 
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
                             <Coins size={16} className="text-blue-600" />
-                            <span className="text-xs font-black uppercase text-blue-700 tracking-wider">Spending Rules</span>
+                            <span className="text-xs font-black uppercase text-blue-700 tracking-wider">Your Savings, Your Way</span>
                           </div>
-                          <RuleRow label="Market Value" value={`${rewardSettings?.conversionRate || 10} Coins = ₹1`} />
+                          <RuleRow label="Simple Value" value={`Save ₹1 for every ${rewardSettings?.conversionRate || 10} Coins`} />
                           <RuleRow label="Min Order to use" value={`₹${rewardSettings?.minOrderForRedemption || 200}`} />
-                          <RuleRow label="Max Use per order" value={`₹${rewardSettings?.maxRedemptionRupees || 30}`} />
+                          <RuleRow label="Max Savings" value={`₹${rewardSettings?.maxRedemptionRupees || 25} per order`} />
                           <p className="text-[11px] text-gray-400 font-bold uppercase leading-relaxed ml-6">
-                            Redeem your hard-earned coins for instant savings during checkout.
+                            Redeem your hard-earned coins for instant savings during checkout. We love seeing you save more!
                           </p>
                         </div>
                       </div>

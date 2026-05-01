@@ -189,9 +189,9 @@ const useCartStore = create(
           const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/user/${userId}`);
           const data = await res.json();
           
-          if (data.success && data.orders?.length > 0) {
+          if (data.success) {
             const activeStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'out for delivery'];
-            const active = data.orders
+            const active = (data.orders || [])
               .filter(o => activeStatuses.includes(o.status.toLowerCase()))
               .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
@@ -212,7 +212,8 @@ const useCartStore = create(
                   } 
                 });
               }
-            } else if (get().activeOrder) {
+            } else {
+              // No active order found, clear it
               set({ activeOrder: null });
             }
           }

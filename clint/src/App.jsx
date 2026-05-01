@@ -144,9 +144,19 @@ const App = () => {
   const cartCount = items.filter(item => !item.isGift).reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
+    let interval;
     if (isAppReady && user) {
+      // Initial sync
       syncActiveOrder(user.id || user._id);
+      
+      // Poll every 30 seconds to keep tracking bar fresh
+      interval = setInterval(() => {
+        syncActiveOrder(user.id || user._id);
+      }, 30000);
     }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [user, isAppReady, syncActiveOrder]);
 
   // console.log('Current User in App:', user);
