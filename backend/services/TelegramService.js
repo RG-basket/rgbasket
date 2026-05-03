@@ -39,6 +39,8 @@ class TelegramService {
             const deliverySlot = escapeHTML(order.timeSlot || 'N/A');
             const instruction = escapeHTML(order.instruction || 'None');
 
+            const loc = order.deliveryLocation?.coordinates?.latitude ? order.deliveryLocation.coordinates : (order.location?.coordinates?.latitude ? order.location.coordinates : null);
+
             const message = `
 <b>🛍️ NEW ORDER RECEIVED!</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -80,8 +82,8 @@ ${order.shippingAddress?.alternatePhone ? `<b>Alt Phone:</b> <code>${escapeHTML(
 
 📍 <b>LOCATION INTELLIGENCE:</b>
 ━━━━━━━━━━━━━━━━━━━━
-${(order.location?.coordinates?.latitude && order.location?.coordinates?.longitude)
-                    ? `🏠 <b>Order GPS:</b> <a href="https://www.google.com/maps?q=${order.location.coordinates.latitude},${order.location.coordinates.longitude}">Open in Google Maps</a>`
+${(loc && loc.latitude && loc.longitude)
+                    ? `🏠 <b>Order GPS:</b> <a href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}">Open in Google Maps</a>`
                     : '❌ GPS coordinates not captured'}
 
 ${(order.liveLocation?.coordinates?.latitude)
@@ -275,6 +277,58 @@ ${order.proofOfDelivery?.isForcefullyDelivered ? '⚠️ <b>FORCEFUL DELIVERY (O
         } catch (error) {
             console.error('❌ Telegram Cancellation Notification Error:', error.message);
             console.error('Order Data Received:', JSON.stringify(order));
+        }
+    }
+
+    static async sendOrderUnderReviewNotification(order, reason = 'Force Delivery Attempted') {
+        if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID) {
+            console.warn('[TelegramService] Token or Chat ID missing. Skipping review notification.');
+            return;
+        }
+
+        try {
+            const escapeHTML = (str) => {
+                if (!str) return '';
+                return str.toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            };
+
+            const orderId = order._id || order.id || 'N/A';
+            const customerName = escapeHTML(order.userInfo?.name || (order.shippingAddress && order.shippingAddress.fullName) || 'Guest');
+            const customerPhone = escapeHTML(order.userInfo?.phone || (order.shippingAddress && order.shippingAddress.phoneNumber) || 'N/A');
+            const totalAmount = order.totalAmount || 0;
+            const safeReason = escapeHTML(reason);
+
+            const message = `
+<b>🔍 ORDER UNDER REVIEW!</b>
+━━━━━━━━━━━━━━━━━━━━
+🆔 <b>Order ID:</b> #${orderId.toString().slice(-8).toUpperCase()}
+👤 <b>Customer:</b> ${customerName}
+📞 <b>Phone:</b> <code>${customerPhone}</code>
+
+⚠️ <b>Alert:</b> <i>${safeReason}</i>
+
+💰 <b>Amount:</b> ₹${totalAmount}
+━━━━━━━━━━━━━━━━━━━━
+🟠 <b>STATUS:</b> #UNDER_REVIEW
+      `.trim();
+
+            const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: TELEGRAM_CHAT_ID,
+                    text: message,
+                    parse_mode: 'HTML'
+                })
+            });
+            console.log('✅ Telegram under review notification sent');
+        } catch (error) {
+            console.error('❌ Telegram Review Notification Error:', error.message);
         }
     }
 }

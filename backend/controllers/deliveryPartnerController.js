@@ -354,7 +354,7 @@ exports.completeOrder = async (req, res) => {
         if (partner) {
             if (isForced) {
                 // SPECIAL ALERT FOR ADMIN REVIEW
-                TelegramService.sendOrderCancellationNotification(order, `🚨 FORCE DELIVERY ATTEMPTED! Rider ${partner.name} is outside geofence. Status set to #UNDER_REVIEW. Check Admin Dashboard.`).catch(() => {});
+                TelegramService.sendOrderUnderReviewNotification(order, `🚨 FORCE DELIVERY ATTEMPTED! Rider ${partner.name} is outside geofence. Status set to #UNDER_REVIEW. Check Admin Dashboard.`).catch(() => {});
             } else {
                 TelegramService.sendRiderDeliveryNotification(order, partner).catch(() => {});
             }
