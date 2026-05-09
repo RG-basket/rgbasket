@@ -1,35 +1,46 @@
-// models/User.js
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
-  // Unique identifier provided by Google
   googleId: {
     type: String,
     required: true,
     unique: true
   },
-  // User's display name
   name: {
     type: String,
     required: true
   },
-  // User's email address
   email: {
     type: String,
     required: true,
-    unique: true // Ensures the same email can't register twice
+    unique: true
   },
-  // Profile photo URL from Google
   photo: {
     type: String,
-    default: '' // It's optional, some users might not have a photo
+    default: ''
   },
-  // User status - active or banned
-  active: {
-    type: Boolean,
-    default: true
+  phone: {
+    type: String,
+    default: ''
   },
-  // Specifically to track formal bans
+  referralCode: {
+    type: String,
+    unique: true,
+    uppercase: true,
+    default: function() {
+      // Generate a unique 8-character code
+      return Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  rgCoins: {
+    type: Number,
+    default: 0
+  },
   isBanned: {
     type: Boolean,
     default: false
@@ -38,80 +49,48 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  // Admin privileges
-  isAdmin: {
-    type: Boolean,
-    default: false
-  },
-  role: {
-    type: String,
-    default: 'user',
-    enum: ['user', 'admin']
-  },
-  // Phone number (optional)
-  phone: {
+  deviceId: {
     type: String,
     default: ''
   },
-  // Last seen/activity timestamp
+  lastIp: {
+    type: String,
+    default: ''
+  },
   lastActive: {
     type: Date,
     default: Date.now
-  },
-  // Behavior & Intent Tracking (Storage Optimized)
-  lastCartSnapshot: {
-    items: [{
-      productId: String,
-      name: String,
-      quantity: Number,
-      price: Number,
-      weight: String
-    }],
-    updatedAt: { type: Date, default: Date.now }
   },
   lastBrowsedCategory: {
     type: String,
     default: ''
   },
   browsingActivity: {
-    type: Date,
-    default: Date.now
+    type: Date
   },
-  // RG Coin System
-  rgCoins: {
-    type: Number,
-    default: 0
+  lastCartSnapshot: {
+    items: { type: Object },
+    updatedAt: { type: Date }
   },
-  referralCode: {
+  pushToken: {
     type: String,
-    unique: true,
-    sparse: true // Allows multiple nulls if we don't generate it immediately
+    default: ''
   },
-  referredBy: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'User',
-  default: null
-  },
-  deviceId: {
-    type: String,
-    default: null
-  },
-  lastIp: {
-    type: String,
-    default: null
-  }
-  }, {
-  timestamps: true // This automatically adds `createdAt` and `updatedAt` fields
-  });
+  pushTokens: [{
+    token: String,
+    platform: String,
+    lastUpdated: { type: Date, default: Date.now }
+  }]
+}, {
+  timestamps: true
+});
 
-// Middleware to generate referral code before saving if not present
-UserSchema.pre('save', function (next) {
+// Middleware to ensure a referral code is generated on save if missing
+UserSchema.pre('save', function(next) {
   if (!this.referralCode) {
-    // Generate a simple 8-character alphanumeric code
     this.referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
   }
   next();
 });
 
-// Create the model from the schema
 module.exports = mongoose.model('User', UserSchema);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useGeolocated } from "react-geolocated";
 import { useAppContext } from "../../context/AppContext";
+import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
 const AutoDetectLocation = () => {
   const { serviceAreas } = useAppContext();
@@ -9,12 +11,11 @@ const AutoDetectLocation = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isManualTriggered, setIsManualTriggered] = useState(false);
 
+  // Web Geolocation Hook
   const {
     coords,
-    isGeolocationAvailable,
-    isGeolocationEnabled,
     positionError,
-    getPosition, // Add this to trigger manually
+    getPosition, 
   } = useGeolocated({
     positionOptions: {
       enableHighAccuracy: true,
@@ -22,17 +23,40 @@ const AutoDetectLocation = () => {
       maximumAge: 0,
     },
     userDecisionTimeout: 10000,
-    suppressLocationOnMount: true, // 🛑 CHANGED: Stop auto-requesting
+    suppressLocationOnMount: true, 
   });
 
   // Function to handle the manual click
-  const handleDetectClick = () => {
+  const handleDetectClick = async () => {
     setIsManualTriggered(true);
-    getPosition();
+    setIsLoading(true);
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const permissions = await Geolocation.checkPermissions();
+        if (permissions.location === 'denied' || permissions.location === 'prompt') {
+          await Geolocation.requestPermissions();
+        }
+
+        const coordinates = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 10000
+        });
+
+        if (coordinates.coords) {
+          await reverseGeocode(coordinates.coords);
+        }
+      } catch (error) {
+        console.error("Native geolocation failed:", error);
+        setIsLoading(false);
+      }
+    } else {
+      getPosition();
+    }
   };
 
   useEffect(() => {
-    if (coords && isManualTriggered) {
+    if (coords && isManualTriggered && !Capacitor.isNativePlatform()) {
       reverseGeocode(coords);
     }
   }, [coords, isManualTriggered]);

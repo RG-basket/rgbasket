@@ -9,16 +9,28 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/rgbasket_android_192px_image_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/favicon.png",
+      "src": "/rgbasket_android_192px_image_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/rgbasket_android_512px_icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/rgbasket_android_512px_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

@@ -24,6 +24,7 @@ const ShippingReturns = lazy(() => import("./pages/ShippingReturns.jsx"));
 const ProductSlotManager = lazy(() => import('./components/Admin/ProductSlotManagerDark.jsx'));
 const Complaint = lazy(() => import("./pages/Complaint.jsx"));
 const AdminComplaints = lazy(() => import("./components/Admin/AdminComplaintsDark.jsx"));
+const DeleteAccount = lazy(() => import("./pages/DeleteAccount.jsx"));
 
 const TermsOfService = lazy(() => import("./pages/TermsOfService.jsx"));
 const PrivacyPolicy = lazy(() => import("./pages/LegalPrivacy.jsx"));
@@ -32,6 +33,8 @@ const RefundPolicy = lazy(() => import("./pages/RefundPolicy.jsx"));
 const ShippingPolicy = lazy(() => import("./pages/ShippingPolicy.jsx"));
 
 // Admin Pages - Lazy Loaded
+const AdminNotifications = lazy(() => import("./components/Admin/AdminNotifications.jsx"));
+
 const AdminLogin = lazy(() => import("./components/Admin/AdminLogin.jsx"));
 const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboardDark.jsx"));
 const AdminOrders = lazy(() => import("./components/Admin/AdminOrdersDark.jsx"));
@@ -58,6 +61,8 @@ import Navbar from "./components/Navbar/Navbar.jsx";
 import Footer from "./components/Layout/Footer.jsx";
 import Login from "./components/Auth/Login.jsx";
 import Profile from "./components/User/Profile.jsx";
+import PushNotificationManager from "./components/Notifications/PushNotificationManager.jsx";
+
 import CategoryStrip from "./components/Dashboard/CategoryStrip.jsx";
 
 import SlotManager from "./components/Admin/SlotManagerDark.jsx";
@@ -102,6 +107,11 @@ const ScrollToTop = () => {
 import BanScreen from "./components/Auth/BanScreen.jsx";
 
 import BlinkitLoader from "./components/Common/BlinkitLoader.jsx";
+import OfflinePage from "./components/Common/OfflinePage.jsx";
+import { useNetworkStatus } from "./hooks/useNetworkStatus";
+
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 const App = () => {
   const location = useLocation();
@@ -112,6 +122,26 @@ const App = () => {
   const syncActiveOrder = useCartStore(state => state.syncActiveOrder);
   const items = useCartStore(state => state.items);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const networkStatus = useNetworkStatus();
+
+  // Handle Android Back Button
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const backListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+        if (location.pathname === '/' || location.pathname === '/admin' || location.pathname === '/rider') {
+          CapacitorApp.exitApp();
+        } else if (canGoBack) {
+          window.history.back();
+        } else {
+          CapacitorApp.exitApp();
+        }
+      });
+
+      return () => {
+        backListener.then(l => l.remove());
+      };
+    }
+  }, [location.pathname]);
 
   // Capture Referral Code from URL
   useEffect(() => {
@@ -126,7 +156,7 @@ const App = () => {
   // Theme Detection logic
   useEffect(() => {
     const nonVegKeywords = ['poultry', 'mutton', 'fish', 'seafood', 'meat', 'chicken', 'egg', 'prawn'];
-    
+
     // Check if current path is a product category or product details page
     // Pattern: /products/category-name
     const pathParts = location.pathname.split('/');
@@ -148,7 +178,7 @@ const App = () => {
     if (isAppReady && user) {
       // Initial sync
       syncActiveOrder(user.id || user._id);
-      
+
       // Poll every 30 seconds to keep tracking bar fresh
       interval = setInterval(() => {
         syncActiveOrder(user.id || user._id);
@@ -167,6 +197,11 @@ const App = () => {
 
   return (
     <div className={`min-h-screen flex flex-col justify-between transition-colors duration-500 bg-site ${isNonVegTheme ? 'theme-red' : 'theme-default'}`}>
+      <AnimatePresence>
+        {!networkStatus.connected && <OfflinePage key="offline" />}
+      </AnimatePresence>
+      
+      <PushNotificationManager />
       {/* GLOBAL BLINKIT-STYLE LOADER - Hidden on Admin Paths and Rider Paths */}
       {!isAdminPath && !isRiderPath && <BlinkitLoader isAppReady={isAppReady} />}
 
@@ -185,7 +220,7 @@ const App = () => {
           <Navbar onProfileToggle={setIsProfileOpen} />
           <CategoryStrip />
           <CartSync />
-          
+
           {/* Show Live Order Bar ONLY on Home AND only if cart is empty */}
           {location.pathname === '/' && activeOrder && cartCount === 0 && <InstamartLiveOrderCard />}
 
@@ -282,6 +317,7 @@ const App = () => {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/shipping-policy" element={<ShippingPolicy />} />
+            <Route path="/delete-account" element={<DeleteAccount />} />
 
             {/* Admin Routes - Note: AdminLayout is integrated within each admin component */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -373,6 +409,11 @@ const App = () => {
             <Route path="/admin/complaints" element={
               <ProtectedRoute>
                 <AdminComplaints />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/notifications" element={
+              <ProtectedRoute>
+                <AdminNotifications />
               </ProtectedRoute>
             } />
 

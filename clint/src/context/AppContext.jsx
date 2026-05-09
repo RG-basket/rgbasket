@@ -4,6 +4,8 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { auth, provider } from '../Firebase.js';
 import { signInWithPopup, signOut } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import useCartStore from '../store/useCartStore';
 import { getBrowserFingerprint } from '../utils/fingerprint';
 import CoinEarnedPopup from '../components/Popups/CoinEarnedPopup';
@@ -507,18 +509,29 @@ export const AppContextProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
+      let firebaseUser;
+
+      if (Capacitor.isNativePlatform()) {
+        // 🚀 Native Google Login for APK
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        firebaseUser = result.user;
+      } else {
+        // 🌐 Web Popup Login for Browser
+        const result = await signInWithPopup(auth, provider);
+        firebaseUser = result.user;
+      }
+
+      if (!firebaseUser) throw new Error("No user found after login");
 
       // Get any pending referral code from localStorage
       const referralCode = localStorage.getItem('pendingReferralCode');
       const deviceId = getBrowserFingerprint();
 
       const userData = {
-        googleId: user.uid,
-        name: user.displayName,
-        email: user.email,
-        photo: user.photoURL,
+        googleId: firebaseUser.uid,
+        name: firebaseUser.displayName,
+        email: firebaseUser.email,
+        photo: firebaseUser.photoURL,
         referralCode: referralCode || null,
         deviceId
       };
@@ -552,8 +565,6 @@ export const AppContextProvider = ({ children }) => {
 
       setShowUserLogin(false);
       toast.success("Login successful");
-      // Stay on current page (e.g. Cart, Checkout) instead of redirecting to Profile
-      // navigate("/profile");
     } catch (error) {
       handleLoginError(error);
     } finally {
@@ -586,9 +597,39 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
+  const deleteAccount = async () => {
+    if (!user) return { success: false, message: 'Not logged in' };
+    
+    const confirm = window.confirm("Are you sure you want to permanently delete your account and all associated data? This action cannot be undone.");
+    if (!confirm) return { success: false };
+
+    try {
+      setLoading(true);
+      const userId = user.id || user._id;
+      const response = await axios.delete(`${API_URL}/api/users/${userId}`);
+      
+      if (response.data.success) {
+        toast.success("Account deleted successfully");
+        await logout();
+        return { success: true };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast.error("Failed to delete account");
+      return { success: false, message: error.response?.data?.message || "Failed to delete account" };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
-      await signOut(auth);
+      if (Capacitor.isNativePlatform()) {
+        await FirebaseAuthentication.signOut();
+      } else {
+        await signOut(auth);
+      }
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
@@ -1119,6 +1160,7 @@ export const AppContextProvider = ({ children }) => {
     setShowUserLogin,
     loginWithGoogle,
     logout,
+    deleteAccount,
     updateUserProfile,
     requireAuth,
     refreshUserCoins,

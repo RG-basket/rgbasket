@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { ChevronDown, ChevronUp, ShoppingCart, Zap, AlertCircle } from 'lucide-react';
 import SEO from '../components/SEO/SEO.jsx';
 import { formatWeight } from '../utils/weightFormatter.js';
+import SpecialRequestModal from '../components/Products/SpecialRequestModal';
 
 // Animation variants
 const containerVariants = {
@@ -54,7 +55,9 @@ const ProductDetails = () => {
     cartItems,
     getProductById,
     selectedSlot,
-    checkProductAvailability
+    checkProductAvailability,
+    requireAuth,
+    user
   } = useAppContext();
 
   // State management
@@ -82,6 +85,7 @@ const ProductDetails = () => {
   // Availability state
   const [isAvailableForSlot, setIsAvailableForSlot] = useState(true);
   const [unavailabilityReason, setUnavailabilityReason] = useState('');
+  const [isSpecialRequestModalOpen, setIsSpecialRequestModalOpen] = useState(false);
 
   // Load product data
   useEffect(() => {
@@ -281,9 +285,9 @@ const ProductDetails = () => {
   };
 
   const handleSpecialRequest = () => {
-    const message = `Hello RG Basket, I would like to make a special request for: ${product.name}`;
-    const whatsappUrl = `https://wa.me/919078771530?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    if (requireAuth()) {
+      setIsSpecialRequestModalOpen(true);
+    }
   };
 
   if (loading) {
@@ -637,6 +641,12 @@ const ProductDetails = () => {
           </div>
         </div>
       )}
+
+      <SpecialRequestModal 
+        isOpen={isSpecialRequestModalOpen}
+        onClose={() => setIsSpecialRequestModalOpen(false)}
+        product={product}
+      />
     </motion.div>
   );
 };

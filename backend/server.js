@@ -25,21 +25,23 @@ app.use(cors({
 
 app.use(express.json());
 
-// Helmet for security headers
+// Helmet for security headers - Adjusted for local HTTP testing
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", CLIENT_URL, BACKEND_URL],
+      connectSrc: ["'self'", "https:", "http://localhost:*", "ws://localhost:*"], // Secure but flexible for local dev/FCM
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  hsts: false, // Disable HSTS to allow local HTTP testing
 }));
+
 
 // Rate limiting
 const limiter = rateLimit({
@@ -179,7 +181,7 @@ app.post('/api/auth/google', async (req, res) => {
       user.name = name;
       user.photo = photo;
       user.lastActive = new Date(); // Update last active
-      
+
       // Update deviceId if it changed or was missing
       if (deviceId && user.deviceId !== deviceId) {
         user.deviceId = deviceId;
@@ -190,8 +192,8 @@ app.post('/api/auth/google', async (req, res) => {
       user.lastIp = ipAddress;
       await user.save();
       console.log('User updated:', user.email);
-      res.status(200).json({ 
-        message: 'Login successful', 
+      res.status(200).json({
+        message: 'Login successful',
         user,
         coinsAwarded: 0,
         awardMessage: ""
@@ -204,13 +206,13 @@ app.post('/api/auth/google', async (req, res) => {
         const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
         if (referrer) {
           // ANTI-CHEAT: Check if ANY account was already created on this device/IP
-          const duplicateUser = await User.findOne({ 
+          const duplicateUser = await User.findOne({
             $or: [
               { deviceId: deviceId || 'MISSING-ID' },
               { lastIp: ipAddress }
             ]
           });
-          
+
           if (!duplicateUser) {
             referredBy = referrer._id;
             usedReferral = true;
@@ -234,7 +236,7 @@ app.post('/api/auth/google', async (req, res) => {
       await user.save();
 
       // --- HARD MODE SECURITY: AWARD COINS ONLY TO UNIQUE DEVICES ---
-      const isDuplicateDevice = await User.findOne({ 
+      const isDuplicateDevice = await User.findOne({
         $or: [
           { deviceId: deviceId || 'MISSING-ID' },
           { lastIp: ipAddress }
@@ -277,8 +279,8 @@ app.post('/api/auth/google', async (req, res) => {
       const updatedUser = await User.findById(user._id);
 
       console.log('New user created:', user.email);
-      res.status(201).json({ 
-        message: 'User created successfully', 
+      res.status(201).json({
+        message: 'User created successfully',
         user: updatedUser,
         coinsAwarded: totalCoinsAwarded,
         awardMessage
@@ -348,6 +350,54 @@ app.patch('/api/users/:userId/intent', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating user intent:', error);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Update user push token
+app.patch('/api/users/:userId/push-token', async (req, res) => {
+  try {
+    const { token, platform } = req.body;
+    const userId = req.params.userId;
+
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Token is required' });
+    }
+
+    const query = mongoose.isValidObjectId(userId)
+      ? { _id: userId }
+      : { googleId: userId };
+
+    const user = await User.findOne(query);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Update main token for backward compatibility
+    user.pushToken = token;
+
+    // Manage pushTokens array for multiple devices
+    if (!user.pushTokens) user.pushTokens = [];
+    
+    const existingIndex = user.pushTokens.findIndex(t => t.token === token);
+    if (existingIndex > -1) {
+      user.pushTokens[existingIndex].lastUpdated = new Date();
+      if (platform) user.pushTokens[existingIndex].platform = platform;
+    } else {
+      user.pushTokens.push({ token, platform, lastUpdated: new Date() });
+    }
+
+    // Limit to 5 tokens per user to prevent bloat
+    if (user.pushTokens.length > 5) {
+      user.pushTokens.sort((a, b) => b.lastUpdated - a.lastUpdated);
+      user.pushTokens = user.pushTokens.slice(0, 5);
+    }
+
+    await user.save();
+    res.json({ success: true, message: 'Push token updated' });
+  } catch (error) {
+    console.error('Error updating push token:', error);
     res.status(500).json({ success: false });
   }
 });
@@ -424,6 +474,37 @@ app.get('/api/users/:userId', checkBanned, async (req, res) => {
   }
 });
 
+// Delete user account
+app.delete('/api/users/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const query = mongoose.isValidObjectId(userId)
+      ? { _id: userId }
+      : { googleId: userId };
+
+    const deletedUser = await User.findOneAndDelete(query);
+
+    if (!deletedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log(`🗑️ Account deleted: ${deletedUser.email}`);
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting account'
+    });
+  }
+});
+
 // Get orders for specific user
 app.get('/api/orders/user/:userId', checkBanned, async (req, res) => {
   try {
@@ -495,6 +576,18 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Serve static files from the React app
+const frontendPath = path.join(__dirname, '../clint/dist');
+app.use(express.static(frontendPath));
+
+// Catch-all route to serve the React app for any non-API requests
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
@@ -503,6 +596,6 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
 });

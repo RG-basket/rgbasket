@@ -40,6 +40,7 @@ const riderStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'rgbasket-riders',
+    type: 'private',
     format: async (req, file) => 'webp',
     transformation: [{ quality: 'auto', fetch_format: 'auto' }]
   },

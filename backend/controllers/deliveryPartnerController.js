@@ -72,6 +72,10 @@ exports.getAllPartners = async (req, res) => {
 
         // Enhance partners with order stats
         const enhancedPartners = await Promise.all(partners.map(async (p) => {
+            // MINIMAL FIX: Sign the private URLs so only the Admin can see them
+            if (p.aadharCardLink) p.aadharCardLink = cloudinary.url(p.aadharCardLink, { sign_url: true, type: 'private' });
+            if (p.drivingLicenseLink) p.drivingLicenseLink = cloudinary.url(p.drivingLicenseLink, { sign_url: true, type: 'private' });
+            if (p.vehicleRcLink) p.vehicleRcLink = cloudinary.url(p.vehicleRcLink, { sign_url: true, type: 'private' });
             // Get Delivered Stats
             const deliveredStats = await Order.aggregate([
                 { $match: { deliveryPartner: p._id, status: 'delivered' } },
@@ -108,7 +112,7 @@ exports.getAllPartners = async (req, res) => {
     }
 };
 
-const { deleteFromCloudinary } = require('../services/cloudinary');
+const { deleteFromCloudinary, cloudinary } = require('../services/cloudinary');
 
 // Admin: Delete proof of delivery image link from order
 exports.deleteProof = async (req, res) => {
@@ -265,7 +269,7 @@ exports.acceptOrder = async (req, res) => {
         await order.save();
 
         // Notify Telegram on pickup
-        TelegramService.sendRiderPickupNotification(order, partner).catch(() => {});
+        TelegramService.sendRiderPickupNotification(order, partner).catch(() => { });
 
         res.json({ success: true, message: 'Order accepted successfully', order });
     } catch (error) {
@@ -305,7 +309,7 @@ exports.completeOrder = async (req, res) => {
         // If the rider is force-delivering (outside 500m), we move it to 'under_review'
         // instead of 'delivered'. No coins are awarded until Admin manually approves.
         const newStatus = isForced ? 'under_review' : 'delivered';
-        
+
         order.status = newStatus;
         if (newStatus === 'delivered') {
             order.deliveredAt = new Date();
@@ -332,7 +336,7 @@ exports.completeOrder = async (req, res) => {
         order.statusHistory.push({
             status: newStatus,
             timestamp: new Date(),
-            comment: isForced 
+            comment: isForced
                 ? 'Force Delivery requested by Rider (OUTSIDE GEOFENCE) - Pending Admin Approval'
                 : 'Marked as delivered by Rider'
         });
@@ -354,16 +358,16 @@ exports.completeOrder = async (req, res) => {
         if (partner) {
             if (isForced) {
                 // SPECIAL ALERT FOR ADMIN REVIEW
-                TelegramService.sendOrderUnderReviewNotification(order, `🚨 FORCE DELIVERY ATTEMPTED! Rider ${partner.name} is outside geofence. Status set to #UNDER_REVIEW. Check Admin Dashboard.`).catch(() => {});
+                TelegramService.sendOrderUnderReviewNotification(order, `🚨 FORCE DELIVERY ATTEMPTED! Rider ${partner.name} is outside geofence. Status set to #UNDER_REVIEW. Check Admin Dashboard.`).catch(() => { });
             } else {
-                TelegramService.sendRiderDeliveryNotification(order, partner).catch(() => {});
+                TelegramService.sendRiderDeliveryNotification(order, partner).catch(() => { });
             }
         }
 
-        res.json({ 
-            success: true, 
-            message: isForced ? 'Delivery submitted for Admin review.' : 'Order marked as delivered', 
-            order 
+        res.json({
+            success: true,
+            message: isForced ? 'Delivery submitted for Admin review.' : 'Order marked as delivered',
+            order
         });
     } catch (error) {
         console.error('Error completing order:', error);
@@ -407,10 +411,10 @@ exports.updateOrderLocation = async (req, res) => {
 
         await order.save();
 
-        res.json({ 
-            success: true, 
-            message: isVerified ? 'Customer home location verified!' : 'Location captured successfully', 
-            deliveryLocation: order.deliveryLocation 
+        res.json({
+            success: true,
+            message: isVerified ? 'Customer home location verified!' : 'Location captured successfully',
+            deliveryLocation: order.deliveryLocation
         });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Internal server error' });

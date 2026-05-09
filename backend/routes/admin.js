@@ -93,7 +93,8 @@ router.get('/users', authenticateAdmin, async (req, res) => {
                 name: 1, email: 1, phone: 1, role: 1, active: 1, isBanned: 1, photo: 1, 
                 createdAt: 1, lastActive: 1, addresses: 1, orders: 1, orderCount: { $size: '$orders' },
                 rgCoins: 1, referralCode: 1, referredBy: 1,
-                lastCartSnapshot: 1, lastBrowsedCategory: 1, browsingActivity: 1
+                lastCartSnapshot: 1, lastBrowsedCategory: 1, browsingActivity: 1,
+                pushToken: 1, pushTokens: 1
               }
             }
           ],
@@ -558,6 +559,66 @@ router.get('/categories', authenticateAdmin, async (req, res) => {
     res.json({ success: true, categories });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error fetching categories' });
+  }
+});
+
+const FirebaseAdminService = require('../services/firebaseAdmin');
+
+// Get list of users with push tokens (Subscribers)
+router.get('/notifications/subscribers', authenticateAdmin, async (req, res) => {
+  try {
+    const users = await User.find({
+      $or: [
+        { pushToken: { $ne: '', $exists: true } },
+        { 'pushTokens.0': { $exists: true } }
+      ]
+    }).select('name email phone photo pushToken pushTokens lastActive');
+
+    res.json({ success: true, subscribers: users });
+  } catch (error) {
+    console.error('Error fetching subscribers:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch subscribers' });
+  }
+});
+
+// Broadcast Notification to all users
+router.post('/notifications/broadcast', authenticateAdmin, async (req, res) => {
+  try {
+    const { title, body, data } = req.body;
+    if (!title || !body) {
+      return res.status(400).json({ success: false, message: 'Title and body are required' });
+    }
+
+    const result = await FirebaseAdminService.broadcast(title, body, data || {});
+    res.json({ 
+      success: true, 
+      message: 'Notification broadcast started', 
+      successCount: result.successCount,
+      totalTokens: result.totalTokens
+    });
+  } catch (error) {
+    console.error('Broadcast error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send notifications' });
+  }
+});
+
+// Broadcast Notification to specific user
+router.post('/notifications/send-to-user', authenticateAdmin, async (req, res) => {
+  try {
+    const { userId, title, body, data } = req.body;
+    if (!userId || !title || !body) {
+      return res.status(400).json({ success: false, message: 'UserId, title and body are required' });
+    }
+
+    const result = await FirebaseAdminService.sendToUser(userId, title, body, data || {});
+    res.json({ 
+      success: true, 
+      message: 'Notification sent', 
+      result 
+    });
+  } catch (error) {
+    console.error('Send to user error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send notification' });
   }
 });
 

@@ -203,7 +203,7 @@ const Cart = () => {
   // Safe currency symbol
   const currencySymbol = CURRENCY || '₹';
 
-  // Capture geolocation silently in background (admin-only feature)
+
   const captureLocation = () => {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
@@ -756,11 +756,6 @@ const Cart = () => {
         location: locationData,
         coinsUsed: coinsUsed // Add explicitly to ensure selected amount is used
       };
-
-      console.log('📦 Final order payload being sent:', orderData);
-
-
-
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders`, {
         method: 'POST',

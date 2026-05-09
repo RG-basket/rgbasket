@@ -10,6 +10,26 @@ const { authenticateAdmin, checkBanned } = require('../middleware/auth');
 const OrderService = require('../services/OrderService');
 const rateLimit = require('express-rate-limit');
 const { deleteFromCloudinary } = require('../services/cloudinary');
+const FirebaseAdminService = require('../services/firebaseAdmin');
+
+const notifyUserOfStatusUpdate = async (order) => {
+  const statusMessages = {
+    'confirmed': 'Your order has been confirmed! 🛒',
+    'processing': 'Your order is being prepared. 🛠️',
+    'shipped': 'Your order is out for delivery! 🚚',
+    'delivered': 'Order delivered! Enjoy your items. ✨',
+    'cancelled': 'Your order has been cancelled. ❌'
+  };
+
+  const message = statusMessages[order.status];
+  if (message) {
+    await FirebaseAdminService.sendToUser(order.user, 'RG Basket Update', message, {
+      path: `/orders`,
+      orderId: order._id.toString()
+    });
+  }
+};
+
 
 // Strict limiting for order placement
 const orderLimiter = rateLimit({
@@ -209,14 +229,14 @@ router.put('/admin/orders/bulk-status', authenticateAdmin, async (req, res) => {
             await CoinService.revertReferralBonus(orderId);
 
             // 6. Send Telegram Notification
-            TelegramService.sendOrderCancellationNotification(oldOrder, 'Cancelled by Admin (Bulk Update)').catch(() => {});
+            TelegramService.sendOrderCancellationNotification(oldOrder, 'Cancelled by Admin (Bulk Update)').catch(() => { });
           } catch (ResourceError) {
             console.error(`[Bulk-Admin] Resource reversion failed for ${orderId}:`, ResourceError.message);
           }
         }
 
         const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, { new: true });
-        
+
         // Award RG Coins if marking as delivered and NOT already earned
         if (status === 'delivered' && (!updatedOrder.coinsEarned || updatedOrder.coinsEarned === 0)) {
           const CoinService = require('../services/CoinService');
@@ -479,6 +499,10 @@ router.put('/admin/orders/:orderId/status', authenticateAdmin, async (req, res) 
       order
     });
 
+    // Notify user of status update
+    notifyUserOfStatusUpdate(order).catch(e => console.error('Notification failed:', e));
+
+
   } catch (error) {
     console.error('💥 Error updating order status:', error);
     res.status(500).json({
@@ -585,7 +609,7 @@ router.put("/:orderId/cancel", checkBanned, async (req, res) => {
     }
 
     const OrderService = require('../services/OrderService');
-    
+
     // Check if order exists before calling service to retain old error messages
     const orderExists = await Order.findById(orderId);
     if (!orderExists) {
@@ -612,6 +636,10 @@ router.put("/:orderId/cancel", checkBanned, async (req, res) => {
       message: "Order cancelled successfully",
       order: cancelledOrder,
     });
+
+    // Notify user
+    notifyUserOfStatusUpdate(cancelledOrder).catch(e => console.error('Notification failed:', e));
+
   } catch (error) {
     console.error("💥 Error cancelling order:", error);
     res.status(500).json({

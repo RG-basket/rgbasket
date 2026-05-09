@@ -34,6 +34,7 @@ const AdminLayoutDark = ({ children }) => {
             ]
         },
         { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
+        { path: '/admin/notifications', icon: Bell, label: 'Notifications' },
         { path: '/admin/complaints', icon: AlertCircle, label: 'Complaints' },
         { path: '/admin/users', icon: Users, label: 'Users' },
         { path: '/admin/delivery-partners', icon: Truck, label: 'Riders' },

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext.jsx";
 import { FaGift } from "react-icons/fa";
 
 const Login = () => {
+
   const { loginWithGoogle, loading } = useAppContext();
   const [referralCode, setReferralCode] = useState("");
 
@@ -100,7 +102,7 @@ const Login = () => {
 
       <div className="text-center">
         <p className="text-[10px] text-gray-400 font-medium">
-          By continuing, you agree to our Terms and Privacy Policy.
+          By continuing, you agree to our <Link to="/terms" className="text-emerald-600 hover:underline">Terms</Link> and <Link to="/privacy" className="text-emerald-600 hover:underline">Privacy Policy</Link>.
         </p>
       </div>
     </div>

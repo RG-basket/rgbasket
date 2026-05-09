@@ -1,28 +1,38 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Lock, Eye, FileText, Smartphone, Globe } from 'lucide-react';
+import { Shield, Lock, Eye, FileText, Smartphone, Globe, Trash2 } from 'lucide-react';
 
 const PrivacyPolicy = () => {
     const sections = [
         {
             title: "Information We Collect",
             icon: <Eye className="w-6 h-6 text-emerald-600" />,
-            content: "We collect personal information that you provide to us, such as your name, delivery address, phone number, and email. We also collect usage data (IP address, browser type) to improve our service experience."
+            content: "We collect personal data you provide (Name, Phone, Email, Delivery Address). When you use our APK, we also collect Device Information (OS version, unique device identifiers) and Location Data (precise GPS) to ensure accurate grocery delivery and service availability in your area."
         },
         {
-            title: "How We Use Your Data",
-            icon: <Smartphone className="w-6 h-6 text-emerald-600" />,
-            content: "Your data is primarily used to process orders, manage your account, and provide customer support. We may send transactional updates via WhatsApp or SMS to keep you informed about your delivery status."
+            title: "Why We Collect This Data",
+            icon: <Shield className="w-6 h-6 text-emerald-600" />,
+            content: "Location data is necessary to determine if we can deliver to your area. Device IDs are used to send you personalized Push Notifications (via Firebase) about your order status. Your contact info is used strictly for authentication and order-related communication."
         },
         {
-            title: "Data Security",
-            icon: <Lock className="w-6 h-6 text-emerald-600" />,
-            content: "We implement robust security measures including SSL encryption to protect your data. We do not store your credit card or payment information on our servers; all payments are processed through secure third-party gateways like Razorpay."
-        },
-        {
-            title: "Third-Party Sharing",
+            title: "Third-Party Services",
             icon: <Globe className="w-6 h-6 text-emerald-600" />,
-            content: "We do not sell or rent your personal information. We only share necessary data with trusted delivery partners to fulfill your orders and with payment processors to handle transactions."
+            content: "We use Google Auth for secure logins and Firebase for push notifications and analytics. We do not sell your data. We only share delivery details with our verified riders and payment details with secure processors like Razorpay."
+        },
+        {
+            title: "Information for Delivery Partners",
+            icon: <Smartphone className="w-6 h-6 text-emerald-600" />,
+            content: "We collect government-issued identification (Aadhar Card, Driving License) and vehicle documentation from our delivery partners. This information is used strictly for identity verification, safety, and background checks. This data is stored on secure, encrypted servers and is never shared with third parties."
+        },
+        {
+            title: "Data Security & Storage",
+            icon: <Lock className="w-6 h-6 text-emerald-600" />,
+            content: "Your data is encrypted using SSL/TLS protocols. We store your profile information on secure MongoDB Atlas servers. We do not store sensitive payment credentials; these are handled entirely by PCI-DSS compliant partners."
+        },
+        {
+            title: "Account & Data Deletion",
+            icon: <Trash2 className="w-6 h-6 text-red-600" />,
+            content: "You have the total right to delete your account. You can do this in the App under 'Profile > Delete Account'. This action permanently erases your personal data, order history, and RG Coins from our active databases within 30 days."
         }
     ];
 
@@ -67,9 +77,19 @@ const PrivacyPolicy = () => {
                         ))}
                     </div>
 
+                    <div className="mt-12 p-6 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-4">
+                        <Shield className="w-6 h-6 text-red-500 mt-1 flex-shrink-0" />
+                        <div>
+                            <h3 className="text-lg font-bold text-red-950 mb-1">Data Privacy Requests</h3>
+                            <p className="text-sm text-red-800 font-medium leading-relaxed">
+                                For any questions regarding your data or to request manual deletion of your personal information, please email us at <a href="mailto:rgbasketbusiness@gmail.com" className="font-black underline">rgbasketbusiness@gmail.com</a>. We will respond within 48 hours.
+                            </p>
+                        </div>
+                    </div>
+
                     <div className="mt-16 pt-8 border-t border-gray-100 italic text-sm text-gray-400 flex items-center gap-2">
                         <FileText className="w-4 h-4" />
-                        Last updated: March 2026
+                        Last updated: May 2026
                     </div>
                 </motion.div>
             </div>

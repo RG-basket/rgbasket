@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Truck, MapPin, CheckCircle, Package, LogOut, Check, Navigation, Target, Eye, ChevronDown, ChevronUp, Clock, Phone, Smartphone, Database, RefreshCw } from 'lucide-react';
+import { Truck, MapPin, CheckCircle, Package, LogOut, Check, Navigation, Target, Eye, ChevronDown, ChevronUp, Clock, Phone, Smartphone, Database, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import toast from 'react-hot-toast';
 
 const RiderPortal = () => {
@@ -22,6 +24,9 @@ const RiderPortal = () => {
     const [historicalLocations, setHistoricalLocations] = useState({}); // { userId: locationData }
     const [proofImage, setProofImage] = useState(null); // File object
     const [uploadingProof, setUploadingProof] = useState(false);
+    const [showDisclosure, setShowDisclosure] = useState(false);
+    const [visibleMyOrdersCount, setVisibleMyOrdersCount] = useState(10);
+
 
     // Check Local Storage on mount
     useEffect(() => {
@@ -34,7 +39,14 @@ const RiderPortal = () => {
                 localStorage.removeItem('deliveryPartner');
             }
         }
+
+        // Prominent Disclosure Check
+        const disclosureAccepted = localStorage.getItem('locationDisclosureAccepted');
+        if (!disclosureAccepted) {
+            setShowDisclosure(true);
+        }
     }, [token]);
+
 
     // Fetch orders when partner is logged in
     useEffect(() => {
@@ -42,9 +54,9 @@ const RiderPortal = () => {
             fetchOrders();
             const orderInterval = setInterval(fetchOrders, 30000);
 
-            // Live Tracking Heartbeat
+            // Live Tracking Heartbeat - ONLY if rider has active orders
             const heartbeatInterval = setInterval(() => {
-                if (partner.isActive && navigator.geolocation) {
+                if (partner.isActive && myOrders.length > 0 && navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition((pos) => {
                         fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/update-live-ping`, {
                             method: 'POST',
@@ -129,7 +141,7 @@ const RiderPortal = () => {
             if (data.success) {
                 const updated = { ...partner, isActive: newStatus };
                 setPartner(updated);
-                localStorage.setItem('deliveryPartner', JSON.stringify(updated));
+                await Preferences.set({ key: 'deliveryPartner', value: JSON.stringify(updated) });
                 toast.success(newStatus ? 'You are now Active' : 'You are now Inactive');
             }
         } catch (err) {
@@ -181,7 +193,7 @@ const RiderPortal = () => {
     const getCurrentGPSLocation = async (retryCount = 3) => {
         const getPos = (highAccuracy) => new Promise((resolve, reject) => {
             if (!navigator.geolocation) return reject(new Error('NO_SUPPORT'));
-            
+
             navigator.geolocation.getCurrentPosition(
                 (pos) => resolve(pos),
                 (err) => reject(err),
@@ -202,10 +214,10 @@ const RiderPortal = () => {
             } catch (err) {
                 lastErr = err;
                 // Code 1 = Permission Denied. No point in retrying.
-                if (err.code === 1) break; 
-                
+                if (err.code === 1) break;
+
                 // For other errors (Timeout/Position Unavailable), wait and retry
-                await new Promise(r => setTimeout(r, 1500)); 
+                await new Promise(r => setTimeout(r, 1500));
             }
         }
 
@@ -235,7 +247,7 @@ const RiderPortal = () => {
                 const scanToast = toast.loading('🛰️ Locking GPS signal...', { duration: 20000 });
                 const position = await getCurrentGPSLocation();
                 toast.dismiss(scanToast);
-                
+
                 if (!targetLoc) {
                     return { position, forced: false };
                 }
@@ -272,7 +284,7 @@ const RiderPortal = () => {
                 if (err.code === 1) msg = 'Location Permission Blocked! Please enable it in browser settings.';
                 else if (err.code === 3) msg = 'GPS Signal Timeout. Move to an open area (balcony/street) and try again.';
                 else msg = 'Location hardware error. Try toggling your phone GPS off and on.';
-                
+
                 toast.error(msg, { duration: 6000 });
                 return false;
             }
@@ -333,7 +345,7 @@ const RiderPortal = () => {
         try {
             const position = await getCurrentGPSLocation(true);
             const { latitude, longitude, accuracy } = position.coords;
-            
+
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/delivery-partners/update-location`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -564,231 +576,263 @@ const RiderPortal = () => {
                     )
                 ) : (
                     myOrders.length > 0 ? (
-                        myOrders.map(order => {
-                            const isExpanded = expandedOrder === order._id;
-                            const hasLoc = order.deliveryLocation?.coordinates?.latitude;
-                            const histLoc = historicalLocations[order.user];
-                            const finalLoc = hasLoc ? order.deliveryLocation.coordinates : (histLoc?.coordinates || null);
-                            const isHistorical = !hasLoc && !!histLoc;
-
-                            return (
-                                <div key={order._id} className={`bg-white rounded-2xl shadow-sm border transition-all ${order.status === 'delivered' ? 'border-emerald-200 opacity-80' : 'border-gray-200'}`}>
-                                    <div className="p-5" onClick={() => {
-                                        setExpandedOrder(isExpanded ? null : order._id);
-                                        if (!hasLoc) getHistoricalLocation(order.user);
-                                    }}>
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <h3 className="font-black text-gray-800">Order #{order._id.substring(order._id.length - 6)}</h3>
-                                                <div className="flex gap-2 mt-1">
-                                                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                                                        }`}>
-                                                        {order.status}
-                                                    </span>
-                                                    {order.paymentMethod === 'cash_on_delivery' && <span className="bg-rose-100 text-rose-700 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider">COD</span>}
-                                                </div>
-                                            </div>
-                                            {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
-                                        </div>
-
-                                        <div className="bg-gray-50 rounded-xl p-3 space-y-3">
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="bg-white p-2 rounded-lg text-emerald-600 shadow-sm"><Phone size={14} /></div>
-                                                    <p className="text-sm font-black text-gray-800">{order.shippingAddress?.fullName}</p>
-                                                </div>
-                                                <a href={`tel:${order.shippingAddress?.phoneNumber}`} className="bg-emerald-600 text-white p-2 rounded-lg flex items-center gap-2 text-xs font-bold px-3">
-                                                    <Smartphone size={14} /> CALL
-                                                </a>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <div className="bg-white p-2 rounded-lg text-blue-600 shadow-sm"><MapPin size={14} /></div>
-                                                <div>
-                                                    <p className="text-xs font-bold text-gray-700">{order.shippingAddress?.locality}</p>
-                                                    <p className="text-[10px] text-gray-500 font-medium">{order.shippingAddress?.street}, {order.shippingAddress?.city} - {order.shippingAddress?.pincode}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {!isExpanded && (
-                                            <div className="mt-4 pt-4 border-t border-dashed border-gray-100 flex justify-between items-center">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Click to expand details</p>
-                                                <p className="text-lg font-black text-emerald-700">₹{order.totalAmount}</p>
-                                            </div>
-                                        )}
+                        <div className="space-y-6">
+                            {Object.entries(
+                                myOrders.slice(0, visibleMyOrdersCount).reduce((groups, order) => {
+                                    const date = new Date(order.createdAt).toLocaleDateString('en-IN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric'
+                                    });
+                                    if (!groups[date]) groups[date] = [];
+                                    groups[date].push(order);
+                                    return groups;
+                                }, {})
+                            ).map(([date, orders]) => (
+                                <div key={date} className="space-y-3">
+                                    <div className="flex items-center gap-3 px-2">
+                                        <div className="h-[1px] flex-1 bg-gray-200"></div>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{date}</span>
+                                        <div className="h-[1px] flex-1 bg-gray-200"></div>
                                     </div>
 
-                                    {/* Expanded Detail Section */}
-                                    {isExpanded && (
-                                        <div className="px-5 pb-5 pt-0 border-t border-gray-50 animate-in fade-in slide-in-from-top-2 duration-300">
-                                            {/* Order Items */}
-                                            <div className="mt-4">
-                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Package size={12} /> Items to Pack</h4>
-                                                <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
-                                                    {order.items?.map((item, idx) => (
-                                                        <div key={idx} className="flex justify-between items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100">
-                                                            <div className="flex items-center gap-2">
-                                                                <img src={item.image} alt="" className="w-8 h-8 rounded object-cover border bg-white" />
-                                                                <div>
-                                                                    <p className="text-[11px] font-black text-gray-800 leading-tight">{item.name}</p>
-                                                                    <p className="text-[9px] text-gray-400 font-bold">{item.weight}{item.unit} x {item.quantity}</p>
-                                                                </div>
-                                                            </div>
-                                                            <p className="text-xs font-black text-gray-700">₹{item.price * item.quantity}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
+                                    {orders.map(order => {
+                                        const isExpanded = expandedOrder === order._id;
+                                        const hasLoc = order.deliveryLocation?.coordinates?.latitude;
+                                        const histLoc = historicalLocations[order.user];
+                                        const finalLoc = hasLoc ? order.deliveryLocation.coordinates : (histLoc?.coordinates || null);
+                                        const isHistorical = !hasLoc && !!histLoc;
 
-                                            {/* Bill Breakdown */}
-                                            <div className="mt-5 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Bill Details</h4>
-                                                <div className="space-y-2">
-                                                    <div className="flex justify-between text-xs font-medium text-gray-600">
-                                                        <span>Item Subtotal</span>
-                                                        <span>₹{order.subtotal || (order.totalAmount - (order.shippingFee || 0))}</span>
-                                                    </div>
-                                                    {order.shippingFee > 0 && (
-                                                        <div className="flex justify-between text-xs font-medium text-gray-600">
-                                                            <span>Delivery Fee</span>
-                                                            <span className="text-emerald-600">+ ₹{order.shippingFee}</span>
+                                        return (
+                                            <div key={order._id} className={`bg-white rounded-2xl shadow-sm border transition-all ${order.status === 'delivered' ? 'border-emerald-200 opacity-80' : 'border-gray-200'}`}>
+                                                <div className="p-5" onClick={() => {
+                                                    setExpandedOrder(isExpanded ? null : order._id);
+                                                    if (!hasLoc) getHistoricalLocation(order.user);
+                                                }}>
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div>
+                                                            <h3 className="font-black text-gray-800">Order #{order._id.substring(order._id.length - 6)}</h3>
+                                                            <div className="flex gap-2 mt-1">
+                                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                                                    }`}>
+                                                                    {order.status}
+                                                                </span>
+                                                                {order.paymentMethod === 'cash_on_delivery' && <span className="bg-rose-100 text-rose-700 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider">COD</span>}
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                    {order.tax > 0 && (
-                                                        <div className="flex justify-between text-xs font-medium text-gray-600">
-                                                            <span>Taxes</span>
-                                                            <span>+ ₹{order.tax}</span>
-                                                        </div>
-                                                    )}
-                                                    {order.discountAmount > 0 && (
-                                                        <div className="flex justify-between text-xs font-medium text-rose-600">
-                                                            <span>Discount Applied</span>
-                                                            <span>- ₹{order.discountAmount}</span>
-                                                        </div>
-                                                    )}
-                                                    {order.coinDiscount > 0 && (
-                                                        <div className="flex justify-between text-xs font-medium text-amber-600">
-                                                            <span>RG Coins Used 🪙</span>
-                                                            <span>- ₹{order.coinDiscount}</span>
-                                                        </div>
-                                                    )}
-                                                    {order.tipAmount > 0 && (
-                                                        <div className="flex justify-between text-xs font-medium text-blue-600">
-                                                            <span>Rider Tip</span>
-                                                            <span>+ ₹{order.tipAmount}</span>
-                                                        </div>
-                                                    )}
-                                                    <div className="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center">
-                                                        <span className="text-sm font-black text-gray-800">Total Payable</span>
-                                                        <span className="text-lg font-black text-emerald-700">₹{order.totalAmount}</span>
+                                                        {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
                                                     </div>
 
-                                                    {order.status === 'delivered' && order.coinsEarned > 0 && (
-                                                        <div className="mt-2 pt-2 border-t border-emerald-100 flex justify-between items-center">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="text-xs">🪙</span>
-                                                                <span className="text-[10px] font-black text-emerald-600 uppercase">User Earned</span>
-                                                            </div>
-                                                            <span className="text-xs font-black text-emerald-600">+{order.coinsEarned} RG Coins</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Delivery Instructions */}
-                                            {order.instruction && (
-                                                <div className="mt-5 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                                                    <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1">
-                                                        <span className="text-sm">📝</span> Delivery Instructions
-                                                    </h4>
-                                                    <p className="text-sm font-bold text-gray-800 leading-relaxed">
-                                                        {order.instruction}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {/* Location Section */}
-                                            <div className="mt-5 space-y-3">
-                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Navigation size={12} /> Precise Location</h4>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <button
-                                                        onClick={() => finalLoc ? openInMaps(finalLoc.latitude, finalLoc.longitude) : handleCaptureLocation(order._id)}
-                                                        className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all group ${finalLoc ? 'border-blue-100 bg-blue-50/30' : 'border-gray-200 hover:border-blue-400'}`}
-                                                    >
-                                                        {fetchingLocation ? <Clock className="animate-spin text-blue-600" size={20} /> : <Navigation className={`${finalLoc ? 'text-blue-600' : 'text-gray-300'}`} size={20} />}
-                                                        <span className="text-[10px] font-black uppercase">{finalLoc ? 'Navigation' : 'Needs Location'}</span>
-                                                        {isHistorical && <span className="text-[8px] text-amber-600 font-black uppercase flex items-center gap-0.5"><Database size={8} /> Using History</span>}
-                                                    </button>
-                                                    <button
-                                                        disabled={fetchingLocation}
-                                                        onClick={() => handleCaptureLocation(order._id)}
-                                                        className="p-3 rounded-xl border border-gray-200 hover:border-emerald-400 bg-white flex flex-col items-center gap-1 transition-all group"
-                                                    >
-                                                        <Target className="text-gray-300 group-hover:text-emerald-500" size={20} />
-                                                        <span className="text-[10px] font-black uppercase">Tag Location</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Delivery Action */}
-                                            {order.status !== 'delivered' && (
-                                                <div className="mt-6 flex flex-col gap-3">
-                                                    <div className={`rounded-xl p-4 border ${order.paymentMethod === 'cash_on_delivery' ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{order.paymentMethod === 'cash_on_delivery' ? 'Collect From Customer' : 'Payment Status'}</span>
-                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${order.paymentMethod === 'cash_on_delivery' ? 'bg-amber-200 text-amber-800' : 'bg-emerald-200 text-emerald-800'}`}>
-                                                                {order.paymentMethod.replace('_', ' ')}
-                                                            </span>
-                                                        </div>
+                                                    <div className="bg-gray-50 rounded-xl p-3 space-y-3">
                                                         <div className="flex justify-between items-center">
-                                                            <span className="text-xs font-bold text-gray-700">{order.paymentMethod === 'cash_on_delivery' ? 'Cash to be Collected' : 'Already Paid Online'}</span>
-                                                            <span className="text-2xl font-black text-gray-900">₹{order.paymentMethod === 'cash_on_delivery' ? order.totalAmount : 0}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="bg-white p-2 rounded-lg text-emerald-600 shadow-sm"><Phone size={14} /></div>
+                                                                <p className="text-sm font-black text-gray-800">{order.shippingAddress?.fullName}</p>
+                                                            </div>
+                                                            <a href={`tel:${order.shippingAddress?.phoneNumber}`} className="bg-emerald-600 text-white p-2 rounded-lg flex items-center gap-2 text-xs font-bold px-3">
+                                                                <Smartphone size={14} /> CALL
+                                                            </a>
+                                                        </div>
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="bg-white p-2 rounded-lg text-blue-600 shadow-sm"><MapPin size={14} /></div>
+                                                            <div>
+                                                                <p className="text-xs font-bold text-gray-700">{order.shippingAddress?.locality}</p>
+                                                                <p className="text-[10px] text-gray-500 font-medium">{order.shippingAddress?.street}, {order.shippingAddress?.city} - {order.shippingAddress?.pincode}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Proof of Delivery Image Upload */}
-                                                    <div className="bg-gray-100 p-4 rounded-xl border border-dashed border-gray-300">
-                                                        <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">📸 Proof of Delivery (Optional but Recommended)</label>
-                                                        <div className="flex items-center gap-3">
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                capture="environment" // Suggests camera on mobile
-                                                                id={`proof-${order._id}`}
-                                                                className="hidden"
-                                                                onChange={(e) => setProofImage(e.target.files[0])}
-                                                            />
-                                                            <label
-                                                                htmlFor={`proof-${order._id}`}
-                                                                className="flex-1 bg-white border border-gray-200 p-3 rounded-lg text-xs font-bold text-gray-600 text-center cursor-pointer hover:border-emerald-500 hover:text-emerald-600 transition truncate"
-                                                            >
-                                                                {proofImage ? proofImage.name : 'Take Photo / Upload Image'}
-                                                            </label>
-                                                            {proofImage && (
-                                                                <button
-                                                                    onClick={() => setProofImage(null)}
-                                                                    className="bg-rose-100 text-rose-600 p-3 rounded-lg"
-                                                                >
-                                                                    ✕
-                                                                </button>
-                                                            )}
+                                                    {!isExpanded && (
+                                                        <div className="mt-4 pt-4 border-t border-dashed border-gray-100 flex justify-between items-center">
+                                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Click to expand details • {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                            <p className="text-lg font-black text-emerald-700">₹{order.totalAmount}</p>
                                                         </div>
-                                                    </div>
-
-                                                    <button
-                                                        disabled={uploadingProof}
-                                                        onClick={() => handleCompleteOrder(order._id)}
-                                                        className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
-                                                    >
-                                                        <CheckCircle size={20} /> {uploadingProof ? 'UPLOADING...' : 'MARK AS DELIVERED'}
-                                                    </button>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    )}
+
+                                                {/* Expanded Detail Section */}
+                                                {isExpanded && (
+                                                    <div className="px-5 pb-5 pt-0 border-t border-gray-50 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                        {/* Order Items */}
+                                                        <div className="mt-4">
+                                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Package size={12} /> Items to Pack</h4>
+                                                            <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
+                                                                {order.items?.map((item, idx) => (
+                                                                    <div key={idx} className="flex justify-between items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <img src={item.image} alt="" className="w-8 h-8 rounded object-cover border bg-white" />
+                                                                            <div>
+                                                                                <p className="text-[11px] font-black text-gray-800 leading-tight">{item.name}</p>
+                                                                                <p className="text-[9px] text-gray-400 font-bold">{item.weight}{item.unit} x {item.quantity}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <p className="text-xs font-black text-gray-700">₹{item.price * item.quantity}</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Bill Breakdown */}
+                                                        <div className="mt-5 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Bill Details</h4>
+                                                            <div className="space-y-2">
+                                                                <div className="flex justify-between text-xs font-medium text-gray-600">
+                                                                    <span>Item Subtotal</span>
+                                                                    <span>₹{order.subtotal || (order.totalAmount - (order.shippingFee || 0))}</span>
+                                                                </div>
+                                                                {order.shippingFee > 0 && (
+                                                                    <div className="flex justify-between text-xs font-medium text-gray-600">
+                                                                        <span>Delivery Fee</span>
+                                                                        <span className="text-emerald-600">+ ₹{order.shippingFee}</span>
+                                                                    </div>
+                                                                )}
+                                                                {order.tax > 0 && (
+                                                                    <div className="flex justify-between text-xs font-medium text-gray-600">
+                                                                        <span>Taxes</span>
+                                                                        <span>+ ₹{order.tax}</span>
+                                                                    </div>
+                                                                )}
+                                                                {order.discountAmount > 0 && (
+                                                                    <div className="flex justify-between text-xs font-medium text-rose-600">
+                                                                        <span>Discount Applied</span>
+                                                                        <span>- ₹{order.discountAmount}</span>
+                                                                    </div>
+                                                                )}
+                                                                {order.coinDiscount > 0 && (
+                                                                    <div className="flex justify-between text-xs font-medium text-amber-600">
+                                                                        <span>RG Coins Used 🪙</span>
+                                                                        <span>- ₹{order.coinDiscount}</span>
+                                                                    </div>
+                                                                )}
+                                                                {order.tipAmount > 0 && (
+                                                                    <div className="flex justify-between text-xs font-medium text-blue-600">
+                                                                        <span>Rider Tip</span>
+                                                                        <span>+ ₹{order.tipAmount}</span>
+                                                                    </div>
+                                                                )}
+                                                                <div className="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center">
+                                                                    <span className="text-sm font-black text-gray-800">Total Payable</span>
+                                                                    <span className="text-lg font-black text-emerald-700">₹{order.totalAmount}</span>
+                                                                </div>
+
+                                                                {order.status === 'delivered' && order.coinsEarned > 0 && (
+                                                                    <div className="mt-2 pt-2 border-t border-emerald-100 flex justify-between items-center">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className="text-xs">🪙</span>
+                                                                            <span className="text-[10px] font-black text-emerald-600 uppercase">User Earned</span>
+                                                                        </div>
+                                                                        <span className="text-xs font-black text-emerald-600">+{order.coinsEarned} RG Coins</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Delivery Instructions */}
+                                                        {order.instruction && (
+                                                            <div className="mt-5 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                                                <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                                                    <span className="text-sm">📝</span> Delivery Instructions
+                                                                </h4>
+                                                                <p className="text-sm font-bold text-gray-800 leading-relaxed">
+                                                                    {order.instruction}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Location Section */}
+                                                        <div className="mt-5 space-y-3">
+                                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Navigation size={12} /> Precise Location</h4>
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <button
+                                                                    onClick={() => finalLoc ? openInMaps(finalLoc.latitude, finalLoc.longitude) : handleCaptureLocation(order._id)}
+                                                                    className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all group ${finalLoc ? 'border-blue-100 bg-blue-50/30' : 'border-gray-200 hover:border-blue-400'}`}
+                                                                >
+                                                                    {fetchingLocation ? <Clock className="animate-spin text-blue-600" size={20} /> : <Navigation className={`${finalLoc ? 'text-blue-600' : 'text-gray-300'}`} size={20} />}
+                                                                    <span className="text-[10px] font-black uppercase">{finalLoc ? 'Navigation' : 'Needs Location'}</span>
+                                                                    {isHistorical && <span className="text-[8px] text-amber-600 font-black uppercase flex items-center gap-0.5"><Database size={8} /> Using History</span>}
+                                                                </button>
+                                                                <button
+                                                                    disabled={fetchingLocation}
+                                                                    onClick={() => handleCaptureLocation(order._id)}
+                                                                    className="p-3 rounded-xl border border-gray-200 hover:border-emerald-400 bg-white flex flex-col items-center gap-1 transition-all group"
+                                                                >
+                                                                    <Target className="text-gray-300 group-hover:text-emerald-500" size={20} />
+                                                                    <span className="text-[10px] font-black uppercase">Tag Location</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Delivery Action */}
+                                                        {order.status !== 'delivered' && (
+                                                            <div className="mt-6 flex flex-col gap-3">
+                                                                <div className={`rounded-xl p-4 border ${order.paymentMethod === 'cash_on_delivery' ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                                                                    <div className="flex justify-between items-center mb-1">
+                                                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{order.paymentMethod === 'cash_on_delivery' ? 'Collect From Customer' : 'Payment Status'}</span>
+                                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${order.paymentMethod === 'cash_on_delivery' ? 'bg-amber-200 text-amber-800' : 'bg-emerald-200 text-emerald-800'}`}>
+                                                                            {order.paymentMethod.replace('_', ' ')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-xs font-bold text-gray-700">{order.paymentMethod === 'cash_on_delivery' ? 'Cash to be Collected' : 'Already Paid Online'}</span>
+                                                                        <span className="text-2xl font-black text-gray-900">₹{order.paymentMethod === 'cash_on_delivery' ? order.totalAmount : 0}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Proof of Delivery Image Upload */}
+                                                                <div className="bg-gray-100 p-4 rounded-xl border border-dashed border-gray-300">
+                                                                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">📸 Proof of Delivery (Optional but Recommended)</label>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <input
+                                                                            type="file"
+                                                                            accept="image/*"
+                                                                            capture="environment" // Suggests camera on mobile
+                                                                            id={`proof-${order._id}`}
+                                                                            className="hidden"
+                                                                            onChange={(e) => setProofImage(e.target.files[0])}
+                                                                        />
+                                                                        <label
+                                                                            htmlFor={`proof-${order._id}`}
+                                                                            className="flex-1 bg-white border border-gray-200 p-3 rounded-lg text-xs font-bold text-gray-600 text-center cursor-pointer hover:border-emerald-500 hover:text-emerald-600 transition truncate"
+                                                                        >
+                                                                            {proofImage ? proofImage.name : 'Take Photo / Upload Image'}
+                                                                        </label>
+                                                                        {proofImage && (
+                                                                            <button
+                                                                                onClick={() => setProofImage(null)}
+                                                                                className="bg-rose-100 text-rose-600 p-3 rounded-lg"
+                                                                            >
+                                                                                ✕
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    disabled={uploadingProof}
+                                                                    onClick={() => handleCompleteOrder(order._id)}
+                                                                    className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                                                                >
+                                                                    <CheckCircle size={20} /> {uploadingProof ? 'UPLOADING...' : 'MARK AS DELIVERED'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })
+                            ))}
+
+                            {myOrders.length > visibleMyOrdersCount && (
+                                <button
+                                    onClick={() => setVisibleMyOrdersCount(prev => prev + 10)}
+                                    className="w-full py-4 bg-white border border-gray-200 text-emerald-600 font-black text-xs uppercase tracking-widest rounded-2xl shadow-sm hover:bg-emerald-50 transition-colors"
+                                >
+                                    Load 10 More Orders
+                                </button>
+                            )}
+                        </div>
                     ) : (
                         <div className="text-center py-20 text-gray-300">
                             <p className="font-black">YOUR LIST IS EMPTY</p>
@@ -797,8 +841,62 @@ const RiderPortal = () => {
                     )
                 )}
             </div>
+
+            {/* Account Deletion Request (Policy Compliance) */}
+            <div className="mt-12 mb-8 px-6 text-center">
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-2">
+                    Want to stop working with us?
+                </p>
+                <a
+                    href={`mailto:rgbasketbusiness@gmail.com?subject=Rider Account Deletion Request&body=Hello RG Basket Team,%0D%0A%0D%0AI would like to request the permanent deletion of my Rider account and all associated data.%0D%0A%0D%0AMy Details:%0D%0AName: ${partner.name}%0D%0APhone: ${partner.phone}%0D%0ARider ID: ${partner._id}%0D%0A%0D%0AThank you.`}
+                    className="inline-block px-6 py-2 bg-gray-100 text-gray-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 hover:text-rose-600 transition-all border border-gray-200"
+                >
+                    Request Account Deletion
+                </a>
+                <p className="mt-3 text-[8px] text-gray-300 font-medium uppercase tracking-tight">
+                    Your request will be processed within 24-48 hours.
+                </p>
+            </div>
+
+            {/* Prominent Disclosure Modal */}
+            <AnimatePresence>
+                {showDisclosure && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-gray-900/80 backdrop-blur-md" />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl overflow-hidden">
+                            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <ShieldCheck size={32} />
+                            </div>
+                            <h2 className="text-xl font-black text-center text-gray-900 uppercase tracking-tight mb-2">Location Disclosure</h2>
+                            <div className="space-y-4 text-xs text-gray-500 font-bold uppercase tracking-wide leading-relaxed text-center">
+                                <p>
+                                    RG Basket collects location data to enable <span className="text-emerald-600">Real-time Order Tracking</span> for customers, even when the app is closed or not in use. To enable this, please select <strong>"Allow all the time"</strong> in the next screen.
+                                </p>
+
+                                <div className="bg-gray-50 p-4 rounded-2xl flex items-start gap-3 text-left">
+                                    <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+                                    <p className="text-[10px]">This data is only used during active deliveries to ensure customers can see their order progress.</p>
+                                </div>
+                            </div>
+                            <div className="mt-8">
+                                <button
+                                    onClick={() => {
+                                        localStorage.setItem('locationDisclosureAccepted', 'true');
+                                        setShowDisclosure(false);
+                                    }}
+                                    className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-100"
+                                >
+                                    Accept & Continue
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
+
     );
 };
 
 export default RiderPortal;
+

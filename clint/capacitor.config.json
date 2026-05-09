@@ -1,0 +1,17 @@
+{
+  "appId": "com.rgbasket.app",
+  "appName": "RG Basket",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+
+
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["google.com"]
+    }
+  }
+}

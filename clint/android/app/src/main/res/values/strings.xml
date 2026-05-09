@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RG Basket</string>
+    <string name="title_activity_main">RG Basket</string>
+    <string name="package_name">com.rgbasket.app</string>
+    <string name="custom_url_scheme">com.rgbasket.app</string>
+</resources>

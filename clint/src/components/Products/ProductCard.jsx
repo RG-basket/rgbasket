@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { FaShoppingCart, FaChevronDown } from "react-icons/fa";
 import VariantSelectionModal from "./VariantSelectionModal";
 import { formatWeight } from '../../utils/weightFormatter.js';
+import SpecialRequestModal from "./SpecialRequestModal";
 
 // Global cache for slot availability to prevent redundant API calls
 const slotAvailabilityCache = new Map();
@@ -21,7 +22,8 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
         checkProductAvailability,
         findNextAvailableSlotForProduct,
         validateAndSetSlot,
-        isNonVegTheme
+        isNonVegTheme,
+        requireAuth
     } = useAppContext();
 
     const navigate = useNavigate();
@@ -36,6 +38,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const [nextSlotInfo, setNextSlotInfo] = useState(null);
     const [loadingNextSlot, setLoadingNextSlot] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSpecialRequestModalOpen, setIsSpecialRequestModalOpen] = useState(false);
     const checkTimeoutRef = useRef(null);
     const [isImageVisible, setIsImageVisible] = useState(false);
     const imageContainerRef = useRef(null);
@@ -217,9 +220,9 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
 
     const handleSpecialRequest = (e) => {
         e.stopPropagation();
-        const message = `Hello RG Basket, I would like to make a special request for: ${product.name}`;
-        const whatsappUrl = `https://wa.me/919078771530?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+        if (requireAuth()) {
+            setIsSpecialRequestModalOpen(true);
+        }
     };
 
     const getUnavailabilityMessage = () => {
@@ -466,6 +469,12 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
             <VariantSelectionModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+                product={product}
+            />
+
+            <SpecialRequestModal 
+                isOpen={isSpecialRequestModalOpen}
+                onClose={() => setIsSpecialRequestModalOpen(false)}
                 product={product}
             />
         </div>

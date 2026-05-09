@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
+import { useAppContext } from '../../context/AppContext';
 
 const InstallPopup = () => {
+    const { isAppReady } = useAppContext();
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [showPopup, setShowPopup] = useState(false);
 
@@ -10,19 +13,15 @@ const InstallPopup = () => {
     const COOLDOWN_PERIOD = REMINDER_DAYS * 24 * 60 * 60 * 1000;
 
     useEffect(() => {
+        // 🛑 DO NOT SHOW ON APK: If we are on Android/iOS native, exit immediately
+        if (Capacitor.isNativePlatform()) {
+            return;
+        }
+
         const handleBeforeInstallPrompt = (e) => {
             // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
             setDeferredPrompt(e);
-
-            // Check timestamp of last dismissal
-            const lastDismissed = localStorage.getItem('installPopupDismissedAt');
-            const now = Date.now();
-
-            // Show if never dismissed OR if cooldown period has passed
-            if (!lastDismissed || (now - parseInt(lastDismissed) > COOLDOWN_PERIOD)) {
-                setShowPopup(true);
-            }
         };
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -31,6 +30,27 @@ const InstallPopup = () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         };
     }, []);
+
+    useEffect(() => {
+        // Only trigger popup logic if the app is ready (loader finished) and we have a prompt
+        if (!isAppReady || !deferredPrompt) return;
+
+        const checkAndShow = () => {
+            // Check timestamp of last dismissal
+            const lastDismissed = localStorage.getItem('installPopupDismissedAt');
+            const now = Date.now();
+
+            // Show if never dismissed OR if cooldown period has passed
+            if (!lastDismissed || (now - parseInt(lastDismissed) > COOLDOWN_PERIOD)) {
+                // Add a small delay after loading screen for better UX
+                setTimeout(() => {
+                    setShowPopup(true);
+                }, 2000);
+            }
+        };
+
+        checkAndShow();
+    }, [isAppReady, deferredPrompt]);
 
     const handleInstallClick = async () => {
         if (!deferredPrompt) return;

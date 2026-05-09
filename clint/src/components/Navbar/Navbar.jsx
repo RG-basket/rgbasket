@@ -32,11 +32,10 @@ const Navbar = ({ onLocationClick, onProfileToggle }) => {
   }, []);
 
   const toggleDrawer = useCallback(() => {
-    setIsDrawerOpen(prev => {
-      onProfileToggle?.(!prev);
-      return !prev;
-    });
-  }, [onProfileToggle]);
+    const next = !isDrawerOpen;
+    setIsDrawerOpen(next);
+    onProfileToggle?.(next);
+  }, [isDrawerOpen, onProfileToggle]);
 
   const closeDrawer = useCallback(() => {
     setIsDrawerOpen(false);

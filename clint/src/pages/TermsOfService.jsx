@@ -17,12 +17,22 @@ const TermsOfService = () => {
     {
       title: "Ordering & Pricing",
       icon: <CreditCard className="w-6 h-6" />,
-      content: "Product prices are subject to change based on market daily harvests. We reserve the right to cancel orders in case of pricing errors or product unavailability. Payments can be made via UPI, Cards, or COD."
+      content: "Prices are locked at the time of order confirmation. In the rare event of a technical pricing error, we will notify you and offer a full refund before cancellation "
     },
     {
       title: "Product Quality",
       icon: <AlertCircle className="w-6 h-6" />,
       content: "As we deal with perishable fresh produce, the weight and appearance may vary slightly. We guarantee freshness at the time of delivery. Please inspect all fresh items at the doorstep."
+    },
+    {
+      title: "User Conduct",
+      icon: <AlertCircle className="w-6 h-6" />,
+      content: "Users are prohibited from placing fraudulent orders or misusing the platform. We reserve the right to ban any user who repeatedly cancels orders or engages in behavior that harms our farmers or delivery partners."
+    },
+    {
+      title: "Governing Law",
+      icon: <Scale className="w-6 h-6" />,
+      content: "These terms are governed by the laws of India. Any disputes arising from the use of RG Basket shall be subject to the exclusive jurisdiction of the courts in Odisha."
     }
   ];
 
@@ -78,7 +88,7 @@ const TermsOfService = () => {
           </div>
 
           <div className="p-8 bg-gray-50 border-t border-gray-100 text-center">
-            <p className="text-sm text-gray-400 font-medium tracking-wider">RG BASKET LEGAL • LAST UPDATED MARCH 2026</p>
+            <p className="text-sm text-gray-400 font-medium tracking-wider">RG BASKET LEGAL • LAST UPDATED MAY 2026</p>
           </div>
         </motion.div>
       </div>

@@ -493,6 +493,53 @@ const AdminDeliveryPartners = () => {
                                             </div>
                                         </div>
 
+                                        {/* Compliance Documents */}
+                                        <div className="mb-8 p-5 bg-slate-950/40 border border-slate-800/40 rounded-2xl hover:bg-slate-950/60 transition-colors">
+                                            <div className="flex items-center justify-between mb-4 border-b border-slate-800/60 pb-2">
+                                                <div className="flex items-center gap-2 text-amber-500 font-black text-[10px] uppercase">
+                                                    <Shield size={14} /> Compliance Documents
+                                                </div>
+                                                <BadgeCheck size={12} className="text-amber-500/50" />
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                {partner.aadharCardLink ? (
+                                                    <a href={partner.aadharCardLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800 hover:border-emerald-500/50 transition-all group">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase">Aadhar Card</span>
+                                                        <ExternalLink size={14} className="text-slate-600 group-hover:text-emerald-500" />
+                                                    </a>
+                                                ) : (
+                                                    <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl border border-slate-800 border-dashed opacity-50">
+                                                        <span className="text-[10px] font-black text-slate-600 uppercase">No Aadhar</span>
+                                                        <XCircle size={14} className="text-slate-700" />
+                                                    </div>
+                                                )}
+
+                                                {partner.drivingLicenseLink ? (
+                                                    <a href={partner.drivingLicenseLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800 hover:border-amber-500/50 transition-all group">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase">DL License</span>
+                                                        <ExternalLink size={14} className="text-slate-600 group-hover:text-amber-500" />
+                                                    </a>
+                                                ) : (
+                                                    <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl border border-slate-800 border-dashed opacity-50">
+                                                        <span className="text-[10px] font-black text-slate-600 uppercase">No License</span>
+                                                        <XCircle size={14} className="text-slate-700" />
+                                                    </div>
+                                                )}
+
+                                                {partner.vehicleRcLink ? (
+                                                    <a href={partner.vehicleRcLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all group">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase">Vehicle RC</span>
+                                                        <ExternalLink size={14} className="text-slate-600 group-hover:text-blue-500" />
+                                                    </a>
+                                                ) : (
+                                                    <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-xl border border-slate-800 border-dashed opacity-50">
+                                                        <span className="text-[10px] font-black text-slate-600 uppercase">No RC</span>
+                                                        <XCircle size={14} className="text-slate-700" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
                                         {/* Current Active Orders Detail */}
                                         {partner.currentOrders?.length > 0 && (
                                             <div className="mb-8 p-5 bg-blue-500/5 border border-blue-500/10 rounded-2x-[2.5rem] rounded-2xl">
