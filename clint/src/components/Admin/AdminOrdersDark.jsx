@@ -36,8 +36,12 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
   // Get discount amount (if any)
   const discountAmount = Math.round((order.discountAmount || 0) * 100) / 100;
 
-  // Calculate net value for shipping (subtotal - discount)
-  const netValueForShipping = subtotal - discountAmount;
+  // Get coin discount & coin debt recovery (if any)
+  const coinDiscount = Math.round((order.coinDiscount || 0) * 100) / 100;
+  const coinDebtRecovery = Math.round((order.coinDebtRecovery || 0) * 100) / 100;
+
+  // Calculate net value for shipping (subtotal - discount - coinDiscount + coinDebtRecovery)
+  const netValueForShipping = subtotal - discountAmount - coinDiscount + coinDebtRecovery;
 
   // Dynamic Shipping Fee based on Pincode
   const pincode = order.shippingAddress?.pincode;
@@ -64,9 +68,10 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
   const roundedTax = Math.round(tax * 100) / 100;
   const roundedTip = Math.round(tipAmount * 100) / 100;
   const roundedDiscount = Math.round(discountAmount * 100) / 100;
-  const roundedCoinDiscount = Math.round((order.coinDiscount || 0) * 100) / 100;
+  const roundedCoinDiscount = Math.round(coinDiscount * 100) / 100;
+  const roundedCoinDebtRecovery = Math.round(coinDebtRecovery * 100) / 100;
 
-  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount - roundedCoinDiscount;
+  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount - roundedCoinDiscount + roundedCoinDebtRecovery;
   if (totalAmount < 0) totalAmount = 0;
   totalAmount = Math.round(totalAmount * 100) / 100;
 
@@ -77,6 +82,7 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
     tax: roundedTax,
     discountAmount: roundedDiscount,
     coinDiscount: roundedCoinDiscount,
+    coinDebtRecovery: roundedCoinDebtRecovery,
     totalAmount
   };
 };

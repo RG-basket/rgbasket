@@ -96,9 +96,9 @@ export const AppContextProvider = ({ children }) => {
     minOrderForRedemption: 150
   });
 
-  const fetchRewardSettings = async () => {
+  const fetchRewardSettings = async (retryCount = 3) => {
     try {
-      const response = await axios.get(`${API_URL}/api/reward-settings`);
+      const response = await axios.get(`${API_URL}/api/reward-settings`, { timeout: 15000 });
       if (response.data.success && response.data.settings) {
         const settingsMap = {};
         response.data.settings.forEach(s => {
@@ -110,12 +110,18 @@ export const AppContextProvider = ({ children }) => {
         }));
       }
     } catch (error) {
-      console.error('Error fetching reward settings:', error);
+      console.error(`Error fetching reward settings (Attempts left: ${retryCount}):`, error);
+      if (retryCount > 0) {
+        // Retry after a delay to wake up Render server
+        setTimeout(() => fetchRewardSettings(retryCount - 1), 2000);
+      }
     }
   };
 
   useEffect(() => {
     fetchRewardSettings();
+    // Pre-warm the server with a simple ping if reward settings fail or take long
+    axios.get(`${API_URL}/api/health`).catch(() => {});
   }, []);
 
   // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
@@ -513,15 +519,26 @@ export const AppContextProvider = ({ children }) => {
 
       if (Capacitor.isNativePlatform()) {
         // 🚀 Native Google Login for APK
-        const result = await FirebaseAuthentication.signInWithGoogle();
-        firebaseUser = result.user;
+        try {
+          // ENSURE CLEAN STATE: Sometimes a stale session causes the 1st attempt to fail
+          await FirebaseAuthentication.signOut().catch(() => {});
+          
+          const result = await FirebaseAuthentication.signInWithGoogle();
+          firebaseUser = result.user;
+        } catch (nativeError) {
+          console.warn("Native Google Login failed, retrying once...", nativeError);
+          // Wait longer for system dialogs/activities to stabilize
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          const result = await FirebaseAuthentication.signInWithGoogle();
+          firebaseUser = result.user;
+        }
       } else {
         // 🌐 Web Popup Login for Browser
         const result = await signInWithPopup(auth, provider);
         firebaseUser = result.user;
       }
 
-      if (!firebaseUser) throw new Error("No user found after login");
+      if (!firebaseUser) throw new Error("No user found after Google login");
 
       // Get any pending referral code from localStorage
       const referralCode = localStorage.getItem('pendingReferralCode');
@@ -536,7 +553,22 @@ export const AppContextProvider = ({ children }) => {
         deviceId
       };
 
-      const response = await axios.post(`${API_URL}/api/auth/google`, userData);
+      // 🔄 RETRY LOGIC for Backend (Solves Render Cold Start)
+      let response;
+      let retries = 2; // Total 3 attempts
+      while (retries >= 0) {
+        try {
+          // Increase timeout to 30s for Render wake-up
+          response = await axios.post(`${API_URL}/api/auth/google`, userData, { timeout: 30000 });
+          break; // Success!
+        } catch (apiError) {
+          if (retries === 0) throw apiError;
+          console.warn(`Backend Auth Failed (Retries left: ${retries})... waking up server.`);
+          retries--;
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+        }
+      }
+
       const backendUser = response.data.user;
 
       // Handle coin award popup
@@ -574,6 +606,9 @@ export const AppContextProvider = ({ children }) => {
 
   const handleLoginError = (error) => {
     console.error("Google login or server error:", error);
+    
+    // Extract a user-friendly error message
+    const errorMessage = error.response?.data?.message || error.message || "Google login failed";
 
     if (error.response?.status >= 500) {
       const user = error.config.data ? JSON.parse(error.config.data) : {};
@@ -591,9 +626,13 @@ export const AppContextProvider = ({ children }) => {
 
       setShowUserLogin(false);
       toast.success("Login successful (offline mode)");
-      // navigate("/profile");
     } else {
-      toast.error("Google login failed");
+      // If it's a timeout error from axios
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        toast.error("Server is taking too long to wake up. Please try again.");
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 

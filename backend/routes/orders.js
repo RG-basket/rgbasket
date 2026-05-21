@@ -520,6 +520,14 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
 
     console.log(`🔄 Admin updating order ${orderId}`);
 
+    const existingOrder = await Order.findById(orderId);
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
     // Recalculate totals if items are updated
     if (updateData.items && Array.isArray(updateData.items)) {
       const rawSubtotal = updateData.items.reduce((sum, item) => sum + (item.price * item.quantity + (item.customizationCharge || 0)), 0);
@@ -528,14 +536,17 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
       const discount = Math.round((updateData.discountAmount || 0) * 100) / 100;
       updateData.discountAmount = discount;
 
-      const netValue = updateData.subtotal - discount;
+      const coinDiscount = Math.round((updateData.coinDiscount !== undefined ? updateData.coinDiscount : (existingOrder.coinDiscount || 0)) * 100) / 100;
+      const coinDebtRecovery = Math.round((updateData.coinDebtRecovery !== undefined ? updateData.coinDebtRecovery : (existingOrder.coinDebtRecovery || 0)) * 100) / 100;
+
+      const netValue = updateData.subtotal - discount - coinDiscount + coinDebtRecovery;
 
       // Calculate shipping if not explicitly provided
       if (updateData.shippingFee === undefined) {
         let shippingFee = 29;
         let freeAbove = 299;
 
-        const pincode = updateData.shippingAddress?.pincode || (await Order.findById(orderId))?.shippingAddress?.pincode;
+        const pincode = updateData.shippingAddress?.pincode || existingOrder.shippingAddress?.pincode;
         if (pincode) {
           const area = await ServiceArea.findOne({ pincode, isActive: true });
           if (area) {
@@ -547,10 +558,10 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
         updateData.shippingFee = (updateData.subtotal > 0 && netValue < freeAbove) ? Math.round(shippingFee * 100) / 100 : 0;
       }
 
-      const tipAmount = Math.round((updateData.tipAmount || (await Order.findById(orderId))?.tipAmount || 0) * 100) / 100;
+      const tipAmount = Math.round((updateData.tipAmount !== undefined ? updateData.tipAmount : (existingOrder.tipAmount || 0)) * 100) / 100;
       const taxAmount = Math.round((updateData.tax || 0) * 100) / 100;
 
-      let calculatedTotal = (updateData.subtotal + (updateData.shippingFee || 0) + taxAmount + tipAmount - discount);
+      let calculatedTotal = (updateData.subtotal + (updateData.shippingFee || 0) + taxAmount + tipAmount - discount - coinDiscount + coinDebtRecovery);
       updateData.totalAmount = Math.max(0, Math.round(calculatedTotal * 100) / 100);
     }
 
