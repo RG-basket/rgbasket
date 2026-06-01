@@ -14,7 +14,7 @@ const FAQs = () => {
         },
         {
           question: "What are the delivery charges?",
-          answer: "We charge a standard delivery fee of ₹29. The free delivery threshold depends on your location Please check the delivery details in your cart after entering your address."
+          answer: "We charge a standard delivery fee of ₹29. The free delivery threshold depends on your location. Please check the delivery details in your cart after entering your address."
         },
         {
           question: "What are your delivery slots?",

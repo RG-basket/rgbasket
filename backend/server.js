@@ -16,8 +16,31 @@ const CLIENT_URL = process.env.CLIENT_URL;
 const BACKEND_URL = process.env.BACKEND_URL;
 
 // CORS configuration
+const allowedOrigins = [
+  "https://rgbasket.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "capacitor://localhost",
+  "app://localhost"
+];
+
+if (CLIENT_URL) {
+  const cleanUrl = CLIENT_URL.replace(/\/$/, "");
+  if (!allowedOrigins.includes(cleanUrl)) {
+    allowedOrigins.push(cleanUrl);
+  }
+}
+
 app.use(cors({
-  origin: "*",
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

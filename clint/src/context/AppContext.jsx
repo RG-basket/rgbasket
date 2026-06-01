@@ -638,9 +638,6 @@ export const AppContextProvider = ({ children }) => {
 
   const deleteAccount = async () => {
     if (!user) return { success: false, message: 'Not logged in' };
-    
-    const confirm = window.confirm("Are you sure you want to permanently delete your account and all associated data? This action cannot be undone.");
-    if (!confirm) return { success: false };
 
     try {
       setLoading(true);

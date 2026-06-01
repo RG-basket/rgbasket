@@ -17,12 +17,17 @@ const TermsOfService = () => {
     {
       title: "Ordering & Pricing",
       icon: <CreditCard className="w-6 h-6" />,
-      content: "Prices are locked at the time of order confirmation. In the rare event of a technical pricing error, we will notify you and offer a full refund before cancellation "
+      content: "Prices are locked at the time of order confirmation. In the rare event of a technical pricing error, we will notify you and offer a full refund before cancellation."
     },
     {
       title: "Product Quality",
       icon: <AlertCircle className="w-6 h-6" />,
       content: "As we deal with perishable fresh produce, the weight and appearance may vary slightly. We guarantee freshness at the time of delivery. Please inspect all fresh items at the doorstep."
+    },
+    {
+      title: "Seafood Weight Policy",
+      icon: <Scale className="w-6 h-6" />,
+      content: "All seafood is weighed on a 'Gross Weight' basis (whole fish) before cleaning. Choosing the 'Cleaned & Cut' option will result in a net weight reduction of approximately 100g-200g per kg due to the removal of scales and internal organs."
     },
     {
       title: "User Conduct",

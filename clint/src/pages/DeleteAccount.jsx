@@ -85,7 +85,7 @@ const DeleteAccount = () => {
             
             <p className="mt-8 text-center text-[11px] text-gray-400 max-w-sm leading-relaxed font-medium">
                 Compliant with Google Play Data Safety Policy. <br/>
-                All associated data will be removed from our servers within 24 hours of your request.
+                All associated data will be permanently removed from our servers within 30 days of your request.
             </p>
         </div>
     );

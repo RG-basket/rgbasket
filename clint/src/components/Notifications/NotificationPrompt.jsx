@@ -10,17 +10,14 @@ const NotificationPrompt = ({ onEnable }) => {
     useEffect(() => {
         const checkStatus = async () => {
             if (Capacitor.isNativePlatform()) {
-                // Capacitor handling is usually done via native prompts, 
-                // but we can check if it's already granted
                 return;
             }
 
             if ('Notification' in window) {
                 setPermissionStatus(Notification.permission);
-                // Only show if not granted and haven't dismissed recently
-                const dismissed = localStorage.getItem('notificationPromptDismissed');
-                if (Notification.permission !== 'granted' && !dismissed) {
-                    // Show after a short delay
+
+                // Show on every visit until the user grants permission
+                if (Notification.permission !== 'granted') {
                     const timer = setTimeout(() => setIsVisible(true), 3000);
                     return () => clearTimeout(timer);
                 }
@@ -31,7 +28,6 @@ const NotificationPrompt = ({ onEnable }) => {
 
     const handleDismiss = () => {
         setIsVisible(false);
-        localStorage.setItem('notificationPromptDismissed', Date.now().toString());
     };
 
     const handleEnable = async () => {

@@ -4,17 +4,20 @@ import { Capacitor } from '@capacitor/core';
 import { messaging } from '../../Firebase';
 import { getToken, onMessage } from 'firebase/messaging';
 import { useAppContext } from '../../context/AppContext';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
-import { App } from '@capacitor/app';
+import toast from 'react-hot-toast';
 
 import NotificationPrompt from './NotificationPrompt';
 
+// ✅ FIXED: No localhost fallback — if VITE_API_URL is missing, we know immediately
+// instead of silently sending tokens to a dev machine that ignores them.
+const API_URL = import.meta.env.VITE_API_URL;
+if (!API_URL) {
+    console.error('❌ CRITICAL: VITE_API_URL is not set! Push token registration will fail. Check your .env file.');
+}
+
 const PushNotificationManager = () => {
     const { user } = useAppContext();
-    const navigate = useNavigate();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     useEffect(() => {
         if (!user) return;
@@ -82,7 +85,10 @@ const PushNotificationManager = () => {
                     saveTokenToBackend(token, 'web');
                     onMessage(messagingInstance, (payload) => {
                         console.log('Foreground message received:', payload);
-                        alert(`🔔 ${payload.notification?.title}\n\n${payload.notification?.body}`);
+                        toast(`🔔 ${payload.notification?.title}: ${payload.notification?.body}`, {
+                            duration: 5000,
+                            icon: '🛒',
+                        });
                     });
                 } else {
                     console.warn('⚠️ No token generated');
@@ -105,6 +111,11 @@ const PushNotificationManager = () => {
 
         if (permStatus.receive !== 'granted') return;
 
+        // ✅ FIXED: Remove all previous listeners BEFORE adding new ones.
+        // Without this, every time user logs in/out the listeners stack up,
+        // causing duplicate token saves and registration events.
+        await PushNotifications.removeAllListeners();
+
         // Setup Listeners BEFORE Registering
         PushNotifications.addListener('registration', (token) => {
             console.log('📱 Android Token Generated:', token.value);
@@ -117,7 +128,10 @@ const PushNotificationManager = () => {
 
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Native push received:', notification);
-            alert(`🔔 ${notification.title}\n\n${notification.body}`);
+            toast(`🔔 ${notification.title}: ${notification.body}`, {
+                duration: 5000,
+                icon: '🛒',
+            });
         });
 
         await PushNotifications.register();
@@ -126,6 +140,7 @@ const PushNotificationManager = () => {
             console.log('Native push action performed:', notification);
             const data = notification.notification.data;
             if (data && data.path) {
+                // ✅ Use React Router-compatible navigation
                 window.location.href = data.path;
             }
         });
