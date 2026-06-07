@@ -8,7 +8,7 @@ const MemoizedProductCard = React.memo(ProductCard);
 const TwentyRupeeStore = () => {
   const { products: contextProducts } = useAppContext();
   const navigate = useNavigate();
-  const [maxPrice, setMaxPrice] = useState(20);
+  const [maxPrice, setMaxPrice] = useState(30);
   const [allStoreProducts, setAllStoreProducts] = useState([]);
   const [visibleCount, setVisibleCount] = useState(16); // Initial visible
   const [displayProducts, setDisplayProducts] = useState({ row1: [], row2: [] });

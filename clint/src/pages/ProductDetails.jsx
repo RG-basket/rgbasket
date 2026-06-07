@@ -5,7 +5,7 @@ import { useAppContext } from '../context/AppContext';
 import { assets } from '../assets/assets';
 import ProductCard from '../components/Products/ProductCard';
 import toast from 'react-hot-toast';
-import { ChevronDown, ChevronUp, ShoppingCart, Zap, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, ShoppingCart, Zap, AlertCircle, Share2, Check, Copy } from 'lucide-react';
 import SEO from '../components/SEO/SEO.jsx';
 import { formatWeight } from '../utils/weightFormatter.js';
 import SpecialRequestModal from '../components/Products/SpecialRequestModal';
@@ -86,6 +86,7 @@ const ProductDetails = () => {
   const [isAvailableForSlot, setIsAvailableForSlot] = useState(true);
   const [unavailabilityReason, setUnavailabilityReason] = useState('');
   const [isSpecialRequestModalOpen, setIsSpecialRequestModalOpen] = useState(false);
+  const [shareState, setShareState] = useState('idle'); // 'idle' | 'sharing' | 'copied'
 
   // Load product data
   useEffect(() => {
@@ -287,6 +288,58 @@ const ProductDetails = () => {
   const handleSpecialRequest = () => {
     if (requireAuth()) {
       setIsSpecialRequestModalOpen(true);
+    }
+  };
+
+  // Share product with native share sheet (image preview on mobile)
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const selectedPrice = selectedWeight?.offerPrice || selectedWeight?.price;
+    const shareTitle = product.name;
+    const shareText = `🛒 Check out ${product.name} on RG Basket!\nStarting from ₹${Math.round(selectedPrice || 0)} — Fresh delivery to your door.`;
+
+    setShareState('sharing');
+
+    if (navigator.share) {
+      try {
+        const imageUrl = thumbnail || product.images?.[0];
+        // Try sharing with the actual product image as a file
+        if (imageUrl && navigator.canShare) {
+          try {
+            const resp = await fetch(imageUrl);
+            const blob = await resp.blob();
+            const ext = blob.type.includes('png') ? 'png' : 'jpg';
+            const file = new File([blob], `${product.name.replace(/\s+/g, '-')}.${ext}`, { type: blob.type });
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({ title: shareTitle, text: shareText, url: shareUrl, files: [file] });
+              setShareState('idle');
+              return;
+            }
+          } catch {
+            // Image fetch failed — fall through to URL-only share
+          }
+        }
+        // URL-only share (still shows link preview on most apps)
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+        setShareState('idle');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          // User dismissed or error — copy link as last resort
+          try { await navigator.clipboard.writeText(shareUrl); toast.success('Link copied!'); } catch {}
+        }
+        setShareState('idle');
+      }
+    } else {
+      // Desktop fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareState('copied');
+        toast.success('Link copied to clipboard!');
+        setTimeout(() => setShareState('idle'), 2000);
+      } catch {
+        toast.error('Could not copy link');
+        setShareState('idle');
+      }
     }
   };
 
@@ -562,6 +615,21 @@ const ProductDetails = () => {
                 </>
               )}
             </div>
+
+            {/* Share Button */}
+            <button
+              onClick={handleShare}
+              disabled={shareState === 'sharing'}
+              className="w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border-2 border-emerald-200 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 hover:border-emerald-400 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+            >
+              {shareState === 'copied' ? (
+                <><Check className="w-4 h-4" /> Link Copied!</>
+              ) : shareState === 'sharing' ? (
+                <><Share2 className="w-4 h-4 animate-pulse" /> Sharing...</>
+              ) : (
+                <><Share2 className="w-4 h-4" /> Share this Product</>
+              )}
+            </button>
 
             {/* Availability Warning */}
             {!isAvailable && (

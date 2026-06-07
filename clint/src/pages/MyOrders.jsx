@@ -333,7 +333,8 @@ const MyOrders = () => {
   const printOrderBill = (order) => {
     if (!order) return;
 
-    const printWindow = window.open('', '_blank');
+    const isCapacitor = !!window.Capacitor;
+    const printWindow = isCapacitor ? null : window.open('', '_blank');
 
     const billHtml = `
 <!DOCTYPE html>
@@ -645,8 +646,133 @@ const MyOrders = () => {
 </body>
 </html>`;
 
-    printWindow.document.write(billHtml);
-    printWindow.document.close();
+    if (printWindow) {
+      printWindow.document.write(billHtml);
+      printWindow.document.close();
+    } else {
+      // Fallback for mobile APK / WebView / Blocked Popups
+      const overlay = document.createElement('div');
+      overlay.id = 'invoice-print-overlay';
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100vw';
+      overlay.style.height = '100vh';
+      overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.75)';
+      overlay.style.backdropFilter = 'blur(4px)';
+      overlay.style.zIndex = '999999';
+      overlay.style.display = 'flex';
+      overlay.style.flexDirection = 'column';
+      overlay.style.justifyContent = 'center';
+      overlay.style.alignItems = 'center';
+      overlay.style.padding = '16px';
+
+      const modal = document.createElement('div');
+      modal.style.backgroundColor = '#f8fafc';
+      modal.style.width = '100%';
+      modal.style.maxWidth = '800px';
+      modal.style.height = '85vh';
+      modal.style.borderRadius = '16px';
+      modal.style.display = 'flex';
+      modal.style.flexDirection = 'column';
+      modal.style.overflow = 'hidden';
+      modal.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.4)';
+
+      const header = document.createElement('div');
+      header.style.padding = '14px 20px';
+      header.style.backgroundColor = '#ffffff';
+      header.style.borderBottom = '1px solid #e2e8f0';
+      header.style.display = 'flex';
+      header.style.justifyContent = 'space-between';
+      header.style.alignItems = 'center';
+
+      const title = document.createElement('h3');
+      title.innerText = 'Invoice Preview';
+      title.style.margin = '0';
+      title.style.fontSize = '16px';
+      title.style.fontWeight = '700';
+      title.style.color = '#0f172a';
+
+      const headerButtons = document.createElement('div');
+      headerButtons.style.display = 'flex';
+      headerButtons.style.gap = '8px';
+
+      const modalPrintBtn = document.createElement('button');
+      modalPrintBtn.innerText = '🖨️ Print';
+      modalPrintBtn.style.padding = '6px 12px';
+      modalPrintBtn.style.fontSize = '12px';
+      modalPrintBtn.style.fontWeight = '600';
+      modalPrintBtn.style.color = '#ffffff';
+      modalPrintBtn.style.backgroundColor = '#059669';
+      modalPrintBtn.style.border = 'none';
+      modalPrintBtn.style.borderRadius = '8px';
+      modalPrintBtn.style.cursor = 'pointer';
+
+      const modalCloseBtn = document.createElement('button');
+      modalCloseBtn.innerText = '✕ Close';
+      modalCloseBtn.style.padding = '6px 12px';
+      modalCloseBtn.style.fontSize = '12px';
+      modalCloseBtn.style.fontWeight = '600';
+      modalCloseBtn.style.color = '#475569';
+      modalCloseBtn.style.backgroundColor = '#f1f5f9';
+      modalCloseBtn.style.border = 'none';
+      modalCloseBtn.style.borderRadius = '8px';
+      modalCloseBtn.style.cursor = 'pointer';
+
+      header.appendChild(title);
+      headerButtons.appendChild(modalPrintBtn);
+      headerButtons.appendChild(modalCloseBtn);
+      header.appendChild(headerButtons);
+
+      const iframe = document.createElement('iframe');
+      iframe.style.width = '100%';
+      iframe.style.flex = '1';
+      iframe.style.border = 'none';
+      iframe.style.backgroundColor = '#ffffff';
+
+      modal.appendChild(header);
+      modal.appendChild(iframe);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      iframeDoc.open();
+      iframeDoc.write(billHtml);
+      iframeDoc.close();
+
+      // Override window.close() inside the iframe to close the overlay DOM
+      iframe.contentWindow.close = () => {
+        document.body.removeChild(overlay);
+      };
+
+      // Override window.print() inside the iframe to handle native APK printing
+      const originalPrint = iframe.contentWindow.print;
+      iframe.contentWindow.print = () => {
+        const printBridge = window.AndroidPrint || (window.parent && window.parent.AndroidPrint);
+        if (printBridge && typeof printBridge.print === 'function') {
+          printBridge.print(billHtml);
+        } else {
+          try {
+            iframe.contentWindow.focus();
+            originalPrint.apply(iframe.contentWindow);
+          } catch (e) {
+            toast.error('Printing is not supported on this device/view');
+          }
+        }
+      };
+
+      modalCloseBtn.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+      });
+
+      modalPrintBtn.addEventListener('click', () => {
+        try {
+          iframe.contentWindow.print();
+        } catch (e) {
+          toast.error('Printing is not supported on this device/view');
+        }
+      });
+    }
   };
 
   const handleStatusFilter = (status) => {

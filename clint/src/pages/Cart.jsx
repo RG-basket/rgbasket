@@ -77,9 +77,26 @@ const Cart = () => {
   const [instruction, setInstruction] = useState(() => {
     return localStorage.getItem('cartInstruction') || "";
   });
-  const [orderLocation, setOrderLocation] = useState(null);
+  // Persist location across Cart remounts (e.g. user browses then comes back)
+  // sessionStorage survives navigation within the same app session but clears on close
+  const [orderLocation, setOrderLocation] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('orderLocationCache');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [isGeoBlocked, setIsGeoBlocked] = useState(false);
+
+  // Helper: set location and persist it to sessionStorage
+  const persistLocation = (loc) => {
+    setOrderLocation(loc);
+    if (loc) {
+      try { sessionStorage.setItem('orderLocationCache', JSON.stringify(loc)); } catch {}
+    }
+  };
 
   // Stale Cart Detection State
   const [staleCartItems, setStaleCartItems] = useState([]);
@@ -227,7 +244,7 @@ const Cart = () => {
           console.warn('📍 Geolocation capture failed:', error.message);
           resolve(null);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 600000 } // 10-min cache avoids redundant GPS locks
       );
     });
   };
@@ -306,18 +323,26 @@ const Cart = () => {
   // Automatically request location when entering cart
   useEffect(() => {
     const initLocation = async () => {
+      // Already have a location cached from this session — skip everything
+      // This prevents the popup showing again when the user navigates back to Cart
+      if (orderLocation) {
+        console.log('📍 Using cached session location, skipping prompt.');
+        return;
+      }
+
       if (!navigator.permissions) {
-        // Fallback for browsers without permissions API
+        // Fallback for browsers without permissions API (some Capacitor webviews)
         const loc = await captureLocation();
-        if (loc) setOrderLocation(loc);
+        if (loc) persistLocation(loc);
         return;
       }
 
       try {
         const result = await navigator.permissions.query({ name: 'geolocation' });
+
         if (result.state === 'granted') {
           const loc = await captureLocation();
-          if (loc) setOrderLocation(loc);
+          if (loc) persistLocation(loc);
         } else if (result.state === 'prompt') {
           // Show our beautiful popup before browser prompt
           setShowLocationPrompt(true);
@@ -329,7 +354,7 @@ const Cart = () => {
         result.onchange = () => {
           if (result.state === 'granted') {
             setIsGeoBlocked(false);
-            captureLocation().then(setOrderLocation);
+            captureLocation().then(persistLocation);
           }
         };
       } catch (err) {
@@ -337,13 +362,13 @@ const Cart = () => {
       }
     };
     initLocation();
-  }, []);
+  }, []); // intentionally empty — runs once per mount, but exits early if location is cached
 
   const handleAcceptLocation = async () => {
     setShowLocationPrompt(false);
     const loc = await captureLocation();
     if (loc) {
-      setOrderLocation(loc);
+      persistLocation(loc); // cache so future Cart visits don't prompt again
       toast.success("Location locked for delivery!");
     } else {
       toast.error("Could not get location. Please type address manually.");

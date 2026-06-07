@@ -15,6 +15,7 @@ const AdminNotifications = () => {
     const [subscribers, setSubscribers] = useState([]);
     const [fetchingSubscribers, setFetchingSubscribers] = useState(false);
     const [subscriberSearch, setSubscriberSearch] = useState('');
+    const [visibleCount, setVisibleCount] = useState(10);
 
     useEffect(() => {
         fetchSubscribers();
@@ -110,74 +111,84 @@ const AdminNotifications = () => {
         }
     };
 
+    const filteredSubscribers = subscribers.filter(s => 
+        s.name?.toLowerCase().includes(subscriberSearch.toLowerCase()) || 
+        s.email?.toLowerCase().includes(subscriberSearch.toLowerCase())
+    );
+
     return (
-        <div className="p-6 max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-8">
-                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl">
+        <div className="p-4 md:p-6 max-w-4xl mx-auto">
+            <div className="flex items-center gap-3 mb-6 md:mb-8">
+                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl shrink-0">
                     <FiBell size={24} />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Push Notifications</h1>
-                    <p className="text-sm text-gray-500">Send instant alerts to all APK and Webapp users</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-gray-800">Push Notifications</h1>
+                    <p className="text-xs md:text-sm text-gray-500">Send instant alerts to all users</p>
                 </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
                 {/* Form Section */}
                 <motion.div 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white p-5 md:p-8 rounded-[2rem] md:rounded-3xl shadow-sm border border-gray-100 order-2 lg:order-1"
                 >
-                    <form onSubmit={handleBroadcast} className="space-y-6">
+                    <form onSubmit={handleBroadcast} className="space-y-5 md:space-y-6">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
                                 Notification Title
                             </label>
                             <input
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
+                                className="w-full px-4 py-3 md:py-4 rounded-xl md:rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm md:text-base font-medium"
                                 placeholder="e.g. Flash Sale Live! ⚡"
                                 required
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
                                 Message Body
                             </label>
                             <textarea
                                 value={body}
                                 onChange={(e) => setBody(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all h-32 resize-none"
-                                placeholder="e.g. Get 20% OFF on all fresh vegetables for the next 2 hours."
+                                className="w-full px-4 py-3 md:py-4 rounded-xl md:rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all h-28 md:h-32 resize-none text-sm md:text-base font-medium"
+                                placeholder="e.g. Get 20% OFF on all fresh vegetables..."
                                 required
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
                                 On Click: Open Path
                             </label>
-                            <select
-                                value={targetPath}
-                                onChange={(e) => setTargetPath(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                            >
-                                <option value="/">Home Page</option>
-                                <option value="/products/all">All Products</option>
-                                <option value="/cart">Cart</option>
-                                <option value="/orders">My Orders</option>
-                                <option value="/faq">Offers / FAQ</option>
-                            </select>
+                            <div className="relative">
+                                <select
+                                    value={targetPath}
+                                    onChange={(e) => setTargetPath(e.target.value)}
+                                    className="w-full px-4 py-3 md:py-4 rounded-xl md:rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all appearance-none text-sm md:text-base font-medium"
+                                >
+                                    <option value="/">Home Page</option>
+                                    <option value="/products/all">All Products</option>
+                                    <option value="/cart">Cart</option>
+                                    <option value="/orders">My Orders</option>
+                                    <option value="/faq">Offers / FAQ</option>
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <FiGlobe size={16} />
+                                </div>
+                            </div>
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold py-4 md:py-5 rounded-xl md:rounded-2xl shadow-xl shadow-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
                         >
                             {loading ? <FiLoader className="animate-spin" /> : <FiSend />}
                             {loading ? 'Sending Broadcast...' : 'Send to All Users'}
@@ -185,141 +196,176 @@ const AdminNotifications = () => {
                     </form>
                 </motion.div>
 
-                {/* Preview / Instructions Section */}
+                {/* Preview / Result Section */}
                 <motion.div 
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="space-y-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="space-y-6 order-1 lg:order-2"
                 >
-                    <div className="bg-gray-900 rounded-[2.5rem] p-4 border-[8px] border-gray-800 shadow-2xl aspect-[9/16] max-w-[280px] mx-auto relative overflow-hidden">
-                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-gray-800 rounded-full"></div>
+                    {/* Phone Preview - Slightly smaller on mobile */}
+                    <div className="bg-gray-900 rounded-[2.5rem] p-3 md:p-4 border-[6px] md:border-[8px] border-gray-800 shadow-2xl aspect-[9/16] max-w-[240px] md:max-w-[280px] mx-auto relative overflow-hidden group">
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 md:w-20 h-4 md:h-5 bg-gray-800 rounded-full"></div>
                         
-                        <div className="mt-12 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 mx-2">
+                        <div className="mt-10 md:mt-12 bg-white/10 backdrop-blur-md rounded-2xl p-3 md:p-4 border border-white/10 mx-1 md:mx-2 shadow-xl">
                             <div className="flex items-center gap-2 mb-1">
-                                <div className="w-4 h-4 bg-emerald-500 rounded-sm"></div>
-                                <span className="text-[10px] text-white/60 font-medium">RG BASKET</span>
+                                <div className="w-3 h-3 md:w-4 md:h-4 bg-emerald-500 rounded-sm"></div>
+                                <span className="text-[9px] md:text-[10px] text-white/60 font-bold tracking-wider">RG BASKET</span>
                             </div>
-                            <h4 className="text-white text-xs font-bold truncate">{title || 'Notification Title'}</h4>
-                            <p className="text-white/80 text-[10px] line-clamp-2 mt-0.5">{body || 'This is how your message will appear on users\' phones.'}</p>
+                            <h4 className="text-white text-xs md:text-sm font-bold truncate">{title || 'Notification Title'}</h4>
+                            <p className="text-white/80 text-[10px] md:text-xs line-clamp-2 mt-0.5 leading-relaxed">{body || 'This is how your message will appear on users\' phones.'}</p>
                         </div>
                     </div>
 
                     {result && (
                         <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={`p-4 rounded-2xl border ${result.success ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className={`p-4 rounded-2xl border ${result.success ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'} shadow-sm`}
                         >
                             <div className="flex items-center gap-2 font-bold mb-1">
                                 {result.success ? <FiCheckCircle /> : <FiAlertCircle />}
                                 {result.success ? 'Broadcast Success' : 'Broadcast Failed'}
                             </div>
-                            <p className="text-sm opacity-90">{result.message}</p>
-                            {result.totalTokens > 0 && (
-                                <p className="text-[10px] mt-2 font-mono">Total Tokens Found: {result.totalTokens}</p>
-                            )}
+                            <p className="text-sm opacity-90 font-medium">{result.message}</p>
                         </motion.div>
                     )}
                 </motion.div>
             </div>
 
-            <div className="mt-12 p-6 bg-white rounded-3xl shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
+            {/* Subscribers Section */}
+            <div className="mt-8 md:mt-12 p-4 md:p-6 bg-white rounded-3xl shadow-sm border border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
                             <FiUsers size={20} />
                         </div>
-                        <h2 className="text-xl font-bold text-gray-800">Notification Subscribers</h2>
-                        <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
-                            {subscribers.length}
-                        </span>
+                        <div>
+                            <h2 className="text-lg md:text-xl font-bold text-gray-800">Subscribers</h2>
+                            <p className="text-[10px] text-gray-500 font-medium">{subscribers.length} total devices reached</p>
+                        </div>
                     </div>
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto">
                         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input 
                             type="text" 
-                            placeholder="Search subscribers..."
+                            placeholder="Search by name or email..."
                             value={subscriberSearch}
                             onChange={(e) => setSubscriberSearch(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm w-64"
+                            className="pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full sm:w-64 font-medium"
                         />
                     </div>
                 </div>
 
                 {fetchingSubscribers ? (
-                    <div className="flex items-center justify-center py-12">
+                    <div className="flex flex-col items-center justify-center py-16 gap-3">
                         <FiLoader className="animate-spin text-blue-500" size={32} />
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Loading List...</p>
                     </div>
                 ) : subscribers.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400">
-                        No subscribers found yet.
+                    <div className="text-center py-12">
+                         <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                             <FiUsers size={24} className="text-gray-300" />
+                         </div>
+                         <p className="text-gray-400 text-sm font-medium">No subscribers found yet.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="text-gray-400 text-xs uppercase tracking-wider border-b border-gray-50">
-                                    <th className="pb-3 pl-4">User</th>
-                                    <th className="pb-3">Platform</th>
-                                    <th className="pb-3">Last Active</th>
-                                    <th className="pb-3 pr-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {subscribers
-                                    .filter(s => 
-                                        s.name?.toLowerCase().includes(subscriberSearch.toLowerCase()) || 
-                                        s.email?.toLowerCase().includes(subscriberSearch.toLowerCase())
-                                    )
-                                    .map((sub) => (
-                                    <tr key={sub._id} className="group hover:bg-gray-50 transition-colors">
-                                        <td className="py-4 pl-4">
-                                            <div className="flex items-center gap-3">
-                                                <img 
-                                                    src={sub.photo || 'https://via.placeholder.com/40'} 
-                                                    className="w-10 h-10 rounded-full border border-gray-100"
-                                                    alt=""
-                                                />
+                    <div className="space-y-4">
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="text-gray-400 text-[10px] uppercase tracking-[0.2em] font-black border-b border-gray-50">
+                                        <th className="pb-4 pl-4 font-black">User Identity</th>
+                                        <th className="pb-4 font-black text-center">Platform</th>
+                                        <th className="pb-4 font-black">Last Activity</th>
+                                        <th className="pb-4 pr-4 text-right font-black">Quick Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {filteredSubscribers.slice(0, visibleCount).map((sub) => (
+                                        <tr key={sub._id} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="py-4 pl-4">
                                                 <div>
                                                     <p className="font-bold text-gray-800 text-sm">{sub.name}</p>
-                                                    <p className="text-xs text-gray-500">{sub.email}</p>
+                                                    <p className="text-[10px] text-gray-400 font-medium">{sub.email}</p>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="py-4">
-                                            <div className="flex gap-2">
-                                                {sub.pushToken && <FiGlobe title="Web" className="text-blue-500" />}
-                                                {sub.pushTokens?.some(t => t.platform === 'android') && <FiSmartphone title="Android" className="text-emerald-500" />}
-                                            </div>
-                                        </td>
-                                        <td className="py-4 text-xs text-gray-500">
-                                            {new Date(sub.lastActive).toLocaleDateString()}
-                                        </td>
-                                        <td className="py-4 pr-4 text-right">
-                                            <button
-                                                onClick={() => handleSendToUser(sub._id, sub.name)}
-                                                className="opacity-0 group-hover:opacity-100 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ml-auto"
-                                            >
-                                                <FiSend size={12} /> Send Test
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                            </td>
+                                            <td className="py-4">
+                                                <div className="flex justify-center gap-3">
+                                                    {sub.pushToken && <FiGlobe title="Web" className="text-blue-500 hover:scale-110 transition-transform" size={16} />}
+                                                    {sub.pushTokens?.some(t => t.platform === 'android') && <FiSmartphone title="Android" className="text-emerald-500 hover:scale-110 transition-transform" size={16} />}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 text-xs font-bold text-gray-500">
+                                                {new Date(sub.lastActive).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </td>
+                                            <td className="py-4 pr-4 text-right">
+                                                <button
+                                                    onClick={() => handleSendToUser(sub._id, sub.name)}
+                                                    className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-2 shadow-lg shadow-blue-100"
+                                                >
+                                                    <FiSend size={12} /> Send Test
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile List View */}
+                        <div className="md:hidden space-y-3">
+                            {filteredSubscribers.slice(0, visibleCount).map((sub) => (
+                                <div key={sub._id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <p className="font-bold text-gray-800 text-sm">{sub.name}</p>
+                                            <p className="text-[10px] text-gray-500">{sub.email}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {sub.pushToken && <FiGlobe className="text-blue-500" size={14} />}
+                                            {sub.pushTokens?.some(t => t.platform === 'android') && <FiSmartphone className="text-emerald-500" size={14} />}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-2 pt-3 border-t border-gray-200/50">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                                            Active: {new Date(sub.lastActive).toLocaleDateString()}
+                                        </p>
+                                        <button
+                                            onClick={() => handleSendToUser(sub._id, sub.name)}
+                                            className="bg-blue-600 active:scale-95 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 shadow-md shadow-blue-100"
+                                        >
+                                            <FiSend size={10} /> Send Test
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {filteredSubscribers.length > visibleCount && (
+                    <div className="mt-8 flex justify-center">
+                        <button 
+                            onClick={() => setVisibleCount(prev => prev + 10)}
+                            className="w-full sm:w-auto px-8 py-3 bg-gray-900 hover:bg-black text-white font-bold rounded-2xl transition-all active:scale-95 shadow-xl shadow-gray-200 text-sm"
+                        >
+                            Load More Subscribers
+                        </button>
                     </div>
                 )}
             </div>
 
-            <div className="mt-12 p-6 bg-amber-50 rounded-2xl border border-amber-100">
-                <h3 className="text-amber-800 font-bold flex items-center gap-2 mb-2">
-                    <FiAlertCircle /> Important Implementation Notes
+            {/* Info Notes */}
+            <div className="mt-8 md:mt-12 p-5 md:p-6 bg-amber-50 rounded-3xl border border-amber-100 shadow-sm shadow-amber-50">
+                <h3 className="text-amber-800 font-bold flex items-center gap-2 mb-3 text-sm md:text-base">
+                    <FiAlertCircle /> Important System Notes
                 </h3>
-                <ul className="text-sm text-amber-700 space-y-2 list-disc pl-5">
-                    <li>Notifications will only be delivered to users who have "Allowed" permissions.</li>
-                    <li>For APK: Ensure your Firebase Cloud Messaging (FCM) is linked in Firebase Console.</li>
-                    <li>For Web: Ensure the VAPID key is correctly set in the <code>Firebase.js</code> file.</li>
-                    <li>Server-side: You must add the <code>FIREBASE_SERVICE_ACCOUNT</code> JSON string to your backend <code>.env</code> file.</li>
+                <ul className="text-xs md:text-sm text-amber-700/80 space-y-2 font-medium">
+                    <li className="flex gap-2"><span>•</span> Notifications only deliver if users "Allowed" permissions in browser/app.</li>
+                    <li className="flex gap-2"><span>•</span> For APK: Firebase Cloud Messaging (FCM) must be linked.</li>
+                    <li className="flex gap-2"><span>•</span> For Web: VAPID key in <code>Firebase.js</code> must match Firebase Console.</li>
                 </ul>
             </div>
         </div>

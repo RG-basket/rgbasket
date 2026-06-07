@@ -121,7 +121,7 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => {
     fetchRewardSettings();
     // Pre-warm the server with a simple ping if reward settings fail or take long
-    axios.get(`${API_URL}/api/health`).catch(() => {});
+    axios.get(`${API_URL}/api/health`).catch(() => { });
   }, []);
 
   // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
@@ -521,8 +521,8 @@ export const AppContextProvider = ({ children }) => {
         // 🚀 Native Google Login for APK
         try {
           // ENSURE CLEAN STATE: Sometimes a stale session causes the 1st attempt to fail
-          await FirebaseAuthentication.signOut().catch(() => {});
-          
+          await FirebaseAuthentication.signOut().catch(() => { });
+
           const result = await FirebaseAuthentication.signInWithGoogle();
           firebaseUser = result.user;
         } catch (nativeError) {
@@ -606,7 +606,7 @@ export const AppContextProvider = ({ children }) => {
 
   const handleLoginError = (error) => {
     console.error("Google login or server error:", error);
-    
+
     // Extract a user-friendly error message
     const errorMessage = error.response?.data?.message || error.message || "Google login failed";
 
@@ -643,7 +643,7 @@ export const AppContextProvider = ({ children }) => {
       setLoading(true);
       const userId = user.id || user._id;
       const response = await axios.delete(`${API_URL}/api/users/${userId}`);
-      
+
       if (response.data.success) {
         toast.success("Account deleted successfully");
         await logout();
@@ -1071,7 +1071,7 @@ export const AppContextProvider = ({ children }) => {
     // Bridge to Instamart Experience - Moved outside state update to fix React warning
     const weight = product.weights?.[parseInt(itemKey.split('_')[1])];
     const itemPrice = weight?.offerPrice || weight?.price || product.price;
-    
+
     useCartStore.getState().addItem({
       id: itemKey,
       name: product.name,
@@ -1107,7 +1107,7 @@ export const AppContextProvider = ({ children }) => {
         localStorage.setItem('cartItems', JSON.stringify(newCart));
         return newCart;
       });
-      
+
       // Bridge to Instamart Experience - Moved outside state update to fix React warning
       useCartStore.getState().updateItemQuantity(itemKey, quantity);
 
@@ -1144,7 +1144,7 @@ export const AppContextProvider = ({ children }) => {
     setCustomizationData({});
     localStorage.removeItem('cartItems');
     localStorage.removeItem('customizationData');
-    
+
     // Bridge to Instamart Experience
     useCartStore.setState({ items: [], giftTier: 0 });
 
@@ -1265,14 +1265,15 @@ export const AppContextProvider = ({ children }) => {
     isAppReady,
     isNonVegTheme,
     setIsNonVegTheme,
-    rewardSettings
+    rewardSettings,
+    isNative: Capacitor.isNativePlatform()
   };
 
   return (
     <AppContext.Provider value={value}>
       {children}
-      <CoinEarnedPopup 
-        isOpen={showCoinPopup} 
+      <CoinEarnedPopup
+        isOpen={showCoinPopup}
         onClose={() => setShowCoinPopup(false)}
         amount={coinAwardInfo.amount}
         message={coinAwardInfo.message}
