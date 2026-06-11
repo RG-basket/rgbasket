@@ -28,7 +28,6 @@ const Home = () => {
             <TwentyRupeeStore />
             <NewArrivals />
             <BestSeller />
-            <PWAInstallBanner />
             <RecentViewed />
             <OurServices />
             <CustomerReviews />

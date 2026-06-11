@@ -82,7 +82,7 @@ const UnavailableItemsModal = ({ isOpen, onClose, onRemove, items }) => {
             // Fetch restrictions for all products in parallel
             const productRestrictions = await Promise.all(uniqueProductIds.map(async (pid) => {
               try {
-                const r = await fetch(`${API_URL}/api/product-slot-availability/check/${pid}/${dayOfWeekName}`);
+                const r = await fetch(`${API_URL}/api/product-slot-availability/check/${pid}/${dayOfWeekName}?date=${dateStr}`);
                 const rData = await r.json();
                 if (rData.success && Array.isArray(rData.unavailableSlots)) {
                   return rData.unavailableSlots;

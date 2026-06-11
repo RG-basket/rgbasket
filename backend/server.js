@@ -165,6 +165,8 @@ const serviceAreaRoutes = require('./routes/serviceAreas');
 const deliveryPartnerRoutes = require('./routes/deliveryPartnerRoutes');
 const rewardSettingsRoutes = require('./routes/rewardSettings');
 const CoinService = require('./services/CoinService');
+const categorySlotAvailabilityRoutes = require('./routes/categorySlotAvailability');
+const systemConfigRoutes = require('./routes/systemConfig');
 
 // Import middleware
 const { checkBanned } = require('./middleware/auth');
@@ -179,6 +181,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/geocode', geocodeRoutes);
 app.use('/api/slots', slotsRoutes);
 app.use('/api/product-slot-availability', productSlotAvailabilityRoutes);
+app.use('/api/category-slot-availability', categorySlotAvailabilityRoutes);
+app.use('/api/system-config', systemConfigRoutes);
 app.use('/api/promo', promoCodeRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/offers', offerRoutes);

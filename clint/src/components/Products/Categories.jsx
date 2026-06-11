@@ -25,11 +25,13 @@ const Categories = () => {
 
   // Fetch categories from backend to get emojis
   const [modelCategories, setModelCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [showSortDropdown, setShowSortDropdown] = useState(false)
 
   useEffect(() => {
     const fetchModelCategories = async () => {
       try {
+        setCategoriesLoading(true);
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
         const data = await res.json();
         if (data.success) {
@@ -37,6 +39,8 @@ const Categories = () => {
         }
       } catch (err) {
         console.error('Failed to fetch categories:', err);
+      } finally {
+        setCategoriesLoading(false);
       }
     };
     fetchModelCategories();
@@ -261,9 +265,9 @@ const Categories = () => {
 
   // Use loading from context if needed
   const { loading: contextLoading } = useAppContext()
-  const isLoading = loading || contextLoading
+  const isLoading = loading || contextLoading || categoriesLoading
 
-  if (isLoading && products.length === 0) {
+  if (isLoading || (filteredProducts.length === 0 && (contextLoading || categoriesLoading))) {
     return (
       <div className='min-h-screen bg-gray-50 py-4'>
         <div className='max-w-7xl mx-auto px-3'>
@@ -320,7 +324,7 @@ const Categories = () => {
           </div>
 
           {/* Right: Controls Dropdowns */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {/* Category Custom Dropdown */}
             <div className="relative flex-1 sm:flex-none">
               <button
@@ -377,7 +381,7 @@ const Categories = () => {
             {/* Availability Toggle */}
             <button
               onClick={handleOutOfStockToggle}
-              className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all flex items-center gap-2 shrink-0 ${!showOutOfStock ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-white'}`}
+              className={`w-full sm:w-auto px-3 py-2 rounded-xl text-[10px] font-bold border transition-all flex items-center justify-center gap-2 shrink-0 ${!showOutOfStock ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-white'}`}
             >
               <div className={`w-1.5 h-1.5 rounded-full ${!showOutOfStock ? 'bg-white animate-pulse' : 'bg-gray-300'}`}></div>
               <span className="whitespace-nowrap">{!showOutOfStock ? 'In Stock' : 'Show all'}</span>

@@ -546,7 +546,7 @@ const ProductDetails = () => {
             {!product.isSpecialRequest && product.maxOrderQuantity > 0 && (
               <div className="flex items-center gap-2 text-sm font-medium text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg w-fit">
                 <AlertCircle className="w-4 h-4" />
-                <span>Limit: {product.maxOrderQuantity} {selectedWeight?.unit || 'pack(s)'} per order</span>
+                <span>Limit: {product.maxOrderQuantity} {selectedWeight?.unit && !['ml', 'g', 'kg', 'l'].includes(selectedWeight.unit.toLowerCase()) ? selectedWeight.unit : 'pack(s)'} per order</span>
               </div>
             )}
 

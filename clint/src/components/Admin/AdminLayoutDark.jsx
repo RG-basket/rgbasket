@@ -50,6 +50,7 @@ const AdminLayoutDark = ({ children }) => {
             icon: Calendar,
             children: [
                 { path: '/admin/slots', label: 'Delivery Slots' },
+                { path: '/admin/category-slots', label: 'Category Availability' },
                 { path: '/admin/product-slots', label: 'Product Availability' },
                 { path: '/admin/servicibility', label: 'Service Areas' },
                 { path: '/admin/categories', label: 'Categories' }

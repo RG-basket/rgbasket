@@ -130,7 +130,7 @@ const hasCutoffPassed = (slot, selectedDate, now) => {
 // GET /api/slots/availability - IST TIMEZONE AWARE
 router.get('/availability', async (req, res) => {
   try {
-    const { date } = req.query; // YYYY-MM-DD
+    const { date, categories, products } = req.query; // YYYY-MM-DD, categories: comma-separated list, products: comma-separated list
     if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
     const now = getISTDate(); // Current time in IST
@@ -141,12 +141,63 @@ router.get('/availability', async (req, res) => {
     console.log(`Current IST time: ${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
     console.log(`Server timezone: ${process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone}`);
     console.log(`Is today (IST)? ${selectedDate.toDateString() === getISTDate().toDateString()}`);
+    console.log(`Requested categories: ${categories || 'None'}`);
+    console.log(`Requested products: ${products || 'None'}`);
 
     const slots = await SlotConfig.find({ isActive: true }).sort({ startTime: 1 });
+
+    // Fetch category slot restrictions for this date
+    const CategorySlotAvailability = require('../models/CategorySlotAvailability');
+    const categoryList = categories ? categories.split(',').map(c => c.trim()) : [];
+    const activeRestrictions = await CategorySlotAvailability.find({
+      date,
+      isActive: true,
+      category: { $in: [...categoryList, 'All'] }
+    });
+
+    // Fetch product slot restrictions for this day of week
+    const ProductSlotAvailability = require('../models/ProductSlotAvailability');
+    const productList = products ? products.split(',').map(p => p.trim()).filter(Boolean) : [];
+    let productRestrictions = [];
+    if (productList.length > 0) {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const [year, month, day] = date.split('-').map(Number);
+      const d = new Date(year, month - 1, day);
+      const dayOfWeek = days[d.getDay()];
+      productRestrictions = await ProductSlotAvailability.find({
+        productId: { $in: productList },
+        dayOfWeek,
+        isActive: true
+      }).populate('productId', 'name');
+    }
 
     const availability = await Promise.all(slots.map(async (slot) => {
       // IST-aware cutoff check
       const cutoffPassed = hasCutoffPassed(slot, date, now);
+
+      // Check category slot restrictions
+      let categoryRestricted = false;
+      let restrictionReason = '';
+
+      for (const restriction of activeRestrictions) {
+        if (restriction.unavailableSlots.includes(slot.name)) {
+          categoryRestricted = true;
+          restrictionReason = restriction.reason || `${restriction.category} is unavailable for this slot`;
+          break;
+        }
+      }
+
+      // Check product slot restrictions
+      let productRestricted = false;
+      let productRestrictionReason = '';
+
+      for (const restriction of productRestrictions) {
+        if (restriction.unavailableSlots.includes(slot.name)) {
+          productRestricted = true;
+          productRestrictionReason = restriction.reason || `Product "${restriction.productId?.name || 'Item'}" is unavailable for this slot`;
+          break;
+        }
+      }
 
       // Count orders for the date (using IST date range)
       const startOfDay = parseISTDate(date);
@@ -159,7 +210,7 @@ router.get('/availability', async (req, res) => {
         timeSlot: slot.name
       });
 
-      const isAvailable = !cutoffPassed && orderCount < slot.capacity;
+      const isAvailable = !cutoffPassed && orderCount < slot.capacity && !categoryRestricted && !productRestricted;
 
       // Debug log
       const [hours, minutes] = slot.startTime.split(':').map(Number);
@@ -172,6 +223,8 @@ router.get('/availability', async (req, res) => {
       console.log(`  Cutoff time: ${cutoffTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
       console.log(`  Current IST: ${now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
       console.log(`  Cutoff passed: ${cutoffPassed}`);
+      console.log(`  Category restricted: ${categoryRestricted} (${restrictionReason})`);
+      console.log(`  Product restricted: ${productRestricted} (${productRestrictionReason})`);
       console.log(`  Booked: ${orderCount}/${slot.capacity}`);
       console.log(`  Available: ${isAvailable}`);
 
@@ -185,7 +238,11 @@ router.get('/availability', async (req, res) => {
         isAvailable: isAvailable,
         reason: cutoffPassed
           ? `Booking closed - cutoff time passed (${slot.cutoffMinutes} min before delivery)`
-          : (orderCount >= slot.capacity ? 'Slot full' : 'Available')
+          : (orderCount >= slot.capacity 
+              ? 'Slot full' 
+              : (categoryRestricted 
+                  ? restrictionReason 
+                  : (productRestricted ? productRestrictionReason : 'Available')))
       };
     }));
 

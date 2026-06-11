@@ -7,6 +7,7 @@ import DesktopNav from "./DesktopNav";
 import MobileNav from "./MobileNav";
 import MobileDrawer from "./MobileDrawer";
 import AutoDetectLocation from "../Address/AutoDetectLocation";
+import HeaderSlotSelector from "./HeaderSlotSelector";
 import { FaCoins, FaMapMarkerAlt } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -146,6 +147,7 @@ const Navbar = ({ onLocationClick, onProfileToggle }) => {
             <div className="flex items-center gap-6">
               <LogoSection />
               <CompactInfoPill />
+              <HeaderSlotSelector />
             </div>
             <div className="flex-1 max-w-md">
               <Search />

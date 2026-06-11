@@ -4,10 +4,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAppContext } from '../../context/AppContext';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus.js';
 
 const BannerCarousel = ({ fallbackBanner }) => {
     const { API_URL } = useAppContext();
     const navigate = useNavigate();
+    const networkStatus = useNetworkStatus();
     const [banners, setBanners] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -27,8 +29,10 @@ const BannerCarousel = ({ fallbackBanner }) => {
     }, [API_URL]);
 
     useEffect(() => {
-        fetchBanners();
-    }, [fetchBanners]);
+        if (networkStatus.connected) {
+            fetchBanners();
+        }
+    }, [fetchBanners, networkStatus.connected]);
 
     const nextSlide = useCallback(() => {
         setCurrentIndex((prev) => (prev === banners.length - 1 ? 0 : prev + 1));

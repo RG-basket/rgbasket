@@ -49,14 +49,40 @@ router.get('/product/:productId', async (req, res) => {
 router.get('/check/:productId/:dayOfWeek', async (req, res) => {
     try {
         const { productId, dayOfWeek } = req.params;
+        const { date } = req.query; // optional YYYY-MM-DD date parameter
 
+        // 1. Check product-specific day-of-week restriction
         const restriction = await ProductSlotAvailability.findOne({
             productId,
             dayOfWeek,
             isActive: true
         });
 
-        if (!restriction || restriction.unavailableSlots.length === 0) {
+        let unavailableSlots = restriction ? restriction.unavailableSlots : [];
+        let reason = restriction ? restriction.reason : '';
+
+        // 2. Check category-specific date restriction (if date is provided)
+        if (date) {
+            const product = await Product.findById(productId);
+            if (product) {
+                const CategorySlotAvailability = require('../models/CategorySlotAvailability');
+                const catRestrictions = await CategorySlotAvailability.find({
+                    date,
+                    isActive: true,
+                    category: { $in: [product.category, 'All'] }
+                });
+
+                for (const catRes of catRestrictions) {
+                    // Merge unavailable slots
+                    unavailableSlots = [...new Set([...unavailableSlots, ...catRes.unavailableSlots])];
+                    if (catRes.reason) {
+                        reason = reason ? `${reason} | ${catRes.reason}` : catRes.reason;
+                    }
+                }
+            }
+        }
+
+        if (unavailableSlots.length === 0) {
             return res.json({
                 success: true,
                 available: true,
@@ -67,8 +93,8 @@ router.get('/check/:productId/:dayOfWeek', async (req, res) => {
         res.json({
             success: true,
             available: false,
-            unavailableSlots: restriction.unavailableSlots,
-            reason: restriction.reason
+            unavailableSlots: unavailableSlots,
+            reason: reason || 'Unavailable for selected slot'
         });
     } catch (error) {
         console.error('Error checking availability:', error);

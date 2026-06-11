@@ -32,8 +32,10 @@ const AboutUs = lazy(() => import("./pages/AboutUs.jsx"));
 const RefundPolicy = lazy(() => import("./pages/RefundPolicy.jsx"));
 const ShippingPolicy = lazy(() => import("./pages/ShippingPolicy.jsx"));
 
-// Admin Pages - Lazy Loaded
 const AdminNotifications = lazy(() => import("./components/Admin/AdminNotifications.jsx"));
+const CategorySlotManager = lazy(() => import("./components/Admin/CategorySlotManagerDark.jsx"));
+const AdminSettings = lazy(() => import("./components/Admin/AdminSettingsDark.jsx"));
+import MaintenancePage from "./components/Common/MaintenancePage.jsx";
 
 const AdminLogin = lazy(() => import("./components/Admin/AdminLogin.jsx"));
 const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboardDark.jsx"));
@@ -117,7 +119,7 @@ const App = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
   const isRiderPath = location.pathname.startsWith("/rider");
-  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady, isNonVegTheme, setIsNonVegTheme } = useAppContext();
+  const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady, isNonVegTheme, setIsNonVegTheme, maintenanceMode } = useAppContext();
   const activeOrder = useCartStore(state => state.activeOrder);
   const syncActiveOrder = useCartStore(state => state.syncActiveOrder);
   const items = useCartStore(state => state.items);
@@ -194,6 +196,10 @@ const App = () => {
 
   // Removed Escape key listener to strictly enforce "dismissible only via X button"
   // as per requirements.
+
+  if (maintenanceMode && !isAdminPath && !isRiderPath) {
+    return <MaintenancePage />;
+  }
 
   return (
     <div className={`min-h-screen flex flex-col justify-between transition-colors duration-500 bg-site ${isNonVegTheme ? 'theme-red' : 'theme-default'}`}>
@@ -374,6 +380,16 @@ const App = () => {
             <Route path="/admin/product-slots" element={
               <ProtectedRoute>
                 <ProductSlotManager />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/category-slots" element={
+              <ProtectedRoute>
+                <CategorySlotManager />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/settings" element={
+              <ProtectedRoute>
+                <AdminSettings />
               </ProtectedRoute>
             } />
             <Route path="/admin/servicibility" element={

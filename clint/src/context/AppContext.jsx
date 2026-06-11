@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -9,6 +9,7 @@ import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import useCartStore from '../store/useCartStore';
 import { getBrowserFingerprint } from '../utils/fingerprint';
 import CoinEarnedPopup from '../components/Popups/CoinEarnedPopup';
+import { useNetworkStatus } from '../hooks/useNetworkStatus.js';
 
 
 /* -------------------------------
@@ -45,6 +46,7 @@ export const AppContext = createContext();
 
 export const AppContextProvider = ({ children }) => {
   const navigate = useNavigate();
+  const networkStatus = useNetworkStatus();
 
   // Auth State
   const [user, setUser] = useState(null);
@@ -73,11 +75,36 @@ export const AppContextProvider = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchTriggered, setSearchTriggered] = useState(false);
 
+  // Helper to parse saved slot from localStorage synchronously
+  const getInitialSlot = () => {
+    try {
+      const saved = localStorage.getItem('selectedSlot');
+      if (saved && saved !== 'undefined' && saved !== 'null') {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Error parsing initial slot:', e);
+    }
+    return null;
+  };
+
+  const initialSlot = getInitialSlot();
+
   // Slot State
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState(initialSlot);
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState(() => {
+    if (initialSlot?.date) {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const date = new Date(initialSlot.date);
+      return days[date.getDay()];
+    }
+    return null;
+  });
   const [slotInitialized, setSlotInitialized] = useState(false);
-  const [userManuallySelectedSlot, setUserManuallySelectedSlot] = useState(false); // Track manual selection
+  const [userManuallySelectedSlot, setUserManuallySelectedSlot] = useState(() => {
+    return localStorage.getItem('userManuallySelectedSlot') === 'true';
+  });
+  const prevSlotRef = useRef(initialSlot);
 
   // Cache State
   const [categoriesCache, setCategoriesCache] = useState(null);
@@ -95,6 +122,20 @@ export const AppContextProvider = ({ children }) => {
     minOrderForReferral: 299,
     minOrderForRedemption: 150
   });
+
+  // Maintenance Mode state
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  const fetchMaintenanceMode = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/system-config/maintenance`);
+      if (response.data && typeof response.data.maintenanceMode === 'boolean') {
+        setMaintenanceMode(response.data.maintenanceMode);
+      }
+    } catch (error) {
+      console.error('Error fetching maintenance mode status:', error);
+    }
+  };
 
   const fetchRewardSettings = async (retryCount = 3) => {
     try {
@@ -120,9 +161,35 @@ export const AppContextProvider = ({ children }) => {
 
   useEffect(() => {
     fetchRewardSettings();
+    fetchMaintenanceMode();
     // Pre-warm the server with a simple ping if reward settings fail or take long
     axios.get(`${API_URL}/api/health`).catch(() => { });
+
+    const handleFocus = () => {
+      fetchMaintenanceMode();
+    };
+    window.addEventListener('focus', handleFocus);
+    // Poll maintenance status every 1 minute
+    const interval = setInterval(fetchMaintenanceMode, 60000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
   }, []);
+
+  // Auto-Reconnect: Trigger immediate fetch when device goes online
+  useEffect(() => {
+    if (networkStatus.connected) {
+      console.log('🔄 Network restored! Re-fetching active configuration & products...');
+      fetchProducts();
+      fetchRewardSettings();
+      fetchMaintenanceMode();
+      if (serviceAreas && serviceAreas.length === 0) {
+        fetchServiceAreas();
+      }
+    }
+  }, [networkStatus.connected]);
 
   // Helper: Format time to 12hr AM/PM (Consistent with Search.jsx)
   const formatTime = (timeStr) => {
@@ -250,6 +317,10 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => {
     loadAuthState();
     loadCartState();
+
+    // Fetch products immediately on mount to load in parallel with slot selection
+    fetchProducts();
+
     loadSlotState().catch(err => {
       console.error('Error loading slot state on mount:', err);
     });
@@ -526,10 +597,17 @@ export const AppContextProvider = ({ children }) => {
           const result = await FirebaseAuthentication.signInWithGoogle();
           firebaseUser = result.user;
         } catch (nativeError) {
-          console.warn("Native Google Login failed, retrying once...", nativeError);
+          const errStr = (nativeError?.message || nativeError?.toString() || "").toLowerCase();
+          const useCredManager = !errStr.includes("credential");
+          
+          console.warn(`Native Google Login failed, retrying (useCredentialManager: ${useCredManager})...`, nativeError);
+          
           // Wait longer for system dialogs/activities to stabilize
           await new Promise(resolve => setTimeout(resolve, 1500));
-          const result = await FirebaseAuthentication.signInWithGoogle();
+          
+          const result = await FirebaseAuthentication.signInWithGoogle({
+            useCredentialManager: useCredManager
+          });
           firebaseUser = result.user;
         }
       } else {
@@ -818,10 +896,16 @@ export const AppContextProvider = ({ children }) => {
     }
   }, [selectedSlot]);
 
-  // Refetch products when slot changes (for manual changes)
+  // Refetch products when slot changes (for manual changes), avoiding duplicate fetch on startup
   useEffect(() => {
-    if (selectedSlot && slotInitialized) {
-      fetchProducts();
+    if (slotInitialized) {
+      const slotChanged = !prevSlotRef.current || 
+                          prevSlotRef.current.date !== selectedSlot?.date || 
+                          prevSlotRef.current.timeSlot !== selectedSlot?.timeSlot;
+      if (slotChanged) {
+        prevSlotRef.current = selectedSlot;
+        fetchProducts();
+      }
     }
   }, [selectedSlot, slotInitialized]);
 
@@ -847,7 +931,7 @@ export const AppContextProvider = ({ children }) => {
       const slotName = slot.split(' (')[0]; // Extract slot name from "Morning (07:00 - 10:00)"
 
       const response = await axios.get(
-        `${API_URL}/api/product-slot-availability/check/${productId}/${dayOfWeek}`
+        `${API_URL}/api/product-slot-availability/check/${productId}/${dayOfWeek}?date=${date}`
       );
 
       if (response.data.success) {
@@ -913,7 +997,7 @@ export const AppContextProvider = ({ children }) => {
         if (availableSlots.length === 0) continue;
 
         // 2. Get product restrictions for this day of week
-        const resRestr = await axios.get(`${API_URL}/api/product-slot-availability/check/${productId}/${dayOfWeek}`);
+        const resRestr = await axios.get(`${API_URL}/api/product-slot-availability/check/${productId}/${dayOfWeek}?date=${dateStr}`);
         const unavailableSlotNames = resRestr.data.unavailableSlots || [];
 
         // 3. Find first available slot that doesn't have a product restriction
@@ -1054,7 +1138,8 @@ export const AppContextProvider = ({ children }) => {
 
     if (product.maxOrderQuantity > 0 && newQty > product.maxOrderQuantity) {
       const weight = product.weights?.[parseInt(itemKey.split('_')[1])];
-      triggerLimitPopup(product, product.maxOrderQuantity, weight?.unit || 'pack');
+      const limitUnit = weight?.unit && !['ml', 'g', 'kg', 'l'].includes(weight.unit.toLowerCase()) ? weight.unit : 'pack';
+      triggerLimitPopup(product, product.maxOrderQuantity, limitUnit);
       return;
     }
 
@@ -1096,7 +1181,8 @@ export const AppContextProvider = ({ children }) => {
     } else {
       if (product && product.maxOrderQuantity > 0 && quantity > product.maxOrderQuantity) {
         const weight = product.weights?.[parseInt(itemKey.split('_')[1])];
-        triggerLimitPopup(product, product.maxOrderQuantity, weight?.unit || 'pack');
+        const limitUnit = weight?.unit && !['ml', 'g', 'kg', 'l'].includes(weight.unit.toLowerCase()) ? weight.unit : 'pack';
+        triggerLimitPopup(product, product.maxOrderQuantity, limitUnit);
         return;
       }
       setCartItems(prev => {
@@ -1266,7 +1352,9 @@ export const AppContextProvider = ({ children }) => {
     isNonVegTheme,
     setIsNonVegTheme,
     rewardSettings,
-    isNative: Capacitor.isNativePlatform()
+    isNative: Capacitor.isNativePlatform(),
+    maintenanceMode,
+    fetchMaintenanceMode
   };
 
   return (

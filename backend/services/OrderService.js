@@ -41,6 +41,9 @@ class OrderService {
       validatedItems = validationResult.validatedItems;
       const subtotal = validationResult.subtotal;
 
+      // Validate slot availability (both category-date and product-day)
+      await this.validateSlotAvailability(orderData.items, orderData.deliveryDate, orderData.timeSlot);
+
       // Validate and apply promo code
       let discountAmount = 0;
       let promoCodeDoc = null;
@@ -606,6 +609,65 @@ class OrderService {
       { $group: { _id: null, totalOrders: { $sum: 1 }, totalRevenue: { $sum: '$totalAmount' }, pendingOrders: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, deliveredOrders: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } }, averageOrderValue: { $avg: '$totalAmount' } } }
     ]);
     return stats[0] || { totalOrders: 0, totalRevenue: 0, pendingOrders: 0, deliveredOrders: 0, averageOrderValue: 0 };
+  }
+
+  async validateSlotAvailability(items, deliveryDate, timeSlot) {
+    if (!deliveryDate || !timeSlot) {
+      throw new AppError('Delivery date and time slot are required', 400);
+    }
+
+    const cleanTimeSlot = timeSlot.split(' (')[0].trim();
+
+    let dateString = deliveryDate;
+    if (typeof dateString !== 'string') {
+      const d = new Date(dateString);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      dateString = `${year}-${month}-${day}`;
+    } else {
+      if (dateString.includes('T')) {
+        dateString = dateString.split('T')[0];
+      }
+    }
+
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const [year, month, day] = dateString.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+    const dayOfWeek = days[d.getDay()];
+
+    const CategorySlotAvailability = require('../models/CategorySlotAvailability');
+    const ProductSlotAvailability = require('../models/ProductSlotAvailability');
+    const Product = require('../models/Product');
+
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product) continue;
+
+      // 1. Check category date-specific slot restrictions
+      const catRestrictions = await CategorySlotAvailability.find({
+        date: dateString,
+        isActive: true,
+        category: { $in: [product.category, 'All'] }
+      });
+
+      for (const restriction of catRestrictions) {
+        if (restriction.unavailableSlots.includes(cleanTimeSlot)) {
+          throw new AppError(`${product.category} is unavailable during ${timeSlot} on ${dateString}. Reason: ${restriction.reason || 'Unavailable'}`, 400);
+        }
+      }
+
+      // 2. Check product day-of-week slot restrictions
+      const prodRestriction = await ProductSlotAvailability.findOne({
+        productId: product._id,
+        dayOfWeek,
+        isActive: true
+      });
+
+      if (prodRestriction && prodRestriction.unavailableSlots.includes(cleanTimeSlot)) {
+        throw new AppError(`${product.name} is unavailable during ${timeSlot} on ${dayOfWeek}s. Reason: ${prodRestriction.reason || 'Unavailable'}`, 400);
+      }
+    }
   }
 
   getDateRange(timeframe) {
