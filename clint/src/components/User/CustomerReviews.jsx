@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const CustomerReviews = () => {
   const [currentReview, setCurrentReview] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // Check screen size on mount and resize
@@ -17,108 +18,114 @@ const CustomerReviews = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
+  // Reset expansion when switching reviews
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [currentReview]);
+
   // Realistic pre-launch reviews from Cuttack locals
 // Realistic & Heartwarming Pre-Launch Reviews from Cuttack Locals
+// Real Google Maps Reviews from Cuttack Customers
 const reviews = [
   {
     id: 1,
-    name: "Mama (Local Aunty)",
-    location: "Buxi Bazaar",
+    name: "Pujarani Sahoo",
+    role: "Local Guide",
+    location: "Google Maps Review",
     rating: 5,
+    date: "21 weeks ago",
     comment:
-      "Finally! Cuttack ku ek genuine grocery delivery service milila. Subah subah fresh sabji milile life set heija! Aame nijara market jiba darkar nahi — perfect for busy mornings!",
-    role: "Homemaker",
-    expectation: "Morning fresh vegetables"
+      "Recently I was going through my Instagram reels then I got to know about there services. I thought let's order as they are claiming that they provide fresh from the market itself. To be honest what they claim about, it's exact the same. Let me tell you one more thing they have the best service as well, I'll tell you why I didn't recognise that there was missing something in my order, because it's almost 15 items, later they themselves called and told me mam we had missed one thing, and we will deliver it, and along with that I told them to bring kakharufula as I wasn't able to find anywhere,where in as per my request they fulfilled that smoothly without even calling them. And it's a hassle to go to a vegetable market, and source everything that to this fresh. So I would say if you don't feel like going to the crowd for the vegetable shopping, it's better to order from them as they're the genuine ones and sticks to the promise that they claim because I've also ordered from other platforms it's not that fresh. So yeah good job guys.",
+    reply: "Thank you so much for your kind words! Hearing that we could make your day a little easier—and find those kakharufula—truly motivates us. We are always happy to help!",
+    replyDate: "21 weeks ago"
   },
   {
     id: 2,
-    name: "Bapi (Working Professional)",
-    location: "Chandinchowk",
-    rating: 4,
-    comment:
-      "Office se wapas aane ke baad market jaana mushkil hai yaar. Agar aap evening delivery slot rakh do, toh bahut convenient hoga. Support local vendors bhi kar rahe ho — nice initiative!",
-    role: "IT Professional",
-    expectation: "Evening delivery after work"
+    name: "Abhinandita Swain",
+    role: "Local Reviewer",
+    location: "Google Maps Review",
+    rating: 5,
+    date: "14 weeks ago",
+    comment: "The fabulous thing is behaviour of their delivery boys are The Best and I'm very happy for the fresh things that I got",
+    reply: "Thank you so much 🙌",
+    replyDate: "14 weeks ago"
   },
   {
     id: 3,
-    name: "Didi (College Student)",
-    location: "Ravenshaw Campus Area",
+    name: "Subhasmita Nanda",
+    role: "Local Reviewer",
+    location: "Google Maps Review",
     rating: 5,
-    comment:
-      "Hostel re sabji kiniba pain market bahut dur. Ei service asile humara pain perfect! Small packs, budget friendly — exactly what students need!",
-    role: "Student",
-    expectation: "Small quantity packs"
+    date: "17 weeks ago",
+    comment: "Yes as per there commitment i RCVD fresh vegetables, fruits and fish in time. Very good service. Thank you.",
+    reply: "Thanks a lot! 😃 It was a pleasure serving you. We’ll be ready with fresh stock whenever you need us next. Have a great week ahead! 🍗🥦",
+    replyDate: "17 weeks ago"
   },
   {
     id: 4,
-    name: "Kaku (Local Shop Owner)",
-    location: "Chhatra Bazar",
-    rating: 4,
-    comment:
-      "Ame dukaan pain fresh maal darkar. Bulk delivery option hele local shopwale bhi faida uthai paribe! Local supply chain ko strong karuchha — proud of this idea!",
-    role: "Shopkeeper",
-    expectation: "Bulk orders for shop"
+    name: "Sanu",
+    role: "Local Reviewer",
+    location: "Google Maps Review",
+    rating: 5,
+    date: "19 weeks ago",
+    comment: "Great experience!!! You get fresh non veg items, vegetables, fruits right at your doorstep.",
+    reply: "We're so happy to hear this! It's honestly our privilege to bring fresh quality right to your door. We’re incredibly grateful for your support and can’t wait to pack your next order",
+    replyDate: "19 weeks ago"
   },
   {
     id: 5,
-    name: "Sona Bhai (Delivery Rider)",
-    location: "Jobra",
+    name: "Arshad Ul Iman",
+    role: "Local Guide",
+    location: "Google Maps Review",
     rating: 5,
-    comment:
-      "Cutteck re aji sab digital hei jauchi! Ei app thile sab log convenience paibe – gharaku sabji, fruits sab milijiba time re! Aur hamare jaise delivery boys ko bhi rozgaar mil raha hai 🙌",
-    role: "Delivery Partner",
-    expectation: "On-time service for everyone"
+    date: "21 weeks ago",
+    comment: "Best Experience had with you guys. They literally got us a skip the travel time to market. One Stop All Veg, Non Veg, Fruits and what not !!!!",
+    reply: "This truly made our day! 🥹 Thank you so much for such a beautiful and encouraging review. ❤️",
+    replyDate: "21 weeks ago"
   },
   {
     id: 6,
-    name: "Tutu (College Boy)",
-    location: "College Square",
-    rating: 4,
-    comment:
-      "Muje lagta hai agar snacks aur cold drinks bhi mil jaye, to hostel night full paisa vasool hojaega! 😂 But seriously, super helpful for students living away from home!",
-    role: "Student",
-    expectation: "Snacks and late-night delivery"
+    name: "Arttatrana panda",
+    role: "Local Reviewer",
+    location: "Google Maps Review",
+    rating: 5,
+    date: "16 weeks ago",
+    comment: "Excellent in all counts",
+    reply: "We truly appreciate your kind words! It’s customers like you who motivate us to keep delivering the best quality groceries in town. Thank you for choosing RG Basket",
+    replyDate: "16 weeks ago"
   },
   {
     id: 7,
-    name: "Lata Mami (Retired Teacher)",
-    location: "Badambadi",
+    name: "Smita Panda",
+    role: "Local Reviewer",
+    location: "Google Maps Review",
     rating: 5,
-    comment:
-      "Mo ghara re mu ekla re rahuchi. Ei service sahajare mu fresh fruits & milk order kari paruchi bina bahare jiba. Bahut help karuchha apana mane — especially senior citizens pain. 🙏",
-    role: "Retired Teacher",
-    expectation: "Easy access for elderly"
+    date: "11 weeks ago",
+    comment: "Fresh vegetables",
+    reply: "Thank you so much mam for the review 🙌",
+    replyDate: "11 weeks ago"
   },
   {
     id: 8,
-    name: "Raju Bhai (Auto Driver)",
-    location: "Mangalabag",
+    name: "Arshad Ul Iman",
+    role: "Local Reviewer",
+    location: "Google Maps Review",
     rating: 5,
-    comment:
-      "Bhala lagila dekhi je local boys eha start karichhanti. Local logon ku kama miluchhi, time bachi jauchi, sabu fresh. Ei type service re Cuttack grow heba 💪",
-    role: "Auto Driver",
-    expectation: "Affordable daily essentials"
+    date: "21 weeks ago",
+    comment: "Excellent, Accurate, Responsive and Trustable Service they offer which is the experience I had on my recent orders...",
+    reply: "This truly made our day! 🥹 Thank you so much for such a beautiful and encouraging review. ❤️",
+    replyDate: "21 weeks ago"
   },
   {
     id: 9,
-    name: "Pinki (Working Mom)",
-    location: "College Square",
+    name: "Kill Deal",
+    role: "Local Reviewer",
+    location: "Google Maps Review",
     rating: 5,
-    comment:
-      "Office aur ghar dono sambhalna tough hai. Ei grocery delivery app bahut relief deichi. Time save hela, stress bhi kam! Cutteck ra ladies pain blessing jaisa hai 💖",
-    role: "Working Mom",
-    expectation: "Fast & reliable delivery"
-  },
-  {
-    id: 10,
-    name: "Rahul (NGO Volunteer)",
-    location: "Tulsipur",
-    rating: 5,
-    comment:
-      "Loved that they also tie-up with local farmers. Helping small growers sell directly — that’s impact! Sustainability aur local economy dono ka win-win model hai 👏",
-    role: "Volunteer",
-    expectation: "Support for local farmers"
+    date: "27 weeks ago",
+    comment: "Thanks for the fresh chicken man 😁",
+    reply: "🙏 Thank You for Your Review! Hi there, we are so glad you loved the fresh chicken! We look forward to serving you again. 😊",
+    replyDate: "27 weeks ago"
   }
 ];
 
@@ -131,13 +138,13 @@ const reviews = [
     setCurrentReview((prev) => (prev - 1 + reviews.length) % reviews.length);
   };
 
-  // Auto-rotate reviews on mobile
+  // Auto-rotate reviews on mobile (pause if user has expanded a long review)
   useEffect(() => {
-    if (isMobile) {
-      const interval = setInterval(nextReview, 5000);
+    if (isMobile && !isExpanded) {
+      const interval = setInterval(nextReview, 6000);
       return () => clearInterval(interval);
     }
-  }, [isMobile]);
+  }, [isMobile, isExpanded]);
 
   const StarRating = ({ rating }) => {
     return (
@@ -164,6 +171,12 @@ const reviews = [
     );
   };
 
+  const currentComment = reviews[currentReview]?.comment || "";
+  const shouldTruncate = currentComment.length > 200;
+  const displayText = shouldTruncate && !isExpanded 
+    ? currentComment.slice(0, 200) + "..." 
+    : currentComment;
+
   return (
     <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-b from-green-50/50 to-white">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
@@ -176,10 +189,10 @@ const reviews = [
           className="text-center mb-8 sm:mb-12 px-2"
         >
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
-            Cuttack is <span className="text-[#2e8b57]">Excited!</span>
+            What Cuttack is <span className="text-[#2e8b57]">Saying!</span>
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Here's what our fellow Cuttack residents are saying about RGBasket before we even launch!
+            Real reviews from our lovely customers on Google Maps about their shopping experience with RG Basket.
           </p>
         </motion.div>
 
@@ -211,7 +224,15 @@ const reviews = [
 
               {/* Review Text */}
               <blockquote className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-800 leading-relaxed sm:leading-loose mb-4 sm:mb-6 md:mb-8 font-medium">
-                "{reviews[currentReview].comment}"
+                "{displayText}"
+                {shouldTruncate && (
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="ml-2 text-xs sm:text-sm font-extrabold text-[#2e8b57] hover:text-[#1e5c38] transition-colors focus:outline-none inline-flex items-center gap-0.5 align-middle border border-green-200/50 bg-green-50/50 px-2.5 py-0.5 rounded-lg shadow-sm active:scale-95"
+                  >
+                    {isExpanded ? "Show Less" : "Read More"}
+                  </button>
+                )}
               </blockquote>
 
               {/* Reviewer Info */}
@@ -229,11 +250,24 @@ const reviews = [
                   <p className="text-green-600 font-medium text-xs sm:text-sm md:text-base truncate">
                     {reviews[currentReview].location}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5 sm:mt-1 truncate">
-                    Expecting: {reviews[currentReview].expectation}
-                  </p>
+
                 </div>
               </div>
+
+              {/* Owner's Reply */}
+              {reviews[currentReview].reply && (
+                <div className="mt-6 p-4 bg-green-50/60 rounded-2xl border border-green-100/50 text-xs sm:text-sm">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-6 h-6 bg-[#2e8b57] text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                      RG
+                    </div>
+                    <span className="font-bold text-gray-900">RG Basket (Owner)</span>
+                  </div>
+                  <p className="text-gray-700 italic ml-8">
+                    "{reviews[currentReview].reply}"
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
 

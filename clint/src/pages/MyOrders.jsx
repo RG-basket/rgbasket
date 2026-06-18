@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Check, Calendar, Clock } from 'lucide-react';
 import { useAppContext } from "../context/AppContext";
 import toast from 'react-hot-toast';
+import useCartStore from '../store/useCartStore';
 
 const MyOrders = () => {
-  const { refreshUserCoins } = useAppContext();
+  const { refreshUserCoins, cartItems, setCartItems, products } = useAppContext();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,16 @@ const MyOrders = () => {
   const [expandedOrders, setExpandedOrders] = useState({});
   const navigate = useNavigate();
 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [dbStatusCounts, setDbStatusCounts] = useState({
+    all: 0,
+    confirmed: 0,
+    'out for delivery': 0,
+    delivered: 0,
+    cancelled: 0
+  });
+
   // Order status options for filtering
   const statusFilters = [
     { value: 'all', label: 'All Orders', count: 0, color: 'bg-gray-500' },
@@ -31,10 +42,10 @@ const MyOrders = () => {
     { value: 'cancelled', label: 'Cancelled', count: 0, color: 'bg-red-500' }
   ];
 
-  // Fetch user orders - supports silent background refresh
-  const fetchUserOrders = async (isSilent = false) => {
+  // Fetch user orders - supports pagination, status filtering, and silent background refresh
+  const fetchUserOrders = async (pageNumber = 1, status = 'all', isLoadMore = false, isSilent = false) => {
     try {
-      if (!isSilent) {
+      if (!isSilent && !isLoadMore) {
         setLoading(true);
         setError('');
       }
@@ -46,7 +57,9 @@ const MyOrders = () => {
         throw new Error('Please login to view your orders');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/user/${userId}`);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/orders/user/${userId}?page=${pageNumber}&limit=10&status=${status}`
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to fetch orders: ${response.status}`);
@@ -55,28 +68,56 @@ const MyOrders = () => {
       const data = await response.json();
 
       if (data.success && Array.isArray(data.orders)) {
-        setOrders(data.orders);
+        if (isLoadMore) {
+          setOrders(prev => {
+            const existingIds = new Set(prev.map(o => o._id));
+            const newOrders = data.orders.filter(o => !existingIds.has(o._id));
+            return [...prev, ...newOrders];
+          });
+        } else {
+          setOrders(data.orders);
+        }
+        setHasMore(data.hasMore || false);
+        if (data.statusCounts) {
+          setDbStatusCounts(data.statusCounts);
+        } else {
+          // Fallback: calculate status counts from the loaded orders list
+          const counts = {
+            all: data.orders.length,
+            confirmed: data.orders.filter(o => o.status === 'confirmed').length,
+            'out for delivery': data.orders.filter(o => o.status === 'shipped' || o.status === 'out for delivery').length,
+            delivered: data.orders.filter(o => o.status === 'delivered').length,
+            cancelled: data.orders.filter(o => o.status === 'cancelled').length
+          };
+          setDbStatusCounts(counts);
+        }
       } else {
-        setOrders([]);
+        if (!isLoadMore) {
+          setOrders([]);
+        }
+        setHasMore(false);
       }
 
     } catch (err) {
       if (!isSilent) {
         setError(err.message || 'Failed to load orders. Please try again.');
-        setOrders([]);
+        if (!isLoadMore) {
+          setOrders([]);
+        }
       } else {
         console.error('Silent refresh failed:', err);
       }
     } finally {
-      if (!isSilent) {
+      if (!isSilent && !isLoadMore) {
         setLoading(false);
       }
     }
   };
 
   useEffect(() => {
-    fetchUserOrders();
-  }, []);
+    setPage(1);
+    fetchUserOrders(1, selectedStatus, false, false);
+  }, [selectedStatus]);
 
   // Update filtered orders when status filter or orders change
   useEffect(() => {
@@ -112,15 +153,7 @@ const MyOrders = () => {
   // Update status counts
   const getStatusCounts = () => {
     return statusFilters.map(filter => {
-      let count = 0;
-
-      if (filter.value === 'all') {
-        count = orders.length;
-      } else if (filter.value === 'out for delivery') {
-        count = orders.filter(order => order.status === 'shipped').length;
-      } else {
-        count = orders.filter(order => order.status === filter.value).length;
-      }
+      let count = dbStatusCounts[filter.value] || 0;
 
       return {
         ...filter,
@@ -240,7 +273,8 @@ const MyOrders = () => {
       setCancelReason('');
 
       // Refresh data in background (Silently)
-      fetchUserOrders(true).catch(e => console.error('BG Refresh orders failed', e));
+      setPage(1);
+      fetchUserOrders(1, selectedStatus, false, true).catch(e => console.error('BG Refresh orders failed', e));
       refreshUserCoins().catch(e => console.error('BG Refresh coins failed', e));
 
     } catch (err) {
@@ -302,7 +336,8 @@ const MyOrders = () => {
       setOrderToDeliver(null);
 
       // Refresh data in background
-      fetchUserOrders(true).catch(e => console.error('BG Refresh orders failed', e));
+      setPage(1);
+      fetchUserOrders(1, selectedStatus, false, true).catch(e => console.error('BG Refresh orders failed', e));
       refreshUserCoins().catch(e => console.error('BG Refresh coins failed', e));
 
       // Show Google Review Popup
@@ -779,6 +814,58 @@ const MyOrders = () => {
     setSelectedStatus(status);
   };
 
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchUserOrders(nextPage, selectedStatus, true, false);
+  };
+
+  const handleReorder = (order) => {
+    if (!order || !order.items || order.items.length === 0) return;
+
+    try {
+      const newCart = { ...cartItems };
+      let itemsAdded = 0;
+
+      order.items.forEach(item => {
+        const product = products.find(p => p._id === item.productId);
+        if (!product) return;
+
+        let weightIndex = product.weights?.findIndex(w =>
+          String(w.weight) === String(item.weight) &&
+          String(w.unit || '').toLowerCase() === String(item.unit || '').toLowerCase()
+        );
+        if (weightIndex === -1 || weightIndex === undefined) {
+          weightIndex = 0;
+        }
+
+        const itemKey = `${item.productId}_${weightIndex}`;
+        const currentQty = newCart[itemKey] || 0;
+        newCart[itemKey] = currentQty + item.quantity;
+        itemsAdded += item.quantity;
+      });
+
+      if (itemsAdded === 0) {
+        toast.error('No items could be added to the cart.');
+        return;
+      }
+
+      // Update AppContext cart state (This is the primary source of truth)
+      setCartItems(newCart);
+      localStorage.setItem('cartItems', JSON.stringify(newCart));
+
+      // Note: useCartStore (Zustand) is automatically kept in sync with the primary AppContext
+      // cart state via the CartSync component (clint/src/components/Instamart/CartSync.jsx).
+      // Updating setCartItems triggers CartSync to rebuild the detailed Zustand cart.
+
+      toast.success('Items added to cart! 🛒');
+      navigate('/cart');
+    } catch (e) {
+      console.error('Reorder failed:', e);
+      toast.error('Failed to reorder items. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
@@ -874,7 +961,7 @@ const MyOrders = () => {
           </div>
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => fetchUserOrders(false)}
+            onClick={() => { setPage(1); fetchUserOrders(1, selectedStatus, false, false); }}
             className="p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-emerald-600 hover:bg-emerald-50 transition-all"
             title="Refresh Orders"
           >
@@ -982,7 +1069,27 @@ const MyOrders = () => {
 
                   {!isExpanded && (
                     <div className="px-4 pb-4 flex sm:hidden justify-between items-center border-t border-gray-50 pt-3">
-                      <span className="text-[10px] text-gray-400 font-bold uppercase">Tap to view details</span>
+                      {order.status === 'delivered' ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReorder(order);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-[10px] font-bold border-b-4 border-emerald-800 hover:border-b-2 hover:translate-y-[2px] active:border-b-0 active:translate-y-[4px] transition-all"
+                        >
+                          <span>🔄</span> Reorder Items
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleOrderExpansion(orderId);
+                          }}
+                          className="text-[10px] text-gray-500 font-bold uppercase hover:text-emerald-600 transition-colors"
+                        >
+                          Tap to view details
+                        </button>
+                      )}
                       <span className="text-sm font-black text-emerald-600">₹{order.totalAmount?.toFixed(2)}</span>
                     </div>
                   )}
@@ -999,9 +1106,14 @@ const MyOrders = () => {
                         <div className="p-4 sm:p-6 space-y-6">
                           <div className="flex flex-wrap gap-2">
                             {order.status === 'delivered' && (
-                              <button onClick={() => printOrderBill(order)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-100 active:scale-95 transition-all">
-                                <span>🖨️</span> Print Invoice
-                              </button>
+                              <>
+                                <button onClick={() => printOrderBill(order)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold border-b-4 border-blue-800 hover:border-b-2 hover:translate-y-[2px] active:border-b-0 active:translate-y-[4px] transition-all">
+                                  <span>🖨️</span> Print Invoice
+                                </button>
+                                <button onClick={() => handleReorder(order)} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold border-b-4 border-emerald-800 hover:border-b-2 hover:translate-y-[2px] active:border-b-0 active:translate-y-[4px] transition-all">
+                                  <span>🔄</span> Reorder Items
+                                </button>
+                              </>
                             )}
                             {(order.status === 'shipped' || order.status === 'out for delivery') && (
                               <div className="flex flex-col gap-3 w-full sm:w-auto">
@@ -1156,6 +1268,26 @@ const MyOrders = () => {
                 </motion.div>
               );
             })}
+            
+            {hasMore && (
+              <div className="flex justify-center mt-8 pb-4">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                  className="px-8 py-3 bg-[#26544a] text-white hover:bg-[#1e423a] rounded-2xl font-bold text-sm shadow-xl shadow-emerald-100/50 transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-b-2 border-white rounded-full animate-spin" />
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <span>Load More Orders</span>
+                  )}
+                </motion.button>
+              </div>
+            )}
           </div>
         )}
       </div>

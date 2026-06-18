@@ -14,6 +14,7 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
     const {
         CURRENCY,
         addToCart,
+        updateCartItem,
         removeCartItem,
         cartItems,
         getProductById,
@@ -420,7 +421,11 @@ const ProductCard = ({ product: initialProduct, productId, isAvailableForSlot = 
                             ? 'bg-gray-100 border-gray-200'
                             : (isNonVegTheme ? 'bg-red-50 border-red-200' : 'bg-[#26544a]/5 border-[#26544a]/20')}`}>
                             <button
-                                onClick={(e) => handleCartAction(e, () => removeCartItem(`${product._id}_${selectedWeightIndex}`), true)}
+                                onClick={(e) => handleCartAction(e, () => {
+                                    const key = `${product._id}_${selectedWeightIndex}`;
+                                    const qty = cartItems[key] || 0;
+                                    updateCartItem(key, qty - 1);
+                                }, true)}
                                 className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all ${!isAvailable
                                     ? 'text-gray-400 cursor-not-allowed'
                                     : 'text-[#26544a] hover:bg-white'}`}

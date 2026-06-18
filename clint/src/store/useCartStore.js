@@ -223,6 +223,43 @@ const useCartStore = create(
       },
 
       dismissOrder: () => set({ activeOrder: null }),
+
+      addItems: (products) => {
+        const { items } = get();
+        let newItems = [...items];
+
+        products.forEach((product) => {
+          const existingItemIndex = newItems.findIndex((item) => item.id === product.id);
+          if (existingItemIndex > -1) {
+            newItems[existingItemIndex] = {
+              ...newItems[existingItemIndex],
+              quantity: newItems[existingItemIndex].quantity + product.quantity
+            };
+          } else {
+            newItems.push({
+              ...product,
+              isGift: false
+            });
+          }
+        });
+
+        set({ items: newItems });
+        get().applyGiftLogic();
+      },
+
+      reorder: (orderItems) => {
+        const products = orderItems.map(item => ({
+          id: item.productId,
+          name: item.name,
+          price: item.price,
+          image: item.image,
+          weight: item.weight,
+          unit: item.unit,
+          quantity: item.quantity
+        }));
+        get().addItems(products);
+        get().setDrawerOpen(true);
+      },
     }),
     {
       name: 'rg-cart-storage',

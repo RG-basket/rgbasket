@@ -85,8 +85,11 @@ router.post('/', orderLimiter, checkBanned, async (req, res) => {
 router.get('/user/:userId', checkBanned, async (req, res) => {
   try {
     const { userId } = req.params;
+    const page = req.query.page ? parseInt(req.query.page) : null;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+    const status = req.query.status || 'all';
 
-    console.log('🔍 Fetching orders for user:', userId);
+    console.log(`🔍 Fetching orders for user: ${userId} (page: ${page}, limit: ${limit}, status: ${status})`);
 
     if (!userId) {
       return res.status(400).json({
@@ -113,16 +116,56 @@ router.get('/user/:userId', checkBanned, async (req, res) => {
 
     // 3. Find orders assigned to any of these IDs (deduplicated)
     const uniqueUserIds = [...new Set(userIds.filter(id => id))];
-    const orders = await Order.find({ user: { $in: uniqueUserIds } })
+
+    // Build query conditions
+    const queryConditions = { user: { $in: uniqueUserIds } };
+    if (status && status !== 'all') {
+      if (status === 'out for delivery') {
+        queryConditions.status = 'shipped';
+      } else {
+        queryConditions.status = status;
+      }
+    }
+
+    let query = Order.find(queryConditions)
       .populate('deliveryPartner', 'name phone')
       .sort({ createdAt: -1 });
 
-    console.log(`📦 Found ${orders.length} orders for user ${userId} (checked ${uniqueUserIds.length} ID variants)`);
+    if (page) {
+      const skip = (page - 1) * limit;
+      query = query.skip(skip).limit(limit);
+    }
+
+    const orders = await query;
+    const total = await Order.countDocuments(queryConditions);
+
+    // Get status counts for this specific user to keep the frontend filter badges updated
+    const statusCounts = await Order.aggregate([
+      { $match: { user: { $in: uniqueUserIds } } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const statusCountsMap = {
+      all: await Order.countDocuments({ user: { $in: uniqueUserIds } }),
+      confirmed: statusCounts.find(s => s._id === 'confirmed')?.count || 0,
+      'out for delivery': statusCounts.find(s => s._id === 'shipped')?.count || 0,
+      delivered: statusCounts.find(s => s._id === 'delivered')?.count || 0,
+      cancelled: statusCounts.find(s => s._id === 'cancelled')?.count || 0
+    };
+
+    console.log(`📦 Found ${orders.length} orders for user ${userId} (checked ${uniqueUserIds.length} ID variants). Total matches: ${total}`);
 
     res.json({
       success: true,
       orders: orders || [],
-      total: orders.length
+      total,
+      statusCounts: statusCountsMap,
+      hasMore: page ? (page * limit < total) : false
     });
 
   } catch (error) {

@@ -51,6 +51,7 @@ const ProductDetails = () => {
     products,
     currency,
     addToCart,
+    updateCartItem,
     removeCartItem,
     cartItems,
     getProductById,
@@ -570,7 +571,7 @@ const ProductDetails = () => {
                     {quantityInCart > 0 ? (
                       <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl h-14 px-2">
                         <button
-                          onClick={() => removeCartItem(cartKey)}
+                          onClick={() => updateCartItem(cartKey, quantityInCart - 1)}
                           className="w-12 h-full flex items-center justify-center text-green-700 hover:bg-green-100 rounded-lg text-xl font-bold transition-colors"
                         >
                           -
