@@ -15,6 +15,7 @@ const authenticateAdmin = (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden.' });
     }
     req.admin = decoded;
+    req.user = decoded; // Support req.user reference in controllers
     next();
   } catch (error) {
     res.status(401).json({
@@ -35,7 +36,14 @@ const authenticateAdminOr404 = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(404).json({
+        success: false,
+        message: 'Route not found'
+      });
+    }
     req.admin = decoded;
+    req.user = decoded;
     next();
   } catch (error) {
     res.status(404).json({

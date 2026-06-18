@@ -12,38 +12,23 @@ const safeCompare = (a, b) => {
 const adminLogin = async (req, res) => {
   try {
     const { adminId, password } = req.body;
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'] || 'Unknown';
 
-    // Validate credentials using timing-safe comparison
-    const idMatch = safeCompare(adminId, process.env.ADMIN_ID);
-    const pwMatch = safeCompare(password, process.env.ADMIN_PASSWORD);
-    if (!idMatch || !pwMatch) {
-      return res.status(401).json({
-        message: 'Invalid admin credentials'
-      });
-    }
+    // 1. Log decoy honeypot probe
+    console.warn(`🚨 SECURITY TRIPWIRE TRIGGERED: Honeypot login attempt from IP: ${ipAddress}`);
+    console.warn(`Details: User Agent: ${userAgent} | Attempted Admin ID: ${adminId || 'N/A'} | Attempted Password: ${password || 'N/A'}`);
 
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        adminId: adminId,
-        role: 'admin'
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.status(200).json({
-      message: 'Admin login successful',
-      token,
-      admin: {
-        id: adminId,
-        role: 'admin'
-      }
+    // 2. Immediately return a fake rejection (no DB, no CPU-heavy operations)
+    res.status(401).json({
+      success: false,
+      message: 'Invalid credentials. Attempt logged.'
     });
   } catch (error) {
-    console.error('Admin login error:', error);
+    console.error('Error in honeypot handler:', error);
     res.status(500).json({
-      message: 'Internal server error during admin login'
+      success: false,
+      message: 'Internal server error'
     });
   }
 };

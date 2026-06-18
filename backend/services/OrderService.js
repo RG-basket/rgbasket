@@ -27,7 +27,7 @@ class OrderService {
       if (orderData.selectedGift) activeRewardsCount++;
 
       if (activeRewardsCount > 1) {
-          throw new AppError('Reward stacking detected. You can only use one: Promo Code, RG Coins, or a Free Gift.', 400);
+        throw new AppError('Reward stacking detected. You can only use one: Promo Code, RG Coins, or a Free Gift.', 400);
       }
 
       // Sanitize delivery instructions to prevent XSS/Injection
@@ -79,11 +79,11 @@ class OrderService {
       let coinDiscountInRs = 0;
       let coinDebtRecoveryInRs = 0;
 
-      const user = await User.findOne({ 
-          $or: [
-              { _id: checkUserId.match(/^[0-9a-fA-F]{24}$/) ? checkUserId : null },
-              { googleId: checkUserId }
-          ].filter(q => q._id !== null || q.googleId !== undefined)
+      const user = await User.findOne({
+        $or: [
+          { _id: checkUserId.match(/^[0-9a-fA-F]{24}$/) ? checkUserId : null },
+          { googleId: checkUserId }
+        ].filter(q => q._id !== null || q.googleId !== undefined)
       });
 
       if (user) {
@@ -99,7 +99,7 @@ class OrderService {
         if (orderData.useCoins && user.rgCoins > 0) {
           const maxRedemptionRupees = await CoinService.getConfig('maxRedemptionRupees', 30);
           const minOrderForRedemption = await CoinService.getConfig('minOrderForRedemption', 0);
-          
+
           const pincode = orderData.shippingAddress?.pincode;
           let shippingFee = 29;
           let freeDeliveryThreshold = 299;
@@ -113,17 +113,17 @@ class OrderService {
           const finalShippingFee = (subtotal > 0 && (subtotal - discountAmount) < freeDeliveryThreshold) ? shippingFee : 0;
           const tipAmount = Math.max(0, Number(orderData.tipAmount) || 0);
           const totalBeforeCoins = subtotal + finalShippingFee + tipAmount - discountAmount;
-          
+
           if (totalBeforeCoins >= minOrderForRedemption) {
             const maxCoinsByAdmin = maxRedemptionRupees * conversionRate;
             const maxCoinsByCartTotal = Math.floor(Math.max(0, totalBeforeCoins) * conversionRate);
             const absoluteMaxCoins = Math.min(user.rgCoins, maxCoinsByAdmin, maxCoinsByCartTotal);
-            
+
             const requestedCoins = Number(orderData.coinsUsed);
-            coinsUsed = (!isNaN(requestedCoins) && requestedCoins > 0) 
-              ? Math.min(absoluteMaxCoins, requestedCoins) 
+            coinsUsed = (!isNaN(requestedCoins) && requestedCoins > 0)
+              ? Math.min(absoluteMaxCoins, requestedCoins)
               : absoluteMaxCoins;
-            
+
             coinDiscountInRs = coinsUsed / conversionRate;
           }
         }
@@ -290,8 +290,8 @@ class OrderService {
           // SECURITY FIX: Revert order creation if coin deduction fails to prevent double-spend cheat
           await Order.findByIdAndDelete(savedOrder._id);
           if (promoAppliedSuccessfully && promoCodeDoc) {
-             const PromoCodeModel = require('../models/PromoCode');
-             await PromoCodeModel.revertUsageAtomic(promoCodeDoc.code, checkUserId, savedOrder._id).catch(() => {});
+            const PromoCodeModel = require('../models/PromoCode');
+            await PromoCodeModel.revertUsageAtomic(promoCodeDoc.code, checkUserId, savedOrder._id).catch(() => { });
           }
           throw new AppError('Insufficient RG Coins balance.', 400);
         }
@@ -299,11 +299,11 @@ class OrderService {
 
       // DEBT RECOVERY: If user had negative coins, reset them to 0 after order placement
       if (coinDebtRecoveryInRs > 0) {
-          await User.findOneAndUpdate(
-              { $or: [{ _id: checkUserId }, { googleId: checkUserId }] },
-              { $set: { rgCoins: 0 } }
-          );
-          console.log(`[OrderService] Debt recovered. User ${checkUserId} coin balance reset to 0.`);
+        await User.findOneAndUpdate(
+          { $or: [{ _id: checkUserId }, { googleId: checkUserId }] },
+          { $set: { rgCoins: 0 } }
+        );
+        console.log(`[OrderService] Debt recovered. User ${checkUserId} coin balance reset to 0.`);
       }
 
       // Finalize promo order link
@@ -314,17 +314,17 @@ class OrderService {
         ).catch(e => console.error('[OrderService] Promo link failed'));
       }
 
-      TelegramService.sendOrderNotification(savedOrder).catch(() => {});
+      TelegramService.sendOrderNotification(savedOrder).catch(() => { });
 
       User.findByIdAndUpdate(checkUserId, {
         $set: { "lastCartSnapshot.items": [] }
-      }).catch(() => {});
+      }).catch(() => { });
 
       return this.formatOrderResponse(savedOrder);
 
     } catch (error) {
       if (validatedItems.length > 0) {
-        await this.updateProductInventory(validatedItems, 'increment').catch(() => {});
+        await this.updateProductInventory(validatedItems, 'increment').catch(() => { });
       }
       if (error.statusCode) throw error;
       throw new AppError(`Order creation failed: ${error.message}`, 500);
@@ -408,7 +408,7 @@ class OrderService {
     const discount = Math.round(rawDiscount * 100) / 100;
     const coinDiscount = Math.round(coinDiscountInRs * 100) / 100;
     const coinDebtRecovery = Math.round(coinDebtRecoveryInRs * 100) / 100;
-    
+
     // The amount that actually determines if delivery is free
     const netPayableForShippingCheck = subtotal - discount - coinDiscount + coinDebtRecovery;
 
@@ -429,7 +429,7 @@ class OrderService {
 
     // UPDATED LOGIC: If net amount after ALL discounts is below threshold, charge fee
     const finalShippingFee = (subtotal > 0 && netPayableForShippingCheck < freeDeliveryThreshold) ? shippingFee : 0;
-    
+
     const taxAmount = (subtotal * taxRate) / 100;
     let totalAmount = subtotal + finalShippingFee + taxAmount + tipAmount - discount - coinDiscount + coinDebtRecovery;
     if (totalAmount < 0) totalAmount = 0;
@@ -552,23 +552,23 @@ class OrderService {
     // ATOMIC UPDATE: Only update to 'cancelled' if it's currently in a cancellable state.
     // This prevents ghost cancels and double-dip refunds.
     const cancelledOrderDoc = await Order.findOneAndUpdate(
-        { 
-            _id: orderId, 
-            user: userId,
-            status: { $in: ['pending', 'confirmed', 'under_review'] } 
-        },
-        { 
-            $set: { 
-                status: 'cancelled',
-                cancelledAt: new Date(),
-                cancelReason: reason
-            }
-        },
-        { new: true }
+      {
+        _id: orderId,
+        user: userId,
+        status: { $in: ['pending', 'confirmed', 'under_review'] }
+      },
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancelReason: reason
+        }
+      },
+      { new: true }
     );
 
     if (!cancelledOrderDoc) {
-        throw new AppError('Order not found or cannot be cancelled at this stage.', 400);
+      throw new AppError('Order not found or cannot be cancelled at this stage.', 400);
     }
 
     const itemsToRevert = cancelledOrderDoc.items.map(item => ({ productId: item.productId, quantity: item.quantity }));
@@ -577,16 +577,16 @@ class OrderService {
     try {
       // 1. Revert Stock
       if (itemsToRevert.length > 0) await this.updateProductInventory(itemsToRevert, 'increment');
-      
+
       // 2. Revert Promo
       if (promoToRevert) await PromoCode.revertUsageAtomic(promoToRevert, userId, orderId);
-      
+
       // 3. Revert RG Coins (Refund Spent)
       await CoinService.revertSpentCoins(cancelledOrderDoc);
 
       // 4. Revert RG Coins (Snatchback Earned)
       if (cancelledOrderDoc.coinsEarned > 0) {
-          await CoinService.revertEarnedCoins(cancelledOrderDoc);
+        await CoinService.revertEarnedCoins(cancelledOrderDoc);
       }
 
       // 5. RECURSIVE REVERSAL: Claw back referral bonuses

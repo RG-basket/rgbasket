@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { FiUser, FiClipboard, FiPhoneCall, FiLogOut, FiAlertCircle } from "react-icons/fi";
+import { FiUser, FiClipboard, FiPhoneCall, FiLogOut, FiAlertCircle, FiShield } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext.jsx";
 
@@ -23,6 +23,11 @@ const UserDropdown = ({ closeDrawer }) => {
     { label: "Report Issue", icon: FiAlertCircle, path: "/complaint" },
     { label: "Contact us", icon: FiPhoneCall, path: "/contact-us" },
   ];
+
+  const displayedMenuItems = [...menuItems];
+  if (user?.role === 'admin') {
+    displayedMenuItems.unshift({ label: "Admin Panel", icon: FiShield, path: "/portal-dashboard" });
+  }
 
   return (
     <div className="p-6">
@@ -49,7 +54,7 @@ const UserDropdown = ({ closeDrawer }) => {
       </div>
 
       <div className="space-y-3">
-        {menuItems.map((item) => (
+        {displayedMenuItems.map((item) => (
           <button
             key={item.label}
             onClick={() => {

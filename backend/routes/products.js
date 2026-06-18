@@ -156,6 +156,11 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
       productData.customizationCharges = JSON.parse(productData.customizationCharges);
     }
 
+    // Parse description if sent as string
+    if (typeof productData.description === 'string') {
+      productData.description = JSON.parse(productData.description);
+    }
+
     // Handle uploaded images from Cloudinary
     if (req.files && req.files.length > 0) {
       productData.images = req.files.map(file => file.path); // Cloudinary URL
@@ -192,6 +197,11 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
     // Parse customizationCharges if sent as string
     if (typeof productData.customizationCharges === 'string') {
       productData.customizationCharges = JSON.parse(productData.customizationCharges);
+    }
+
+    // Parse description if sent as string
+    if (typeof productData.description === 'string') {
+      productData.description = JSON.parse(productData.description);
     }
 
     // Handle new images from Cloudinary

@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Package, ShoppingCart, Users, Settings,
     Calendar, MapPin, ChevronLeft, ChevronRight, LogOut,
-    Bell, Search, Menu, X, Tag, Image as ImageIcon, AlertCircle, Truck
+    Bell, Search, Menu, X, Tag, Image as ImageIcon, AlertCircle, Truck,
+    Home as HomeIcon
 } from 'lucide-react';
 import { FaGift, FaCoins } from 'react-icons/fa';
-
-
+import { useAppContext } from '../../context/AppContext.jsx';
 
 import { tokyoNight, tw } from '../../config/tokyoNightTheme';
 
@@ -16,32 +16,32 @@ const AdminLayoutDark = ({ children }) => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
+    const { logout } = useAppContext();
 
     const handleLogout = () => {
-        localStorage.removeItem('adminToken');
-        navigate('/admin/login');
+        logout('/admin/login');
     };
 
     const navItems = [
-        { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+        { path: '/portal-dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
         {
-            path: '/admin/products',
+            path: '/portal-dashboard/products',
             icon: Package,
             label: 'Products',
             children: [
-                { path: '/admin/products', label: 'All Products' },
-                { path: '/admin/products/bulk-edit', label: 'Bulk Price Editor' }
+                { path: '/portal-dashboard/products', label: 'All Products' },
+                { path: '/portal-dashboard/products/bulk-edit', label: 'Bulk Price Editor' }
             ]
         },
-        { path: '/admin/orders', icon: ShoppingCart, label: 'Orders' },
-        { path: '/admin/notifications', icon: Bell, label: 'Notifications' },
-        { path: '/admin/complaints', icon: AlertCircle, label: 'Complaints' },
-        { path: '/admin/users', icon: Users, label: 'Users' },
-        { path: '/admin/delivery-partners', icon: Truck, label: 'Riders' },
-        { path: '/admin/rewards', icon: FaCoins, label: 'RG Coins' },
-        { path: '/admin/offers', icon: FaGift, label: 'Gift Offers' },
-        { path: '/admin/promocodes', icon: Tag, label: 'Promo Codes' },
-        { path: '/admin/banners', icon: ImageIcon, label: 'Banners' },
+        { path: '/portal-dashboard/orders', icon: ShoppingCart, label: 'Orders' },
+        { path: '/portal-dashboard/notifications', icon: Bell, label: 'Notifications' },
+        { path: '/portal-dashboard/complaints', icon: AlertCircle, label: 'Complaints' },
+        { path: '/portal-dashboard/users', icon: Users, label: 'Users' },
+        { path: '/portal-dashboard/delivery-partners', icon: Truck, label: 'Riders' },
+        { path: '/portal-dashboard/rewards', icon: FaCoins, label: 'RG Coins' },
+        { path: '/portal-dashboard/offers', icon: FaGift, label: 'Gift Offers' },
+        { path: '/portal-dashboard/promocodes', icon: Tag, label: 'Promo Codes' },
+        { path: '/portal-dashboard/banners', icon: ImageIcon, label: 'Banners' },
 
 
 
@@ -49,14 +49,14 @@ const AdminLayoutDark = ({ children }) => {
             label: 'Servicibility',
             icon: Calendar,
             children: [
-                { path: '/admin/slots', label: 'Delivery Slots' },
-                { path: '/admin/category-slots', label: 'Category Availability' },
-                { path: '/admin/product-slots', label: 'Product Availability' },
-                { path: '/admin/servicibility', label: 'Service Areas' },
-                { path: '/admin/categories', label: 'Categories' }
+                { path: '/portal-dashboard/slots', label: 'Delivery Slots' },
+                { path: '/portal-dashboard/category-slots', label: 'Category Availability' },
+                { path: '/portal-dashboard/product-slots', label: 'Product Availability' },
+                { path: '/portal-dashboard/servicibility', label: 'Service Areas' },
+                { path: '/portal-dashboard/categories', label: 'Categories' }
             ]
         },
-        { path: '/admin/settings', icon: Settings, label: 'Settings' }
+        { path: '/portal-dashboard/settings', icon: Settings, label: 'Settings' }
     ];
 
     const isActive = (path, exact = false) => {
@@ -84,7 +84,7 @@ const AdminLayoutDark = ({ children }) => {
                 {/* Logo */}
                 <div className={`h-16 flex items-center justify-between px-4 border-b ${tw.borderPrimary}`}>
                     {sidebarOpen || mobileMenuOpen ? (
-                        <Link to="/admin" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                        <Link to="/portal-dashboard" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
                             <div className="w-8 h-8 bg-gradient-to-br from-[#7aa2f7] to-[#bb9af7] rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                                 <span className="text-[#1a1b26] font-bold text-lg">RG</span>
                             </div>
@@ -118,7 +118,7 @@ const AdminLayoutDark = ({ children }) => {
                 </div>
 
                 {/* Navigation */}
-                <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-8rem)] scrollbar-thin scrollbar-thumb-[#414868] scrollbar-track-transparent">
+                <nav className={`p-4 space-y-1 overflow-y-auto ${(sidebarOpen || mobileMenuOpen) ? 'h-[calc(100vh-9.5rem)]' : 'h-[calc(100vh-12rem)]'} scrollbar-thin scrollbar-thumb-[#414868] scrollbar-track-transparent`}>
                     {navItems.map((item, index) => {
                         const isSidebarTextVisible = sidebarOpen || mobileMenuOpen;
                         if (item.children) {
@@ -169,16 +169,29 @@ const AdminLayoutDark = ({ children }) => {
                     })}
                 </nav>
 
-                {/* Logout Button */}
-                <div className={`absolute bottom-0 left-0 right-0 p-4 border-t ${tw.borderPrimary} ${tw.bgSecondary}`}>
+                {/* Logout & Navigation Buttons */}
+                <div className={`absolute bottom-0 left-0 right-0 p-4 border-t ${tw.borderPrimary} ${tw.bgSecondary} flex ${(sidebarOpen || mobileMenuOpen) ? 'flex-row' : 'flex-col'} gap-2`}>
                     <button
                         onClick={handleLogout}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg ${tw.accentRed} hover:bg-[#f7768e]/10 transition-colors w-full ${sidebarOpen || mobileMenuOpen ? '' : 'justify-center'
-                            }`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg ${tw.accentRed} hover:bg-[#f7768e]/10 transition-colors ${
+                            (sidebarOpen || mobileMenuOpen) ? 'flex-1 justify-center' : 'w-full justify-center'
+                        }`}
+                        title="Logout"
                     >
                         <LogOut className="w-5 h-5 flex-shrink-0" />
                         {(sidebarOpen || mobileMenuOpen) && <span className="text-sm font-medium">Logout</span>}
                     </button>
+                    <Link
+                        to="/"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg ${tw.textSecondary} hover:bg-[#7aa2f7]/10 hover:text-[#7aa2f7] transition-colors ${
+                            (sidebarOpen || mobileMenuOpen) ? 'flex-1 justify-center' : 'w-full justify-center'
+                        }`}
+                        title="User Page"
+                    >
+                        <HomeIcon className="w-5 h-5 flex-shrink-0" />
+                        {(sidebarOpen || mobileMenuOpen) && <span className="text-sm font-medium">Home</span>}
+                    </Link>
                 </div>
             </aside>
 

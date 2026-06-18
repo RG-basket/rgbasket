@@ -117,7 +117,7 @@ import { Capacitor } from '@capacitor/core';
 
 const App = () => {
   const location = useLocation();
-  const isAdminPath = location.pathname.startsWith("/admin");
+  const isAdminPath = location.pathname.startsWith("/admin") || location.pathname.startsWith("/portal-dashboard");
   const isRiderPath = location.pathname.startsWith("/rider");
   const { showUserLogin, setShowUserLogin, limitPopup, setLimitPopup, user, isAppReady, isNonVegTheme, setIsNonVegTheme, maintenanceMode } = useAppContext();
   const activeOrder = useCartStore(state => state.activeOrder);
@@ -325,126 +325,131 @@ const App = () => {
             <Route path="/shipping-policy" element={<ShippingPolicy />} />
             <Route path="/delete-account" element={<DeleteAccount />} />
 
-            {/* Admin Routes - Note: AdminLayout is integrated within each admin component */}
+            {/* Admin Decoy Honeypot */}
+            <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/orders" element={
-              <ProtectedRoute>
-                <AdminOrders />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/users" element={
-              <ProtectedRoute>
-                <AdminUsers />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/analytics" element={
-              <ProtectedRoute>
-                <AnalyticsDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/products" element={
-              <ProtectedRoute>
-                <AdminProducts />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/products/bulk-edit" element={
-              <ProtectedRoute>
-                <BulkPriceStockEditor />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/products/new" element={
-              <ProtectedRoute>
-                <ProductForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/products/edit/:id" element={
-              <ProtectedRoute>
-                <ProductForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/categories/new" element={
-              <ProtectedRoute>
-                <CategoryForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/categories" element={
-              <ProtectedRoute>
-                <AdminCategories />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/product-slots" element={
-              <ProtectedRoute>
-                <ProductSlotManager />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/category-slots" element={
-              <ProtectedRoute>
-                <CategorySlotManager />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/settings" element={
-              <ProtectedRoute>
-                <AdminSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/servicibility" element={
-              <ProtectedRoute>
-                <AdminServiceAreas />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/slots" element={
-              <ProtectedRoute>
-                <SlotManager />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/promocodes" element={
-              <ProtectedRoute>
-                <AdminPromoCodes />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/banners" element={
-              <ProtectedRoute>
-                <AdminBanners />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/offers" element={
-              <ProtectedRoute>
-                <AdminOffers />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/rewards" element={
-              <ProtectedRoute>
-                <AdminRewards />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/complaints" element={
-              <ProtectedRoute>
-                <AdminComplaints />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/notifications" element={
-              <ProtectedRoute>
-                <AdminNotifications />
-              </ProtectedRoute>
-            } />
 
+            {/* Real Admin Routes - Dynamically injected only if role is admin */}
+            {user?.role === 'admin' && (
+              <>
+                <Route path="/portal-dashboard" element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/orders" element={
+                  <ProtectedRoute>
+                    <AdminOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/users" element={
+                  <ProtectedRoute>
+                    <AdminUsers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/analytics" element={
+                  <ProtectedRoute>
+                    <AnalyticsDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/products" element={
+                  <ProtectedRoute>
+                    <AdminProducts />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/products/bulk-edit" element={
+                  <ProtectedRoute>
+                    <BulkPriceStockEditor />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/products/new" element={
+                  <ProtectedRoute>
+                    <ProductForm />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/products/edit/:id" element={
+                  <ProtectedRoute>
+                    <ProductForm />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/categories/new" element={
+                  <ProtectedRoute>
+                    <CategoryForm />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/categories" element={
+                  <ProtectedRoute>
+                    <AdminCategories />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/product-slots" element={
+                  <ProtectedRoute>
+                    <ProductSlotManager />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/category-slots" element={
+                  <ProtectedRoute>
+                    <CategorySlotManager />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/settings" element={
+                  <ProtectedRoute>
+                    <AdminSettings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/servicibility" element={
+                  <ProtectedRoute>
+                    <AdminServiceAreas />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/slots" element={
+                  <ProtectedRoute>
+                    <SlotManager />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/promocodes" element={
+                  <ProtectedRoute>
+                    <AdminPromoCodes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/banners" element={
+                  <ProtectedRoute>
+                    <AdminBanners />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/offers" element={
+                  <ProtectedRoute>
+                    <AdminOffers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/rewards" element={
+                  <ProtectedRoute>
+                    <AdminRewards />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/complaints" element={
+                  <ProtectedRoute>
+                    <AdminComplaints />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/notifications" element={
+                  <ProtectedRoute>
+                    <AdminNotifications />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/delivery-partners" element={
+                  <ProtectedRoute>
+                    <AdminDeliveryPartners />
+                  </ProtectedRoute>
+                } />
+              </>
+            )}
 
             {/* Influencer Route */}
             <Route path="/influencer/:routeName" element={<InfluencerDashboard />} />
 
             {/* Rider Portal */}
             <Route path="/rider/:token" element={<RiderPortal />} />
-
-            <Route path="/admin/delivery-partners" element={
-              <ProtectedRoute>
-                <AdminDeliveryPartners />
-              </ProtectedRoute>
-            } />
 
           </Routes>
         </Suspense>

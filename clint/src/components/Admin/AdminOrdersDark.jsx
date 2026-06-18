@@ -1429,7 +1429,7 @@ const AdminOrdersDark = () => {
             <AdminButtonDark size="sm" icon={RefreshCw} className="flex-1 sm:flex-none" onClick={() => fetchOrders(page)}>
               Refresh
             </AdminButtonDark>
-            <AdminButtonDark size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => navigate('/admin')}>
+            <AdminButtonDark size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => navigate('/portal-dashboard')}>
               Dashboard
             </AdminButtonDark>
           </div>

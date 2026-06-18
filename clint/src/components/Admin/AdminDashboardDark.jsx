@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     TrendingUp, ShoppingBag, Users, DollarSign,
     Package, Clock, CheckCircle, XCircle, AlertCircle
@@ -13,8 +14,11 @@ import AdminLayoutDark from './AdminLayoutDark';
 import StatsCardDark from './SharedDark/StatsCardDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
 import { tw, tokyoNight } from '../../config/tokyoNightTheme';
+import { useAppContext } from '../../context/AppContext.jsx';
 
 const AdminDashboardDark = () => {
+    const navigate = useNavigate();
+    const { logout } = useAppContext();
     const [dashboardData, setDashboardData] = useState(null);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -24,7 +28,7 @@ const AdminDashboardDark = () => {
         const fetchDashboardData = async () => {
             const token = localStorage.getItem('adminToken');
             if (!token) {
-                window.location.href = '/admin/login';
+                logout('/admin/login');
                 return;
             }
 
@@ -35,8 +39,7 @@ const AdminDashboardDark = () => {
 
                 if (!dashRes.ok) {
                     if (dashRes.status === 401) {
-                        localStorage.removeItem('adminToken');
-                        window.location.href = '/admin/login';
+                        logout('/admin/login');
                         return;
                     }
                     throw new Error('Failed to fetch dashboard data');
@@ -128,7 +131,7 @@ const AdminDashboardDark = () => {
                                 icon={FaGift}
                                 size="sm"
                                 className="flex-1 sm:flex-none"
-                                onClick={() => window.location.href = '/admin/offers'}
+                                onClick={() => navigate('/portal-dashboard/offers')}
                             >
                                 Gift Offers
                             </AdminButtonDark>

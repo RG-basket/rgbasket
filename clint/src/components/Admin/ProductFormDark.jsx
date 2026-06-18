@@ -242,7 +242,7 @@ const ProductFormDark = () => {
 
             if (data.success) {
                 toast.success(`Product ${id ? 'updated' : 'created'} successfully!`);
-                setTimeout(() => navigate('/admin/products'), 1000);
+                setTimeout(() => navigate('/portal-dashboard/products'), 1000);
             } else {
                 throw new Error(data.message || 'Failed to save product');
             }
@@ -261,7 +261,7 @@ const ProductFormDark = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => navigate('/admin/products')}
+                            onClick={() => navigate('/portal-dashboard/products')}
                             className={`p-2 rounded-lg ${tw.bgInput} ${tw.textSecondary} hover:text-[#c0caf5] transition-colors`}
                         >
                             <ArrowLeft className="w-6 h-6" />
@@ -272,7 +272,7 @@ const ProductFormDark = () => {
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <AdminButtonDark variant="secondary" onClick={() => navigate('/admin/products')}>
+                        <AdminButtonDark variant="secondary" onClick={() => navigate('/portal-dashboard/products')}>
                             Cancel
                         </AdminButtonDark>
                         <AdminButtonDark

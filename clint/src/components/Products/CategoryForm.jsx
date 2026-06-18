@@ -23,7 +23,7 @@ const CategoryForm = () => {
       };
       localStorage.setItem('adminCategories', JSON.stringify([...existing, newCategory]));
       toast.success('Category created!');
-      setTimeout(() => (window.location.href = '/admin/products'), 1000);
+      setTimeout(() => (window.location.href = '/portal-dashboard/products'), 1000);
     } catch (err) {
       toast.error('Failed to create category');
     } finally {

@@ -241,13 +241,7 @@ const AnalyticsDashboard = () => {
                 icon={ShoppingCart}
                 color="green"
               />
-              <QuickAction
-  icon={Clock}
-  title="Product Slot Availability"
-  description="Set product availability by day/slot"
-  onClick={() => handleNav('/admin/product-slots')}
-  color="green"
-/>
+
               <StatCard
                 title="Total Revenue"
                 value={analyticsData.overview.totalRevenue}

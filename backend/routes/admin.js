@@ -396,6 +396,41 @@ router.patch('/users/:userId/ban', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Change user role (admin/user) with self-demotion prevention
+router.patch('/users/:userId/role', authenticateAdmin, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const { role } = req.body;
+
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role. Must be "user" or "admin".' });
+    }
+
+    // Safety guard: prevent self-demotion
+    const requesterId = req.admin?.id || req.user?.id;
+    if (requesterId && req.params.userId === requesterId && role !== 'admin') {
+      return res.status(400).json({ success: false, message: 'You cannot demote yourself. Accidental lockout blocked.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { role },
+      { new: true }
+    ).select('-googleId');
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    res.json({
+      success: true,
+      message: `User role updated to ${role} successfully`,
+      user
+    });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ success: false, message: 'Error updating user role' });
+  }
+});
+
 // Delete user
 router.delete('/users/:userId', authenticateAdmin, async (req, res) => {
   try {

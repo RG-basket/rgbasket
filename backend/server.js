@@ -9,6 +9,7 @@ const cache = require('./services/redis').cache;
 require('dotenv').config();
 
 const User = require('./models/User');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -197,10 +198,28 @@ app.use('/api/reward-settings', rewardSettingsRoutes);
 // Your existing routes
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { googleId, name, email, photo, referralCode, deviceId } = req.body;
+    const { googleId, idToken, name, email, photo, referralCode, deviceId } = req.body;
     const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-    let user = await User.findOne({ googleId });
+    // --- SECURE FIREBASE ID TOKEN VERIFICATION ---
+    let verifiedGoogleId = googleId;
+    const admin = require('firebase-admin');
+    if (admin.apps.length > 0) {
+      if (!idToken) {
+        return res.status(400).json({ message: 'idToken is required' });
+      }
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        verifiedGoogleId = decodedToken.uid;
+      } catch (authError) {
+        console.error('Firebase token verification failed:', authError);
+        return res.status(401).json({ message: 'Unauthorized. Invalid Firebase token.' });
+      }
+    } else {
+      console.warn('⚠️ Firebase Admin not initialized. Using unverified googleId (Development Mode ONLY).');
+    }
+
+    let user = await User.findOne({ googleId: verifiedGoogleId });
     let totalCoinsAwarded = 0;
     let awardMessage = "";
 
@@ -214,14 +233,21 @@ app.post('/api/auth/google', async (req, res) => {
         user.deviceId = deviceId;
       }
 
-      // REMOVED LATE REFERRAL LOGIC: Existing users cannot add referral codes to get more coins.
-
       user.lastIp = ipAddress;
       await user.save();
-      console.log('User updated:', user.email);
+      console.log('User logged in:', user.email);
+
+      // Generate session JWT
+      const token = jwt.sign(
+        { id: user._id.toString(), email: user.email, role: user.role || 'user' },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
       res.status(200).json({
         message: 'Login successful',
         user,
+        token,
         coinsAwarded: 0,
         awardMessage: ""
       });
@@ -251,7 +277,7 @@ app.post('/api/auth/google', async (req, res) => {
       }
 
       user = new User({
-        googleId,
+        googleId: verifiedGoogleId,
         name,
         email,
         photo,
@@ -305,10 +331,18 @@ app.post('/api/auth/google', async (req, res) => {
       // Fetch the updated user with coins
       const updatedUser = await User.findById(user._id);
 
+      // Generate session JWT
+      const token = jwt.sign(
+        { id: updatedUser._id.toString(), email: updatedUser.email, role: updatedUser.role || 'user' },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
       console.log('New user created:', user.email);
       res.status(201).json({
         message: 'User created successfully',
         user: updatedUser,
+        token,
         coinsAwarded: totalCoinsAwarded,
         awardMessage
       });

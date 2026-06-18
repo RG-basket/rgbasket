@@ -49,8 +49,25 @@ export const AppContextProvider = ({ children }) => {
   const networkStatus = useNetworkStatus();
 
   // Auth State
-  const [user, setUser] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      const savedAuth = localStorage.getItem('isLoggedIn');
+      if (savedUser && savedAuth === 'true') {
+        return JSON.parse(savedUser);
+      }
+    } catch (e) {
+      console.error('Error parsing user from localStorage:', e);
+    }
+    return null;
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try {
+      return localStorage.getItem('isLoggedIn') === 'true' && !!localStorage.getItem('user');
+    } catch (e) {
+      return false;
+    }
+  });
   const [showUserLogin, setShowUserLogin] = useState(false);
 
   // Popup State
@@ -618,12 +635,22 @@ export const AppContextProvider = ({ children }) => {
 
       if (!firebaseUser) throw new Error("No user found after Google login");
 
+      // Retrieve the Firebase ID Token with Platform Guard
+      let idToken;
+      if (Capacitor.isNativePlatform()) {
+        const tokenResult = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
+        idToken = tokenResult.token;
+      } else {
+        idToken = await firebaseUser.getIdToken();
+      }
+
       // Get any pending referral code from localStorage
       const referralCode = localStorage.getItem('pendingReferralCode');
       const deviceId = getBrowserFingerprint();
 
       const userData = {
         googleId: firebaseUser.uid,
+        idToken,
         name: firebaseUser.displayName,
         email: firebaseUser.email,
         photo: firebaseUser.photoURL,
@@ -648,6 +675,7 @@ export const AppContextProvider = ({ children }) => {
       }
 
       const backendUser = response.data.user;
+      const sessionToken = response.data.token;
 
       // Handle coin award popup
       if (response.data.coinsAwarded > 0) {
@@ -672,6 +700,12 @@ export const AppContextProvider = ({ children }) => {
       setIsLoggedIn(true);
       localStorage.setItem('user', JSON.stringify(userProfile));
       localStorage.setItem('isLoggedIn', 'true');
+
+      if (backendUser.role === 'admin') {
+        localStorage.setItem('adminToken', sessionToken);
+      } else {
+        localStorage.removeItem('adminToken');
+      }
 
       setShowUserLogin(false);
       toast.success("Login successful");
@@ -737,7 +771,7 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = async (redirectPath = "/") => {
     try {
       if (Capacitor.isNativePlatform()) {
         await FirebaseAuthentication.signOut();
@@ -751,8 +785,9 @@ export const AppContextProvider = ({ children }) => {
       setIsLoggedIn(false);
       localStorage.removeItem('user');
       localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('adminToken');
       toast.success("Logged out");
-      navigate("/");
+      navigate(redirectPath);
     }
   };
 

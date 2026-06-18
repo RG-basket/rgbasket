@@ -148,6 +148,47 @@ const AdminUsersDark = () => {
         }
     };
 
+    const toggleRole = async (userId, currentRole) => {
+        try {
+            const currentUser = JSON.parse(localStorage.getItem('user'));
+            const currentUserId = currentUser?.id || currentUser?._id;
+
+            if (userId === currentUserId) {
+                toast.error('You cannot change your own role. Accidental lockout blocked.');
+                return;
+            }
+
+            const newRole = currentRole === 'admin' ? 'user' : 'admin';
+            if (!window.confirm(`Are you sure you want to change this user's role to "${newRole}"?`)) {
+                return;
+            }
+
+            const token = localStorage.getItem('adminToken');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users/${userId}/role`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ role: newRole })
+            });
+
+            if (response.ok) {
+                toast.success(`User role updated to "${newRole}" successfully`);
+                fetchUsers(page);
+                if (selectedUser?._id === userId) {
+                    setSelectedUser({ ...selectedUser, role: newRole });
+                }
+            } else {
+                const data = await response.json();
+                toast.error(data.message || 'Failed to update user role');
+            }
+        } catch (error) {
+            console.error('Error toggling role:', error);
+            toast.error('Error updating user role');
+        }
+    };
+
     const deleteAddress = async (addressId) => {
         if (!window.confirm('Are you sure you want to delete this address? This cannot be undone.')) return;
 
@@ -470,6 +511,24 @@ const AdminUsersDark = () => {
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${selectedUser.role === 'admin' ? 'bg-[#bb9af7]/20 text-[#bb9af7]' : 'bg-[#7aa2f7]/20 text-[#7aa2f7]'}`}>
                                             {selectedUser.role || 'User'}
                                         </span>
+                                        {/* Promote/Demote Button */}
+                                        {(() => {
+                                            const currentUser = JSON.parse(localStorage.getItem('user'));
+                                            const currentUserId = currentUser?.id || currentUser?._id;
+                                            const isSelf = selectedUser._id === currentUserId;
+                                            
+                                            if (!isSelf) {
+                                                return (
+                                                    <button
+                                                        onClick={() => toggleRole(selectedUser._id, selectedUser.role)}
+                                                        className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#bb9af7]/10 hover:bg-[#bb9af7]/35 text-[#bb9af7] border border-[#bb9af7]/30 transition-colors"
+                                                    >
+                                                        {selectedUser.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
+                                                    </button>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                         {selectedUser.isBanned && (
                                             <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-500 border border-red-500/30">
                                                 BANNED: {selectedUser.banReason || 'No reason specified'}

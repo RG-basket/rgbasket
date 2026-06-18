@@ -231,7 +231,7 @@ const AdminProductsDark = () => {
             render: (_, product) => (
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => navigate(`/admin/products/edit/${product._id}`)}
+                        onClick={() => navigate(`/portal-dashboard/products/edit/${product._id}`)}
                         className={`p-1.5 rounded-lg hover:bg-[#7aa2f7]/10 text-[#7aa2f7] transition-colors`}
                     >
                         <Edit className="w-4 h-4" />
@@ -261,7 +261,7 @@ const AdminProductsDark = () => {
                             variant="secondary"
                             size="sm"
                             className="flex-1 sm:flex-none"
-                            onClick={() => navigate('/admin/products/bulk-edit')}
+                            onClick={() => navigate('/portal-dashboard/products/bulk-edit')}
                         >
                             Bulk Edit
                         </AdminButtonDark>
@@ -270,7 +270,7 @@ const AdminProductsDark = () => {
                             size="sm"
                             icon={Plus}
                             className="flex-1 sm:flex-none"
-                            onClick={() => navigate('/admin/products/new')}
+                            onClick={() => navigate('/portal-dashboard/products/new')}
                         >
                             Add Product
                         </AdminButtonDark>
@@ -386,7 +386,7 @@ const AdminProductsDark = () => {
                                         {/* Overlay Actions */}
                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                                             <button
-                                                onClick={() => navigate(`/admin/products/edit/${product._id}`)}
+                                                onClick={() => navigate(`/portal-dashboard/products/edit/${product._id}`)}
                                                 className="p-2 bg-white rounded-full text-[#1a1b26] hover:scale-110 transition-transform"
                                             >
                                                 <Edit className="w-5 h-5" />
