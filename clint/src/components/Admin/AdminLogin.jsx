@@ -5,13 +5,12 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 const AdminLogin = () => {
-  const { loginWithGoogle, user, isLoggedIn, loading } = useAppContext();
+  const { user, isLoggedIn } = useAppContext();
   const [adminId, setAdminId] = useState('');
   const [password, setPassword] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
-  const [showSSO, setShowSSO] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,15 +57,6 @@ const AdminLogin = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setMessage('');
-    try {
-      await loginWithGoogle();
-    } catch (error) {
-      setMessage('Authentication failed. Please try again.');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Background Elements */}
@@ -96,81 +86,53 @@ const AdminLogin = () => {
       <div className="relative mt-10 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-gray-800/60 backdrop-blur-xl border border-gray-700/50 shadow-2xl rounded-3xl py-10 px-8 sm:px-10 transform transition-all duration-300 hover:shadow-2xl">
           
-          {!showSSO ? (
-            <form onSubmit={handleDecoySubmit} className="space-y-6">
-              <div>
-                <label htmlFor="adminId" className="block text-sm font-medium text-gray-300">
-                  Admin ID / Username
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="adminId"
-                    name="adminId"
-                    type="text"
-                    required
-                    value={adminId}
-                    onChange={(e) => setAdminId(e.target.value)}
-                    placeholder="e.g., admin_main"
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 transition-all text-sm"
-                  />
-                </div>
+          <form onSubmit={handleDecoySubmit} className="space-y-6">
+            <div>
+              <label htmlFor="adminId" className="block text-sm font-medium text-gray-300">
+                Admin ID / Username
+              </label>
+              <div className="mt-1">
+                <input
+                  id="adminId"
+                  name="adminId"
+                  type="text"
+                  required
+                  value={adminId}
+                  onChange={(e) => setAdminId(e.target.value)}
+                  placeholder="e.g., admin_main"
+                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 transition-all text-sm"
+                />
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                  Security Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 transition-all text-sm"
-                  />
-                </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                Security Password
+              </label>
+              <div className="mt-1">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 transition-all text-sm"
+                />
               </div>
+            </div>
 
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="w-full py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-300 transform active:scale-[0.98]"
-                >
-                  {submitLoading ? 'Verifying credentials...' : 'Sign In'}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-6">
-              <div className="text-center py-2">
-                <p className="text-sm text-gray-400">
-                  Authentication requires valid Google Workspace SSO credentials.
-                </p>
-              </div>
+            <div className="pt-2">
               <button
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full group relative flex items-center justify-center gap-4 py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-300 transform active:scale-[0.98]"
+                type="submit"
+                disabled={submitLoading}
+                className="w-full py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-300 transform active:scale-[0.98]"
               >
-                {loading ? (
-                  'Establishing connection...'
-                ) : (
-                  <>
-                    <img
-                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                      alt="Google"
-                      className="w-5 h-5 bg-white p-0.5 rounded-full"
-                    />
-                    Sign In with Google SSO
-                  </>
-                )}
+                {submitLoading ? 'Verifying credentials...' : 'Sign In'}
               </button>
             </div>
-          )}
+          </form>
 
           {/* Message Display */}
           {message && (
@@ -189,15 +151,6 @@ const AdminLogin = () => {
               className="hover:text-gray-300 hover:underline transition-colors flex items-center"
             >
               ← Back to Main Site
-            </button>
-            <button
-              onClick={() => {
-                setShowSSO(!showSSO);
-                setMessage('');
-              }}
-              className="hover:text-gray-300 hover:underline font-semibold text-gray-400 transition-colors"
-            >
-              {showSSO ? 'Use Local Login' : 'Staff SSO Sign-in'}
             </button>
           </div>
 
