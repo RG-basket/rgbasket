@@ -417,12 +417,15 @@ const AdminUsersDark = () => {
                             className={activeFilter === 'dau' ? 'ring-2 ring-purple-500' : ''}
                         />
                     </div>
-                    <StatsCardDark
-                        title="Total Admins"
-                        value={userStats.totalAdmins}
-                        icon={Shield}
-                        color="orange"
-                    />
+                    <div className="cursor-pointer transition-transform active:scale-95" onClick={() => { setActiveFilter('admins'); fetchUsers(1, null, 'admins'); }}>
+                        <StatsCardDark
+                            title="Total Admins"
+                            value={userStats.totalAdmins}
+                            icon={Shield}
+                            color="orange"
+                            className={activeFilter === 'admins' ? 'ring-2 ring-orange-500' : ''}
+                        />
+                    </div>
                 </div>
 
                 {/* Search & Filters */}

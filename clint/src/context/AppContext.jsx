@@ -706,6 +706,7 @@ export const AppContextProvider = ({ children }) => {
       } else {
         localStorage.removeItem('adminToken');
       }
+      localStorage.setItem('userToken', sessionToken);
 
       setShowUserLogin(false);
       toast.success("Login successful");
@@ -786,6 +787,7 @@ export const AppContextProvider = ({ children }) => {
       localStorage.removeItem('user');
       localStorage.removeItem('isLoggedIn');
       localStorage.removeItem('adminToken');
+      localStorage.removeItem('userToken');
       toast.success("Logged out");
       navigate(redirectPath);
     }

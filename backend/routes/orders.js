@@ -5,7 +5,7 @@ const User = require('../models/User');
 const ServiceArea = require('../models/ServiceArea');
 const TelegramService = require('../services/TelegramService');
 const cache = require('../services/redis').cache;
-const { authenticateAdmin, checkBanned } = require('../middleware/auth');
+const { authenticateAdmin, checkBanned, authenticateUser } = require('../middleware/auth');
 
 const OrderService = require('../services/OrderService');
 const rateLimit = require('express-rate-limit');
@@ -44,9 +44,25 @@ const orderLimiter = rateLimit({
 });
 
 // Create new order from cart
-router.post('/', orderLimiter, checkBanned, async (req, res) => {
+router.post('/', authenticateUser, orderLimiter, checkBanned, async (req, res) => {
   try {
     console.log('🔍 Order creation request body:', JSON.stringify(req.body, null, 2));
+
+    // Ownership check: Caller must be placing order for their own ID or be admin
+    const orderUser = await User.findOne({
+      $or: [
+        { _id: req.body.userId.match(/^[0-9a-fA-F]{24}$/) ? req.body.userId : null },
+        { googleId: req.body.userId }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    if (!orderUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (req.user.id !== orderUser._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. Unauthorized request.' });
+    }
 
     // Use OrderService to handle creation, validation, pricing, and promo codes
     const order = await OrderService.createOrder(req.body, req.body.userId);
@@ -82,7 +98,7 @@ router.post('/', orderLimiter, checkBanned, async (req, res) => {
 });
 
 // GET ORDERS FOR SPECIFIC USER
-router.get('/user/:userId', checkBanned, async (req, res) => {
+router.get('/user/:userId', authenticateUser, checkBanned, async (req, res) => {
   try {
     const { userId } = req.params;
     const page = req.query.page ? parseInt(req.query.page) : null;
@@ -99,13 +115,21 @@ router.get('/user/:userId', checkBanned, async (req, res) => {
     }
 
     // 1. Find the user first to get both their MongoDB _id and googleId
-    // This handles cases where some orders belong to googleId while others belong to _id
     const user = await User.findOne({
       $or: [
         { _id: userId.match(/^[0-9a-fA-F]{24}$/) ? userId : null },
         { googleId: userId }
       ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
     });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Ownership check: Caller must own this user account OR be admin
+    if (req.user.id !== user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not own this account.' });
+    }
 
     // 2. Build a list of all potential IDs associated with this user
     const userIds = [userId];
@@ -646,7 +670,7 @@ router.put('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
 });
 
 // Cancel order (for users)
-router.put("/:orderId/cancel", checkBanned, async (req, res) => {
+router.put("/:orderId/cancel", authenticateUser, checkBanned, async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status, cancelReason } = req.body;
@@ -671,6 +695,19 @@ router.put("/:orderId/cancel", checkBanned, async (req, res) => {
         success: false,
         message: "Order not found",
       });
+    }
+
+    // Ownership check: Caller must own the order or be admin
+    const orderOwner = await User.findOne({
+      $or: [
+        { _id: orderExists.user.match(/^[0-9a-fA-F]{24}$/) ? orderExists.user : null },
+        { googleId: orderExists.user }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    const isOwner = orderExists.user === req.user.id || (orderOwner && orderOwner._id.toString() === req.user.id);
+    if (!isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not own this order.' });
     }
 
     // Call OrderService to handle cancellation and resource reversion (Coins, Stock, Promo)
@@ -704,7 +741,7 @@ router.put("/:orderId/cancel", checkBanned, async (req, res) => {
 });
 
 // Update order status (for users - mark as delivered only)
-router.put('/:orderId/delivered', async (req, res) => {
+router.put('/:orderId/delivered', authenticateUser, async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -717,6 +754,19 @@ router.put('/:orderId/delivered', async (req, res) => {
         success: false,
         message: 'Order not found'
       });
+    }
+
+    // Ownership check: Caller must own the order or be admin
+    const orderOwner = await User.findOne({
+      $or: [
+        { _id: order.user.match(/^[0-9a-fA-F]{24}$/) ? order.user : null },
+        { googleId: order.user }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    const isOwner = order.user === req.user.id || (orderOwner && orderOwner._id.toString() === req.user.id);
+    if (!isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not own this order.' });
     }
 
     // Only allow changing from shipped to delivered
@@ -762,7 +812,7 @@ router.put('/:orderId/delivered', async (req, res) => {
 });
 
 // Get single order details
-router.get('/:orderId', async (req, res) => {
+router.get('/:orderId', authenticateUser, async (req, res) => {
   try {
     const { orderId } = req.params;
 
@@ -775,6 +825,19 @@ router.get('/:orderId', async (req, res) => {
         success: false,
         message: 'Order not found'
       });
+    }
+
+    // Ownership check: Caller must own the order or be admin
+    const orderOwner = await User.findOne({
+      $or: [
+        { _id: order.user.match(/^[0-9a-fA-F]{24}$/) ? order.user : null },
+        { googleId: order.user }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    const isOwner = order.user === req.user.id || (orderOwner && orderOwner._id.toString() === req.user.id);
+    if (!isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not own this order.' });
     }
 
     res.json({

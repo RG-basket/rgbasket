@@ -216,6 +216,11 @@ app.post('/api/auth/google', async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized. Invalid Firebase token.' });
       }
     } else {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(500).json({
+          message: 'Authentication service configuration error. Please contact administrator.'
+        });
+      }
       console.warn('⚠️ Firebase Admin not initialized. Using unverified googleId (Development Mode ONLY).');
     }
 

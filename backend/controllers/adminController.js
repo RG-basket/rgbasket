@@ -17,7 +17,7 @@ const adminLogin = async (req, res) => {
 
     // 1. Log decoy honeypot probe
     console.warn(`🚨 SECURITY TRIPWIRE TRIGGERED: Honeypot login attempt from IP: ${ipAddress}`);
-    console.warn(`Details: User Agent: ${userAgent} | Attempted Admin ID: ${adminId || 'N/A'} | Attempted Password: ${password || 'N/A'}`);
+    console.warn(`Details: User Agent: ${userAgent} | Attempted Admin ID: ${adminId || 'N/A'} | Attempted Password: [REDACTED]`);
 
     // 2. Immediately return a fake rejection (no DB, no CPU-heavy operations)
     res.status(401).json({

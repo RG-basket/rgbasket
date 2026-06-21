@@ -53,6 +53,11 @@ router.get('/users', authenticateAdmin, async (req, res) => {
         { phone: { $exists: false } },
         { phone: null }
       ];
+    } else if (filter === 'admins') {
+      baseFilter.$or = [
+        { role: 'admin' },
+        { isAdmin: true }
+      ];
     }
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);

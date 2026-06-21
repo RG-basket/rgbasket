@@ -4,7 +4,7 @@ const UserAddress = require('../models/UserAddress');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const { cache } = require("../services/redis");
-const { authenticateAdmin, checkBanned } = require('../middleware/auth');
+const { authenticateAdmin, checkBanned, authenticateUser } = require('../middleware/auth');
 
 // Admin: Capture/Save User Location
 router.post('/admin/capture', authenticateAdmin, async (req, res) => {
@@ -88,7 +88,7 @@ router.post('/admin/capture', authenticateAdmin, async (req, res) => {
 
 // Get all addresses for a user
 
-router.get('/user/:userId', checkBanned, async (req, res) => {
+router.get('/user/:userId', authenticateUser, checkBanned, async (req, res) => {
   try {
     const { userId } = req.params;
     console.log('🔍 Fetching addresses for user:', userId);
@@ -101,6 +101,15 @@ router.get('/user/:userId', checkBanned, async (req, res) => {
         { googleId: userId }
       ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
     });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Ownership check: Caller must be the requested user OR an admin
+    if (req.user.id !== user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not own this account.' });
+    }
 
     // 2. Build a list of all potential IDs associated with this user
     const userIds = [userId];
@@ -131,7 +140,7 @@ router.get('/user/:userId', checkBanned, async (req, res) => {
 
 // Create new address
 // Create new address
-router.post('/', checkBanned, async (req, res) => {
+router.post('/', authenticateUser, checkBanned, async (req, res) => {
   try {
     console.log('📝 Creating new address request received');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
@@ -143,6 +152,23 @@ router.post('/', checkBanned, async (req, res) => {
         success: false,
         message: 'User ID is required'
       });
+    }
+
+    // Ownership check: Caller must create address for themselves or be admin
+    const targetUserId = req.body.user;
+    const targetUser = await User.findOne({
+      $or: [
+        { _id: targetUserId.match(/^[0-9a-fA-F]{24}$/) ? targetUserId : null },
+        { googleId: targetUserId }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (req.user.id !== targetUser._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. Unauthorized request.' });
     }
 
     const address = new UserAddress(req.body);
@@ -169,7 +195,7 @@ router.post('/', checkBanned, async (req, res) => {
   }
 });
 // Update address
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateUser, async (req, res) => {
   try {
     const address = await UserAddress.findById(req.params.id);
 
@@ -178,6 +204,19 @@ router.put('/:id', async (req, res) => {
         success: false,
         message: 'Address not found'
       });
+    }
+
+    // Ownership check: Caller must own the address or be admin
+    const addressUser = await User.findOne({
+      $or: [
+        { _id: address.user.match(/^[0-9a-fA-F]{24}$/) ? address.user : null },
+        { googleId: address.user }
+      ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
+    });
+
+    const isOwner = address.user === req.user.id || (addressUser && addressUser._id.toString() === req.user.id);
+    if (!isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not own this address.' });
     }
 
     Object.assign(address, req.body);
@@ -223,7 +262,7 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
 });
 
 // Set default address
-router.patch('/:id/set-default', checkBanned, async (req, res) => {
+router.patch('/:id/set-default', authenticateUser, checkBanned, async (req, res) => {
   try {
     const { userId } = req.body;
     
@@ -235,12 +274,30 @@ router.patch('/:id/set-default', checkBanned, async (req, res) => {
       ].filter(q => (q._id !== null && q._id !== undefined) || q.googleId !== undefined)
     });
 
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Ownership check: Caller must own this user account OR be admin
+    if (req.user.id !== user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. You do not own this account.' });
+    }
+
     const userIds = [userId];
     if (user) {
       if (user._id) userIds.push(user._id.toString());
       if (user.googleId) userIds.push(user.googleId);
     }
     const uniqueUserIds = [...new Set(userIds.filter(id => id))];
+
+    // Address verification: Ensure the address being updated actually belongs to this user
+    const targetAddress = await UserAddress.findById(req.params.id);
+    if (!targetAddress) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+    if (!uniqueUserIds.includes(targetAddress.user) && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. Address does not belong to you.' });
+    }
 
     // Reset default for all address variations of this user
     await UserAddress.updateMany(
