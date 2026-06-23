@@ -1,5 +1,6 @@
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_DELIVERY_CHAT_ID = process.env.TELEGRAM_DELIVERY_CHAT_ID || '-5473335367';
 
 class TelegramService {
     static async sendOrderNotification(order) {
@@ -121,7 +122,7 @@ ${(order.liveLocation?.coordinates?.latitude)
 
     static async sendRiderPickupNotification(order, rider) {
         if (!TELEGRAM_TOKEN) return;
-        const DELIVERY_CHAT_ID = '-5118338826';
+        const DELIVERY_CHAT_ID = TELEGRAM_DELIVERY_CHAT_ID;
         try {
             const orderId = order._id || order.id || 'N/A';
             const now = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
@@ -170,7 +171,7 @@ ${itemsText}
 
     static async sendRiderDeliveryNotification(order, rider) {
         if (!TELEGRAM_TOKEN) return;
-        const DELIVERY_CHAT_ID = '-5118338826';
+        const DELIVERY_CHAT_ID = TELEGRAM_DELIVERY_CHAT_ID;
         try {
             const orderId = order._id || order.id || 'N/A';
             const deliveredAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
