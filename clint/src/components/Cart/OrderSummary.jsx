@@ -54,7 +54,8 @@ const OrderSummary = ({
     toggleCoins,
     totalBeforeCoins = 0,
     totalForThresholds = 0,
-    coinDebtRecovery = 0
+    coinDebtRecovery = 0,
+    surgeCharges = []
 }) => {
     const tipOptions = [10, 20, 30];
     const [isCustomTip, setIsCustomTip] = React.useState(false);
@@ -237,6 +238,7 @@ const OrderSummary = ({
                         instruction={instruction}
                         coinDiscount={coinDiscount}
                         coinDebtRecovery={coinDebtRecovery}
+                        surgeCharges={surgeCharges}
                     />
 
                     {/* Order Button */}

@@ -59,7 +59,8 @@ const Cart = () => {
     getCustomizationCharge,
     serviceAreas,
     rewardSettings,
-    refreshUserCoins
+    refreshUserCoins,
+    activeSurges
   } = useAppContext();
   const navigate = useNavigate();
   const summaryRef = useRef(null);
@@ -311,7 +312,10 @@ const Cart = () => {
     // We'll use totalForThresholds inside the component or pass it down
   }, [totalBeforeCoins]);
 
-  let totalAmount = totalBeforeCoins - roundedCoinDiscount + roundedCoinDebtRecovery;
+  const surgeChargeAmount = Array.isArray(activeSurges)
+    ? activeSurges.reduce((sum, s) => sum + Number(s.amount || 0), 0)
+    : 0;
+  let totalAmount = totalBeforeCoins - roundedCoinDiscount + roundedCoinDebtRecovery + surgeChargeAmount;
   if (totalAmount < 0) totalAmount = 0;
   totalAmount = Math.round(totalAmount * 100) / 100;
 
@@ -1443,6 +1447,8 @@ const Cart = () => {
             totalBeforeCoins={totalBeforeCoins}
             totalForThresholds={totalForThresholds}
             coinDebtRecovery={roundedCoinDebtRecovery}
+            // Surge Surcharges
+            surgeCharges={activeSurges}
           />
         </div>
       )}

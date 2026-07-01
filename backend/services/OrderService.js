@@ -129,10 +129,17 @@ class OrderService {
         }
       }
 
-      // Calculate pricing
+      // Calculate pricing & check active surge configs
+      const SurgeConfig = require('../models/SurgeConfig');
+      const activeSurges = await SurgeConfig.find({ isActive: true });
+      const surgeChargesList = activeSurges.map(s => ({
+        name: s.name,
+        amount: s.amount
+      }));
+
       const pincode = orderData.shippingAddress?.pincode;
       const tipAmount = Math.max(0, Number(orderData.tipAmount) || 0);
-      const pricing = await this.calculatePricing(subtotal, 0, discountAmount, pincode, tipAmount, coinDiscountInRs, coinDebtRecoveryInRs);
+      const pricing = await this.calculatePricing(subtotal, 0, discountAmount, pincode, tipAmount, coinDiscountInRs, coinDebtRecoveryInRs, surgeChargesList);
 
       // Validate Free Gift (Anti-Cheat)
       let finalSelectedGift = orderData.selectedGift;
@@ -268,11 +275,19 @@ class OrderService {
         coinsUsed: coinsUsed,
         coinDiscount: pricing.coinDiscount,
         coinDebtRecovery: pricing.coinDebtRecovery, // Save the recovery amount
-        originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount + pricing.tipAmount,
+        originalTotal: pricing.subtotal + pricing.shippingFee + pricing.taxAmount + pricing.tipAmount + pricing.surgeChargeAmount,
         finalTotal: pricing.totalAmount,
         selectedGift: finalSelectedGift || null,
         tipAmount: pricing.tipAmount,
         instruction: instruction,
+
+        // Surge Surcharge
+        surgeCharges: pricing.surgeCharges || [],
+        // Legacy compatibility
+        surgeCharge: {
+          name: pricing.surgeCharges?.length > 0 ? pricing.surgeCharges.map(c => c.name).join(' + ') : '',
+          amount: pricing.surgeChargeAmount
+        },
 
         // Dual Location Fields
         liveLocation: liveLocation,
@@ -403,11 +418,16 @@ class OrderService {
   /**
    * Calculate order pricing with tax and discounts
    */
-  async calculatePricing(rawSubtotal, taxRate = 0, rawDiscount = 0, pincode = null, tipAmount = 0, coinDiscountInRs = 0, coinDebtRecoveryInRs = 0) {
+  async calculatePricing(rawSubtotal, taxRate = 0, rawDiscount = 0, pincode = null, tipAmount = 0, coinDiscountInRs = 0, coinDebtRecoveryInRs = 0, surgeCharges = []) {
     const subtotal = Math.round(rawSubtotal * 100) / 100;
     const discount = Math.round(rawDiscount * 100) / 100;
     const coinDiscount = Math.round(coinDiscountInRs * 100) / 100;
     const coinDebtRecovery = Math.round(coinDebtRecoveryInRs * 100) / 100;
+
+    // Calculate sum of all surges
+    const surgeAmount = Array.isArray(surgeCharges)
+      ? surgeCharges.reduce((sum, item) => sum + Math.round((item.amount || 0) * 100) / 100, 0)
+      : 0;
 
     // The amount that actually determines if delivery is free
     const netPayableForShippingCheck = subtotal - discount - coinDiscount + coinDebtRecovery;
@@ -431,7 +451,7 @@ class OrderService {
     const finalShippingFee = (subtotal > 0 && netPayableForShippingCheck < freeDeliveryThreshold) ? shippingFee : 0;
 
     const taxAmount = (subtotal * taxRate) / 100;
-    let totalAmount = subtotal + finalShippingFee + taxAmount + tipAmount - discount - coinDiscount + coinDebtRecovery;
+    let totalAmount = subtotal + finalShippingFee + taxAmount + tipAmount - discount - coinDiscount + coinDebtRecovery + surgeAmount;
     if (totalAmount < 0) totalAmount = 0;
 
     return {
@@ -443,6 +463,8 @@ class OrderService {
       coinDiscount: coinDiscount,
       coinDebtRecovery: coinDebtRecovery,
       tipAmount: Math.round(tipAmount * 100) / 100,
+      surgeCharges,
+      surgeChargeAmount: surgeAmount,
       totalAmount: Math.round(totalAmount * 100) / 100
     };
   }

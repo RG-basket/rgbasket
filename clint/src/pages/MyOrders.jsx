@@ -653,6 +653,17 @@ const MyOrders = () => {
         <div class="total-row"><span>Shipping Fee:</span><span>₹${order.shippingFee.toFixed(2)}</span></div>
         ${order.discountAmount > 0 ? `<div class="total-row" style="color: #059669;"><span>Discount:</span><span>-₹${order.discountAmount.toFixed(2)}</span></div>` : ''}
         ${order.coinDiscount > 0 ? `<div class="total-row" style="color: #b45309;"><span>RG Coins Used:</span><span>-₹${order.coinDiscount.toFixed(2)}</span></div>` : ''}
+        ${Array.isArray(order.surgeCharges) && order.surgeCharges.length > 0 ? order.surgeCharges.map(charge => `
+        <div class="total-row" style="color: #b45309;">
+          <span>⚡ ${charge.name}:</span>
+          <span>+₹${Number(charge.amount || 0).toFixed(2)}</span>
+        </div>
+        `).join('') : (order.surgeCharge?.amount > 0 ? `
+        <div class="total-row" style="color: #b45309;">
+          <span>⚡ ${order.surgeCharge.name || 'Surge Surcharge'}:</span>
+          <span>+₹${order.surgeCharge.amount.toFixed(2)}</span>
+        </div>
+        ` : '')}
         <div class="total-row final"><span>TOTAL AMOUNT:</span><span>₹${order.totalAmount.toFixed(2)}</span></div>
       </div>
 
@@ -1191,6 +1202,20 @@ const MyOrders = () => {
                                     <span>- ₹{order.coinDiscount?.toFixed(2)}</span>
                                   </div>
                                 )}
+
+                                {Array.isArray(order.surgeCharges) && order.surgeCharges.length > 0 ? (
+                                  order.surgeCharges.map((charge, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs font-bold text-amber-600">
+                                      <span className="flex items-center gap-1">⚡ {charge.name}</span>
+                                      <span>+ ₹{Number(charge.amount || 0).toFixed(2)}</span>
+                                    </div>
+                                  ))
+                                ) : (order.surgeCharge?.amount > 0 && (
+                                  <div className="flex justify-between text-xs font-bold text-amber-600">
+                                    <span className="flex items-center gap-1">⚡ {order.surgeCharge.name || 'Surge Surcharge'}</span>
+                                    <span>+ ₹{order.surgeCharge.amount.toFixed(2)}</span>
+                                  </div>
+                                ))}
                                 <div className="pt-3 border-t-2 border-gray-200 space-y-2">
                                   <div className="flex justify-between items-center">
                                     <span className="text-sm font-black text-gray-900">Total Amount</span>

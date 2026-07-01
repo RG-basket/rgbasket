@@ -4,11 +4,12 @@ import { motion } from 'framer-motion';
 import { FiSend, FiBell, FiCheckCircle, FiAlertCircle, FiLoader, FiUsers, FiSmartphone, FiGlobe, FiSearch } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAppContext } from '../../context/AppContext';
-
 const AdminNotifications = () => {
     const { API_URL } = useAppContext();
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
     const [targetPath, setTargetPath] = useState('/');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
@@ -20,6 +21,51 @@ const AdminNotifications = () => {
     useEffect(() => {
         fetchSubscribers();
     }, []);
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Only image files are allowed');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        setUploading(true);
+        const toastId = toast.loading('Uploading banner image...');
+
+        try {
+            const token = localStorage.getItem('adminToken');
+            const response = await axios.post(
+                `${API_URL}/api/admin/notifications/upload-image`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            if (response.data.success) {
+                setImageUrl(response.data.imageUrl);
+                toast.dismiss(toastId);
+                toast.success('Banner uploaded successfully!');
+            } else {
+                toast.dismiss(toastId);
+                toast.error('Failed to upload image');
+            }
+        } catch (error) {
+            console.error('Image upload failed:', error);
+            toast.dismiss(toastId);
+            toast.error(error.response?.data?.message || 'Failed to upload image. Please ensure VITE_API_URL in your clint/.env points to your local server (http://localhost:5000) while testing.');
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const fetchSubscribers = async () => {
         setFetchingSubscribers(true);
@@ -52,7 +98,7 @@ const AdminNotifications = () => {
             const token = localStorage.getItem('adminToken');
             await axios.post(
                 `${API_URL}/api/admin/notifications/send-to-user`,
-                { userId, title, body, data: { path: targetPath } },
+                { userId, title, body, data: { path: targetPath, image: imageUrl } },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             toast.success(`Sent to ${userName}`);
@@ -83,7 +129,10 @@ const AdminNotifications = () => {
                 { 
                     title, 
                     body, 
-                    data: { path: targetPath } 
+                    data: { 
+                        path: targetPath,
+                        image: imageUrl 
+                    } 
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -98,6 +147,7 @@ const AdminNotifications = () => {
                 // Reset form
                 setTitle('');
                 setBody('');
+                setImageUrl('');
             }
         } catch (error) {
             console.error('Broadcast failed:', error);
@@ -165,6 +215,65 @@ const AdminNotifications = () => {
 
                         <div>
                             <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
+                                Notification Banner Image (Optional)
+                            </label>
+                            
+                            <div className="space-y-3">
+                                {/* Upload Box */}
+                                <div className="flex items-center gap-3">
+                                    <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 hover:border-emerald-500 rounded-2xl p-4 cursor-pointer transition-all bg-gray-50/50 hover:bg-emerald-50/10">
+                                        <div className="flex flex-col items-center justify-center text-center">
+                                            {uploading ? (
+                                                <>
+                                                    <FiLoader className="animate-spin text-emerald-600 mb-1" size={20} />
+                                                    <span className="text-xs text-emerald-600 font-bold">Uploading to Cloudinary...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FiGlobe className="text-gray-400 mb-1" size={20} />
+                                                    <span className="text-xs text-gray-600 font-bold">Click to upload image</span>
+                                                    <span className="text-[10px] text-gray-400 mt-0.5">Supports PNG, JPG, WEBP (Max 5MB)</span>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            onChange={handleImageUpload} 
+                                            disabled={uploading} 
+                                            className="hidden" 
+                                        />
+                                    </label>
+                                    
+                                    {imageUrl && (
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-100 shrink-0 relative group shadow-sm">
+                                            <img src={imageUrl} alt="Uploaded Banner" className="w-full h-full object-cover" />
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setImageUrl('')}
+                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Manual input fallback */}
+                                <div className="relative">
+                                    <input
+                                        type="url"
+                                        value={imageUrl}
+                                        onChange={(e) => setImageUrl(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-xs font-medium"
+                                        placeholder="Or paste banner image URL manually..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
                                 On Click: Open Path
                             </label>
                             <div className="relative">
@@ -214,6 +323,14 @@ const AdminNotifications = () => {
                             </div>
                             <h4 className="text-white text-xs md:text-sm font-bold truncate">{title || 'Notification Title'}</h4>
                             <p className="text-white/80 text-[10px] md:text-xs line-clamp-2 mt-0.5 leading-relaxed">{body || 'This is how your message will appear on users\' phones.'}</p>
+                            {imageUrl && (
+                                <img 
+                                    src={imageUrl} 
+                                    alt="Banner Preview" 
+                                    className="mt-2.5 w-full h-24 object-cover rounded-xl border border-white/10 shadow-sm"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                            )}
                         </div>
                     </div>
 

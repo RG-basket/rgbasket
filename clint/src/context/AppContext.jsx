@@ -143,6 +143,9 @@ export const AppContextProvider = ({ children }) => {
   // Maintenance Mode state
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
+  // Active Surges state
+  const [activeSurges, setActiveSurges] = useState([]);
+
   const fetchMaintenanceMode = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/system-config/maintenance`);
@@ -151,6 +154,17 @@ export const AppContextProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching maintenance mode status:', error);
+    }
+  };
+
+  const fetchSurgeConfig = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/system-config/surge`);
+      if (response.data && response.data.success && response.data.activeSurges) {
+        setActiveSurges(response.data.activeSurges);
+      }
+    } catch (error) {
+      console.error('Error fetching active surges:', error);
     }
   };
 
@@ -179,15 +193,20 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => {
     fetchRewardSettings();
     fetchMaintenanceMode();
+    fetchSurgeConfig();
     // Pre-warm the server with a simple ping if reward settings fail or take long
     axios.get(`${API_URL}/api/health`).catch(() => { });
 
     const handleFocus = () => {
       fetchMaintenanceMode();
+      fetchSurgeConfig();
     };
     window.addEventListener('focus', handleFocus);
-    // Poll maintenance status every 1 minute
-    const interval = setInterval(fetchMaintenanceMode, 60000);
+    // Poll maintenance and surge status every 1 minute
+    const interval = setInterval(() => {
+      fetchMaintenanceMode();
+      fetchSurgeConfig();
+    }, 60000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
@@ -616,12 +635,12 @@ export const AppContextProvider = ({ children }) => {
         } catch (nativeError) {
           const errStr = (nativeError?.message || nativeError?.toString() || "").toLowerCase();
           const useCredManager = !errStr.includes("credential");
-          
+
           console.warn(`Native Google Login failed, retrying (useCredentialManager: ${useCredManager})...`, nativeError);
-          
+
           // Wait longer for system dialogs/activities to stabilize
           await new Promise(resolve => setTimeout(resolve, 1500));
-          
+
           const result = await FirebaseAuthentication.signInWithGoogle({
             useCredentialManager: useCredManager
           });
@@ -936,9 +955,9 @@ export const AppContextProvider = ({ children }) => {
   // Refetch products when slot changes (for manual changes), avoiding duplicate fetch on startup
   useEffect(() => {
     if (slotInitialized) {
-      const slotChanged = !prevSlotRef.current || 
-                          prevSlotRef.current.date !== selectedSlot?.date || 
-                          prevSlotRef.current.timeSlot !== selectedSlot?.timeSlot;
+      const slotChanged = !prevSlotRef.current ||
+        prevSlotRef.current.date !== selectedSlot?.date ||
+        prevSlotRef.current.timeSlot !== selectedSlot?.timeSlot;
       if (slotChanged) {
         prevSlotRef.current = selectedSlot;
         fetchProducts();
@@ -1391,7 +1410,9 @@ export const AppContextProvider = ({ children }) => {
     rewardSettings,
     isNative: Capacitor.isNativePlatform(),
     maintenanceMode,
-    fetchMaintenanceMode
+    fetchMaintenanceMode,
+    activeSurges,
+    fetchSurgeConfig
   };
 
   return (

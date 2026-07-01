@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { adminLogin, getAdminDashboard } = require('../controllers/adminController');
 const { authenticateAdmin } = require('../middleware/auth');
+const { uploadBannerImage } = require('../middleware/upload');
 const CoinService = require('../services/CoinService');
 const User = require('../models/User'); 
 const XLSX = require('xlsx');
@@ -659,6 +660,33 @@ router.post('/notifications/send-to-user', authenticateAdmin, async (req, res) =
   } catch (error) {
     console.error('Send to user error:', error);
     res.status(500).json({ success: false, message: 'Failed to send notification' });
+  }
+});
+
+// Upload image for notification banner
+router.post('/notifications/upload-image', authenticateAdmin, (req, res, next) => {
+  uploadBannerImage(req, res, (err) => {
+    if (err) {
+      console.error('Multer upload error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'Image is too large. Maximum size allowed is 10MB.' });
+      }
+      return res.status(400).json({ success: false, message: err.message || 'Failed to upload image' });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image file uploaded' });
+    }
+    res.json({
+      success: true,
+      imageUrl: req.file.path
+    });
+  } catch (error) {
+    console.error('Notification image upload error:', error);
+    res.status(500).json({ success: false, message: 'Failed to upload image' });
   }
 });
 

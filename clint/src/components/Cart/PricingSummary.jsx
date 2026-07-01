@@ -23,7 +23,8 @@ const PricingSummary = ({
     tipAmount = 0,
     instruction = "",
     coinDiscount = 0,
-    coinDebtRecovery = 0
+    coinDebtRecovery = 0,
+    surgeCharges = []
 }) => {
     const { isNonVegTheme } = useAppContext();
     const [isExpanded, setIsExpanded] = useState(false);
@@ -146,6 +147,18 @@ const PricingSummary = ({
                         <span className={`font-bold text-${accentColor}-700`}>{currencySymbol}{tipAmount}</span>
                     </div>
                 )}
+
+                {/* Surge Charges */}
+                {Array.isArray(surgeCharges) && surgeCharges.map((charge, idx) => (
+                    <div key={idx} className="flex justify-between items-center mt-2 bg-amber-500/10 p-2 rounded-lg border border-amber-500/25 border-dashed animate-in fade-in slide-in-from-top-1 duration-500">
+                        <div className="flex flex-col">
+                            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                                <span className="animate-pulse">⚡</span> {charge.name}
+                            </span>
+                        </div>
+                        <span className="font-bold text-amber-700">+{currencySymbol}{Number(charge.amount || 0).toFixed(2)}</span>
+                    </div>
+                ))}
 
                 {/* Tax */}
                 <div className="flex justify-between text-gray-400 mt-2 mb-2">

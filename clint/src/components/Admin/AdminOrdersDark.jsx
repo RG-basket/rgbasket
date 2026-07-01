@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus, Trash2, ExternalLink, CameraOff, Info, User, AlertTriangle } from 'lucide-react';
+import { Search, Eye, Edit, RefreshCw, Package, Truck, CheckCircle, XCircle, Clock, MapPin, Plus, Trash2, ExternalLink, CameraOff, Info, User, AlertTriangle, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -71,7 +71,14 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
   const roundedCoinDiscount = Math.round(coinDiscount * 100) / 100;
   const roundedCoinDebtRecovery = Math.round(coinDebtRecovery * 100) / 100;
 
-  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip - roundedDiscount - roundedCoinDiscount + roundedCoinDebtRecovery;
+  let surgeChargeAmount = 0;
+  if (Array.isArray(order.surgeCharges) && order.surgeCharges.length > 0) {
+    surgeChargeAmount = order.surgeCharges.reduce((sum, item) => sum + Math.round((item.amount || 0) * 100) / 100, 0);
+  } else if (order.surgeCharge?.amount) {
+    surgeChargeAmount = Math.round(order.surgeCharge.amount * 100) / 100;
+  }
+
+  let totalAmount = roundedSubtotal + roundedShipping + roundedTax + roundedTip + surgeChargeAmount - roundedDiscount - roundedCoinDiscount + roundedCoinDebtRecovery;
   if (totalAmount < 0) totalAmount = 0;
   totalAmount = Math.round(totalAmount * 100) / 100;
 
@@ -83,6 +90,8 @@ const recalculateOrderTotals = (order, serviceAreas = []) => {
     discountAmount: roundedDiscount,
     coinDiscount: roundedCoinDiscount,
     coinDebtRecovery: roundedCoinDebtRecovery,
+    surgeCharges: Array.isArray(order.surgeCharges) ? order.surgeCharges : (order.surgeCharge?.amount ? [order.surgeCharge] : []),
+    surgeChargeAmount,
     totalAmount
   };
 };
@@ -127,6 +136,88 @@ const AdminOrdersDark = () => {
   });
   const [partners, setPartners] = useState([]);
   const [assigningRider, setAssigningRider] = useState(false);
+
+  // Custom Surge Surcharge States
+  const [customCharges, setCustomCharges] = useState([{ name: '', amount: '' }]);
+  const [applyingSurge, setApplyingSurge] = useState(false);
+
+  // Prefill surge fields when order selection changes
+  useEffect(() => {
+    if (selectedOrder) {
+      if (Array.isArray(selectedOrder.surgeCharges) && selectedOrder.surgeCharges.length > 0) {
+        setCustomCharges(selectedOrder.surgeCharges.map(c => ({ name: c.name, amount: String(c.amount) })));
+      } else if (selectedOrder.surgeCharge?.amount) {
+        setCustomCharges([{ name: selectedOrder.surgeCharge.name || 'Surge Surcharge', amount: String(selectedOrder.surgeCharge.amount) }]);
+      } else {
+        setCustomCharges([{ name: '', amount: '' }]);
+      }
+    } else {
+      setCustomCharges([{ name: '', amount: '' }]);
+    }
+  }, [selectedOrder]);
+
+  const handleAddCustomChargeRow = () => {
+    setCustomCharges(prev => [...prev, { name: '', amount: '' }]);
+  };
+
+  const handleRemoveCustomChargeRow = (index) => {
+    setCustomCharges(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleCustomChargeChange = (index, field, value) => {
+    setCustomCharges(prev => prev.map((item, idx) => idx === index ? { ...item, [field]: value } : item));
+  };
+
+  const handleApplyCustomSurge = async (orderId) => {
+    // Validate rows
+    const validatedCharges = [];
+    for (const c of customCharges) {
+      if (!c.name.trim() && c.amount === '') continue; // ignore empty rows
+      if (!c.name.trim()) {
+        toast.error('Please enter a name for all surcharge items');
+        return;
+      }
+      const amtNum = Number(c.amount);
+      if (isNaN(amtNum) || amtNum < 0) {
+        toast.error('Please enter a valid non-negative amount');
+        return;
+      }
+      validatedCharges.push({ name: c.name.trim(), amount: amtNum });
+    }
+
+    setApplyingSurge(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/admin/orders/${orderId}/apply-surge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          charges: validatedCharges
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Surge charges updated successfully!`);
+        
+        if (data.order) {
+          setSelectedOrder(data.order);
+          setOrders(prev => prev.map(o => o._id === orderId ? data.order : o));
+        }
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to apply surge charges');
+      }
+    } catch (error) {
+      console.error('Error applying surges:', error);
+      toast.error(error.message || 'Error applying surges');
+    } finally {
+      setApplyingSurge(false);
+    }
+  };
 
   const handleSelectOrder = (orderId) => {
     setSelectedOrderIds(prev =>
@@ -1051,6 +1142,17 @@ const AdminOrdersDark = () => {
           <span>-₹${order.coinDiscount.toFixed(2)}</span>
         </div>
         ` : ''}
+        ${Array.isArray(order.surgeCharges) && order.surgeCharges.length > 0 ? order.surgeCharges.map(charge => `
+        <div class="total-row" style="color: #d97706;">
+          <span>⚡ ${charge.name}:</span>
+          <span>+₹${Number(charge.amount || 0).toFixed(2)}</span>
+        </div>
+        `).join('') : (order.surgeCharge?.amount > 0 ? `
+        <div class="total-row" style="color: #d97706;">
+          <span>⚡ ${order.surgeCharge.name || 'Surge Surcharge'}:</span>
+          <span>+₹${order.surgeCharge.amount.toFixed(2)}</span>
+        </div>
+        ` : '')}
         <div class="total-row final">
           <span>TOTAL AMOUNT:</span>
           <span>₹${order.totalAmount.toFixed(2)}</span>
@@ -1991,6 +2093,73 @@ const AdminOrdersDark = () => {
                   </div>
                 )}
 
+                {/* Apply Surge Surcharge Action */}
+                {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                  <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]/30 space-y-4`}>
+                    <div className="flex justify-between items-center border-b border-[#3b4261]/50 pb-2">
+                      <h3 className={`text-[10px] uppercase font-black tracking-widest ${tw.textSecondary} flex items-center gap-2`}>
+                        <Settings className="w-3.5 h-3.5 text-[#ff9e64]" /> Apply Surge Surcharge
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomChargeRow}
+                        className="text-[10px] text-[#ff9e64] hover:underline flex items-center gap-1 font-bold"
+                      >
+                        + Add Row
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {customCharges.map((charge, idx) => (
+                        <div key={idx} className="flex gap-3 items-end">
+                          <div className="flex-1">
+                            <label className="block text-[9px] text-gray-400 font-bold mb-1">Surge Reason Name</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Rain Surge"
+                              value={charge.name}
+                              onChange={(e) => handleCustomChargeChange(idx, 'name', e.target.value)}
+                              className={`w-full text-xs px-3 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-1 focus:ring-[#ff9e64] ${tw.textPrimary}`}
+                            />
+                          </div>
+                          <div className="w-32">
+                            <label className="block text-[9px] text-gray-400 font-bold mb-1">Surge Amount (₹)</label>
+                            <input
+                              type="number"
+                              required
+                              placeholder="0"
+                              min="0"
+                              value={charge.amount}
+                              onChange={(e) => handleCustomChargeChange(idx, 'amount', e.target.value)}
+                              className={`w-full text-xs px-3 py-2 ${tw.bgInput} border ${tw.borderPrimary} rounded-lg focus:outline-none focus:ring-1 focus:ring-[#ff9e64] ${tw.textPrimary}`}
+                            />
+                          </div>
+                          {customCharges.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCustomChargeRow(idx)}
+                              className="text-xs bg-[#f7768e]/10 text-[#f7768e] hover:bg-[#f7768e] hover:text-white px-2.5 py-2 rounded-lg border border-[#f7768e]/20 transition-all font-bold"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-end pt-2 border-t border-[#3b4261]/30">
+                      <AdminButtonDark
+                        size="sm"
+                        isLoading={applyingSurge}
+                        onClick={() => handleApplyCustomSurge(selectedOrder._id)}
+                        className="bg-[#ff9e64]/20 text-[#ff9e64] hover:bg-[#ff9e64]/30 border border-[#ff9e64]/30"
+                      >
+                        Apply Surcharges
+                      </AdminButtonDark>
+                    </div>
+                  </div>
+                )}
 
                 {/* Order Items */}
                 <div className="space-y-4">
@@ -2115,6 +2284,20 @@ const AdminOrdersDark = () => {
                           <span className="text-amber-400 font-bold">- ₹{displayOrder.coinDiscount?.toFixed(2)}</span>
                         </div>
                       )}
+
+                      {Array.isArray(displayOrder.surgeCharges) && displayOrder.surgeCharges.length > 0 ? (
+                        displayOrder.surgeCharges.map((charge, index) => (
+                          <div key={index} className="flex justify-between items-center text-xs sm:text-sm border-t border-dashed border-gray-700 pt-2">
+                            <span className="text-[#ff9e64] font-bold flex items-center gap-1">⚡ {charge.name}</span>
+                            <span className="text-[#ff9e64] font-bold">+ ₹{Number(charge.amount || 0).toFixed(2)}</span>
+                          </div>
+                        ))
+                      ) : (displayOrder.surgeChargeAmount > 0 && (
+                        <div className="flex justify-between items-center text-xs sm:text-sm border-t border-dashed border-gray-700 pt-2">
+                          <span className="text-[#ff9e64] font-bold flex items-center gap-1">⚡ {displayOrder.surgeCharge?.name || 'Surge Surcharge'}</span>
+                          <span className="text-[#ff9e64] font-bold">+ ₹{displayOrder.surgeChargeAmount?.toFixed(2)}</span>
+                        </div>
+                      ))}
 
                       {displayOrder.tipAmount > 0 && (
                         <div className="flex justify-between items-center text-xs sm:text-sm border-t border-dashed border-gray-700 pt-2">

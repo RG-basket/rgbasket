@@ -42,6 +42,14 @@ class TelegramService {
 
             const loc = order.deliveryLocation?.coordinates?.latitude ? order.deliveryLocation.coordinates : (order.location?.coordinates?.latitude ? order.location.coordinates : null);
 
+            // Surge Surcharges Text
+            let surgeText = '';
+            if (Array.isArray(order.surgeCharges) && order.surgeCharges.length > 0) {
+                surgeText = order.surgeCharges.map(charge => `\n⚡ <b>${escapeHTML(charge.name)}:</b> +₹${(charge.amount || 0).toFixed(2)}`).join('');
+            } else if (order.surgeCharge?.amount) {
+                surgeText = `\n⚡ <b>${escapeHTML(order.surgeCharge.name || 'Surge Surcharge')}:</b> +₹${order.surgeCharge.amount.toFixed(2)}`;
+            }
+
             const message = `
 <b>🛍️ NEW ORDER RECEIVED!</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -60,7 +68,7 @@ ${itemsText}
 🚚 <b>Shipping:</b> ₹${order.shippingFee.toFixed(2)} ${order.shippingFee > 29 ? `(Extra Mile incl.)` : ''}
 💝 <b>Rider Tip:</b> ₹${(order.tipAmount || 0).toFixed(2)}
 🏷️ <b>Promo Discount:</b> -₹${(order.discountAmount || 0).toFixed(2)}
-🪙 <b>RG Coins Used:</b> -₹${(order.coinDiscount || 0).toFixed(2)} (${order.coinsUsed || 0} pts)
+🪙 <b>RG Coins Used:</b> -₹${(order.coinDiscount || 0).toFixed(2)} (${order.coinsUsed || 0} pts)${surgeText}
 ━━━━━━━━━━━━━━━━━━━━
 ✨ <b>FINAL TOTAL:</b> <b>₹${order.totalAmount.toFixed(2)}</b>
 💰 <b>PAYMENT:</b> <b>${order.paymentMethod?.replace(/_/g, ' ').toUpperCase() || 'N/A'}</b>

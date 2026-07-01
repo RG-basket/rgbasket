@@ -910,4 +910,78 @@ router.delete('/admin/orders/:orderId', authenticateAdmin, async (req, res) => {
   }
 });
 
+// POST /admin/orders/:id/apply-surge - Admin route to manually apply/override multiple surges on an existing order
+router.post('/admin/orders/:id/apply-surge', authenticateAdmin, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    let { name, amount, charges } = req.body;
+
+    // Backward compatibility wrapper
+    if (!Array.isArray(charges)) {
+      if (typeof amount === 'number') {
+        charges = [{ name: name || 'Surge Surcharge', amount }];
+      } else {
+        charges = [];
+      }
+    }
+
+    // Validate charges
+    for (const c of charges) {
+      if (typeof c.amount !== 'number' || c.amount < 0 || !c.name) {
+        return res.status(400).json({ success: false, message: 'Each surge charge must have a name and a non-negative amount' });
+      }
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Block changes if the order has been delivered or cancelled
+    if (order.status === 'delivered' || order.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: `Cannot modify a ${order.status} order` });
+    }
+
+    // Calculate previous surge sum (support both legacy object and array)
+    let previousSurgeSum = 0;
+    if (Array.isArray(order.surgeCharges) && order.surgeCharges.length > 0) {
+      previousSurgeSum = order.surgeCharges.reduce((sum, item) => sum + (item.amount || 0), 0);
+    } else if (order.surgeCharge?.amount) {
+      previousSurgeSum = order.surgeCharge.amount;
+    }
+
+    // Calculate new surge sum
+    const newSurgeSum = charges.reduce((sum, item) => sum + (item.amount || 0), 0);
+    
+    // Adjust totalAmount, finalTotal, originalTotal based on the difference
+    const diff = newSurgeSum - previousSurgeSum;
+    order.totalAmount = Math.round((order.totalAmount + diff) * 100) / 100;
+    order.finalTotal = Math.round((order.finalTotal + diff) * 100) / 100;
+    order.originalTotal = Math.round((order.originalTotal + diff) * 100) / 100;
+
+    // Save surge charges details
+    order.surgeCharges = charges;
+    // Keep legacy field populated for compatibility
+    order.surgeCharge = {
+      name: charges.length > 0 ? charges.map(c => c.name).join(' + ') : '',
+      amount: newSurgeSum
+    };
+
+    await order.save();
+
+    res.json({
+      success: true,
+      message: `Surcharges totaling ₹${newSurgeSum} applied to order successfully.`,
+      order
+    });
+
+  } catch (error) {
+    console.error('💥 Error applying surge charges to order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to apply surge charges: ' + error.message
+    });
+  }
+});
+
 module.exports = router;

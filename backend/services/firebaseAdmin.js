@@ -77,7 +77,11 @@ const FirebaseAdminService = {
             if (tokenList.length === 0) return null;
 
             const message = {
-                notification: { title, body },
+                notification: { 
+                    title, 
+                    body,
+                    ...(data && (data.image || data.imageUrl) ? { image: data.image || data.imageUrl } : {})
+                },
                 data: {
                     ...data,
                     click_action: 'FLUTTER_NOTIFICATION_CLICK', // For legacy mobile
@@ -138,7 +142,11 @@ const FirebaseAdminService = {
             let totalSuccess = 0;
             for (const batch of batches) {
                 const message = {
-                    notification: { title, body },
+                    notification: { 
+                        title, 
+                        body,
+                        ...(data && (data.image || data.imageUrl) ? { image: data.image || data.imageUrl } : {})
+                    },
                     data: data || {}, // Ensure data is an object
                     tokens: batch
                 };

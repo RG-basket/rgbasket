@@ -232,7 +232,15 @@ const OrderSchema = new mongoose.Schema({
       longitude: { type: Number }
     },
     isForcefullyDelivered: { type: Boolean, default: false }
-  }
+  },
+  surgeCharge: {
+    name: { type: String, default: '' },
+    amount: { type: Number, default: 0 }
+  },
+  surgeCharges: [{
+    name: { type: String, required: true },
+    amount: { type: Number, required: true }
+  }]
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

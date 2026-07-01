@@ -57,6 +57,57 @@ const PushNotificationManager = () => {
         }
     };
 
+    const showBeautifulToast = (title, body, imageUrl, clickAction = '/') => {
+        toast.custom((t) => (
+            <div
+                className={`${
+                    t.visible ? 'animate-enter' : 'animate-leave'
+                } max-w-md w-full bg-white dark:bg-gray-950 shadow-2xl rounded-2xl pointer-events-auto flex flex-col overflow-hidden border border-gray-100 dark:border-gray-900 transition-all duration-300 cursor-pointer hover:shadow-emerald-100/50`}
+                onClick={() => {
+                    toast.dismiss(t.id);
+                    if (clickAction) {
+                        window.location.href = clickAction;
+                    }
+                }}
+            >
+                <div className="p-4 flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <span className="text-xl">🛒</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                            {title}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
+                            {body}
+                        </p>
+                    </div>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toast.dismiss(t.id);
+                        }}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors text-xs font-bold px-2 py-1 shrink-0"
+                    >
+                        Dismiss
+                    </button>
+                </div>
+                {imageUrl && (
+                    <div className="px-4 pb-4">
+                        <img 
+                            src={imageUrl} 
+                            alt="Banner" 
+                            className="w-full h-36 object-cover rounded-xl border border-gray-50 dark:border-gray-900 shadow-sm"
+                        />
+                    </div>
+                )}
+            </div>
+        ), {
+            duration: 6000,
+            position: 'top-right'
+        });
+    };
+
     const registerPushWeb = async () => {
         console.log('🔔 Starting Web Push registration...');
         try {
@@ -85,10 +136,11 @@ const PushNotificationManager = () => {
                     saveTokenToBackend(token, 'web');
                     onMessage(messagingInstance, (payload) => {
                         console.log('Foreground message received:', payload);
-                        toast(`🔔 ${payload.notification?.title}: ${payload.notification?.body}`, {
-                            duration: 5000,
-                            icon: '🛒',
-                        });
+                        const title = payload.notification?.title || (payload.data && payload.data.title) || 'RG Basket';
+                        const body = payload.notification?.body || (payload.data && payload.data.body) || '';
+                        const imageUrl = payload.notification?.image || (payload.data && (payload.data.image || payload.data.imageUrl)) || null;
+                        const path = (payload.data && payload.data.path) || '/';
+                        showBeautifulToast(title, body, imageUrl, path);
                     });
                 } else {
                     console.warn('⚠️ No token generated');
@@ -128,10 +180,11 @@ const PushNotificationManager = () => {
 
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Native push received:', notification);
-            toast(`🔔 ${notification.title}: ${notification.body}`, {
-                duration: 5000,
-                icon: '🛒',
-            });
+            const title = notification.title || 'RG Basket';
+            const body = notification.body || '';
+            const imageUrl = notification.data?.image || notification.data?.imageUrl || null;
+            const path = notification.data?.path || '/';
+            showBeautifulToast(title, body, imageUrl, path);
         });
 
         await PushNotifications.register();
