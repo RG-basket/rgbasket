@@ -71,6 +71,7 @@ import SlotManager from "./components/Admin/SlotManagerDark.jsx";
 import ProtectedRoute from "./components/Auth/ProtectedRoute.jsx";
 import LoginGuard from "./components/Auth/LoginGuard.jsx";
 import InstallPopup from "./components/Install/InstallPopup.jsx";
+import PlayStorePopup from "./components/Install/PlayStorePopup.jsx";
 import PhoneCollectionPopup from "./components/User/PhoneCollectionPopup.jsx";
 import InstamartLiveOrderCard from "./components/Instamart/InstamartLiveOrderCard.jsx";
 import InstamartFloatingBar from "./components/Instamart/InstamartFloatingBar.jsx";
@@ -219,6 +220,7 @@ const App = () => {
       <ScrollToTop />
       {!isAdminPath && !isRiderPath && <LoginGuard />}
       {!isAdminPath && !isRiderPath && <InstallPopup />}
+      {!isAdminPath && !isRiderPath && <PlayStorePopup />}
       {!isAdminPath && !isRiderPath && <PhoneCollectionPopup />}
 
       {!isAdminPath && !isRiderPath && (

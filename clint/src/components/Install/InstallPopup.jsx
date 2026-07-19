@@ -18,6 +18,13 @@ const InstallPopup = () => {
             return;
         }
 
+        // 🛑 DO NOT SHOW ON ANDROID MOBILE: Let the PlayStorePopup handle Android users
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        const isAndroid = /Android/i.test(userAgent);
+        if (isAndroid) {
+            return;
+        }
+
         const handleBeforeInstallPrompt = (e) => {
             // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
