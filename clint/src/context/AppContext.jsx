@@ -202,6 +202,16 @@ export const AppContextProvider = ({ children }) => {
       fetchSurgeConfig();
     };
     window.addEventListener('focus', handleFocus);
+
+    // Sync context state when token is silently refreshed in interceptors
+    const handleSessionRefreshed = (e) => {
+      const { userProfile } = e.detail;
+      console.log('🔄 [AppContext] Syncing context user state with silently refreshed session token.');
+      setUser(userProfile);
+      setIsLoggedIn(true);
+    };
+    window.addEventListener('session-refreshed', handleSessionRefreshed);
+
     // Poll maintenance and surge status every 1 minute
     const interval = setInterval(() => {
       fetchMaintenanceMode();
@@ -210,6 +220,7 @@ export const AppContextProvider = ({ children }) => {
 
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('session-refreshed', handleSessionRefreshed);
       clearInterval(interval);
     };
   }, []);

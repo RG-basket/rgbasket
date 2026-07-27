@@ -17,7 +17,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
     state: initialData?.state || '',
     pincode: initialData?.pincode || '',
     landmark: initialData?.landmark || '',
-    isDefault: initialData?.isDefault ?? true
+    isDefault: initialData?.isDefault ?? true,
+    location: initialData?.location || null
   });
 
   const [loading, setLoading] = useState(false);
@@ -149,7 +150,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
         state: initialData.state || '',
         pincode: initialData.pincode || '',
         landmark: initialData.landmark || '',
-        isDefault: initialData.isDefault ?? true
+        isDefault: initialData.isDefault ?? true,
+        location: initialData.location || null
       });
       setPincodeStatus('valid');
       setPhoneValidation({
@@ -171,7 +173,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
         state: '',
         pincode: '',
         landmark: '',
-        isDefault: true
+        isDefault: true,
+        location: null
       });
       setPincodeStatus(null);
       setPhoneValidation({
@@ -217,7 +220,13 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
             // This avoids confusing users with potentially incorrect GPS pincode
             setFormData(prev => ({
               ...prev,
-              landmark: 'Location Captured'
+              landmark: 'Location Captured',
+              location: {
+                type: 'Point',
+                coordinates: [longitude, latitude],
+                accuracy: position.coords.accuracy || 0,
+                capturedAt: new Date().toISOString()
+              }
             }));
 
             toast.success('Location detected - Please enter your pincode manually');
@@ -251,6 +260,12 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
       [name]: type === 'checkbox' ? checked : value
     };
 
+    // If street, locality, pincode or city fields are edited, clear the coordinates
+    // since they no longer correspond to the typed text address.
+    if (name === 'street' || name === 'locality' || name === 'pincode' || name === 'city') {
+      newFormData.location = null;
+    }
+ 
     setFormData(newFormData);
 
     // Validate pincode in real-time
@@ -394,7 +409,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
         pincode: formData.pincode,
         landmark: formData.landmark,
         isDefault: formData.isDefault,
-        user: userId
+        user: userId,
+        location: formData.location
       };
 
       const url = initialData?._id 
@@ -451,6 +467,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
             landmark: formData.landmark,
             isDefault: formData.isDefault,
             user: userId,
+            location: formData.location,
             createdAt: initialData?.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };

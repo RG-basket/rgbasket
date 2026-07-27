@@ -46,6 +46,16 @@ const orderLimiter = rateLimit({
 // Create new order from cart
 router.post('/', authenticateUser, orderLimiter, checkBanned, async (req, res) => {
   try {
+    // Check if maintenance mode is enabled
+    const SystemConfig = require('../models/SystemConfig');
+    const maintenanceConfig = await SystemConfig.findOne({ key: 'maintenanceMode' });
+    if (maintenanceConfig && maintenanceConfig.value === true) {
+      return res.status(503).json({
+        success: false,
+        message: 'Ordering is temporarily disabled due to system maintenance. Please check back later.'
+      });
+    }
+
     console.log('🔍 Order creation request body:', JSON.stringify(req.body, null, 2));
 
     // Ownership check: Caller must be placing order for their own ID or be admin

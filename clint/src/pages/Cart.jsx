@@ -60,7 +60,8 @@ const Cart = () => {
     serviceAreas,
     rewardSettings,
     refreshUserCoins,
-    activeSurges
+    activeSurges,
+    maintenanceMode
   } = useAppContext();
   const navigate = useNavigate();
   const summaryRef = useRef(null);
@@ -327,6 +328,16 @@ const Cart = () => {
   // Automatically request location when entering cart
   useEffect(() => {
     const initLocation = async () => {
+      // 1. If the selected address already has coordinates, skip prompting for location
+      if (selectedAddress?.location?.coordinates && selectedAddress.location.coordinates.length === 2) {
+        const [lng, lat] = selectedAddress.location.coordinates;
+        if (lat && lng) {
+          console.log('📍 Address already has saved coordinates, skipping prompt.');
+          setShowLocationPrompt(false);
+          return;
+        }
+      }
+
       // Already have a location cached from this session — skip everything
       // This prevents the popup showing again when the user navigates back to Cart
       if (orderLocation) {
@@ -366,7 +377,7 @@ const Cart = () => {
       }
     };
     initLocation();
-  }, []); // intentionally empty — runs once per mount, but exits early if location is cached
+  }, [selectedAddress]); // Dependency array includes selectedAddress
 
   const handleAcceptLocation = async () => {
     setShowLocationPrompt(false);
@@ -665,6 +676,11 @@ const Cart = () => {
   };
 
   const placeOrder = async () => {
+    if (maintenanceMode) {
+      toast.error("Ordering is temporarily disabled due to system maintenance. Please try again later.");
+      return;
+    }
+
     if (!selectedAddress) {
       toast.error("Please add a delivery address first!");
       setShowAddressForm(true);
@@ -727,6 +743,24 @@ const Cart = () => {
       console.log('📍 Getting location data for order...');
       let locationData = orderLocation;
 
+      // 1. Try to use coordinates from saved address if available
+      if (!locationData && selectedAddress?.location?.coordinates && selectedAddress.location.coordinates.length === 2) {
+        const [lng, lat] = selectedAddress.location.coordinates;
+        if (lat && lng) {
+          locationData = {
+            coordinates: {
+              latitude: lat,
+              longitude: lng
+            },
+            accuracy: selectedAddress.location.accuracy || 0,
+            timestamp: selectedAddress.location.capturedAt || new Date().toISOString(),
+            source: 'saved_address'
+          };
+          console.log('📍 Reusing verified coordinates from selected address:', locationData);
+        }
+      }
+
+      // 2. Otherwise trigger device GPS capture (fallback)
       if (!locationData) {
         // Try a fast 3-second capture if we don't have it yet
         locationData = await Promise.race([
@@ -735,6 +769,39 @@ const Cart = () => {
         ]);
       }
       console.log('📍 Location data resolved (or timed out):', locationData);
+
+      // 3. If location was freshly captured (not reused from saved address) and we have a selected address,
+      // silently save it back to the address in the database so it's cached for future orders!
+      if (locationData && locationData.source !== 'saved_address' && selectedAddress?._id) {
+        try {
+          const updatePayload = {
+            ...selectedAddress,
+            location: {
+              type: 'Point',
+              coordinates: [locationData.coordinates.longitude, locationData.coordinates.latitude],
+              accuracy: locationData.accuracy || 0,
+              capturedAt: new Date()
+            }
+          };
+          // Call API to save coordinates to address
+          fetch(`${import.meta.env.VITE_API_URL}/api/addresses/${selectedAddress._id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatePayload)
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data?.success) {
+                console.log('✅ Silently saved captured coordinates to address for future use.');
+              }
+            })
+            .catch(err => console.warn('Failed to silently update address coordinates:', err));
+        } catch (e) {
+          console.warn('Silent address coordinate save error:', e);
+        }
+      }
 
       const orderItems = cartArray.map(item => ({
         productId: item._id,
@@ -1282,7 +1349,7 @@ const Cart = () => {
         <div className="flex flex-col mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">
             Shopping Cart
-            <span className="text-xs sm:text-sm text-green-600 font-medium ml-2 opacity-60">
+            <span className="text-xs sm:text-sm text-[var(--brand-primary)] font-medium ml-2 opacity-60">
               {Object.values(cartItems).reduce((sum, qty) => sum + qty, 0)} Items
             </span>
           </h1>
@@ -1291,11 +1358,11 @@ const Cart = () => {
           {cartArray.length > 0 && (
             <div
               onClick={() => summaryRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="lg:hidden flex items-center justify-between bg-emerald-600/5 border border-emerald-600/10 px-4 py-3 rounded-2xl cursor-pointer active:scale-[0.98] transition-all"
+              className="lg:hidden flex items-center justify-between bg-[var(--brand-primary)]/5 border border-[var(--brand-primary)]/10 px-4 py-3 rounded-2xl cursor-pointer active:scale-[0.98] transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-emerald-800/60 uppercase tracking-widest leading-none mb-1">Total Bill</span>
+                  <span className="text-[10px] font-bold text-[var(--brand-dark)]/60 uppercase tracking-widest leading-none mb-1">Total Bill</span>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xl font-black text-gray-900 leading-none">{currencySymbol}{totalAmount}</span>
                     {shippingFee > 0 && (
@@ -1306,13 +1373,13 @@ const Cart = () => {
                   </div>
                 </div>
                 {totalSavings > 0 && (
-                  <div className="hidden xs:flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-emerald-100 shadow-sm">
-                    <span className="text-[10px] font-bold text-emerald-600 whitespace-nowrap">Saved {currencySymbol}{totalSavings}</span>
+                  <div className="hidden xs:flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-[var(--brand-primary)]/10 shadow-sm">
+                    <span className="text-[10px] font-bold text-[var(--brand-primary)] whitespace-nowrap">Saved {currencySymbol}{totalSavings}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-emerald-200/50">
+              <div className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-[var(--brand-dark)]/10">
                 <span>Checkout</span>
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />

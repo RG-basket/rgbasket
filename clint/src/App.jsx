@@ -198,9 +198,10 @@ const App = () => {
   // Removed Escape key listener to strictly enforce "dismissible only via X button"
   // as per requirements.
 
-  if (maintenanceMode && !isAdminPath && !isRiderPath) {
-    return <MaintenancePage />;
-  }
+  // Disabling full screen maintenance block to allow browsing
+  // if (maintenanceMode && !isAdminPath && !isRiderPath) {
+  //   return <MaintenancePage />;
+  // }
 
   return (
     <div className={`min-h-screen flex flex-col justify-between transition-colors duration-500 bg-site ${isNonVegTheme ? 'theme-red' : 'theme-default'}`}>
@@ -227,6 +228,16 @@ const App = () => {
         <>
           <Navbar onProfileToggle={setIsProfileOpen} />
           <CategoryStrip />
+          {maintenanceMode && (
+            <div className="bg-amber-500/10 backdrop-blur-md border-b border-amber-500/20 text-amber-800 text-center py-2.5 px-4 text-xs sm:text-sm font-medium flex items-center justify-center gap-2.5 z-40 shadow-[0_2px_10px_rgba(245,158,11,0.05)] transition-all">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
+              </span>
+              <span className="font-semibold tracking-wide">Browsing Mode Active:</span>
+              <span className="opacity-90">Store is under maintenance. Placing orders is temporarily disabled.</span>
+            </div>
+          )}
           <CartSync />
 
           {/* Show Live Order Bar ONLY on Home AND only if cart is empty */}

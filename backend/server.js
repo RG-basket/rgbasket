@@ -246,7 +246,7 @@ app.post('/api/auth/google', async (req, res) => {
       const token = jwt.sign(
         { id: user._id.toString(), email: user.email, role: user.role || 'user' },
         process.env.JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '90d' }
       );
 
       res.status(200).json({
@@ -340,7 +340,7 @@ app.post('/api/auth/google', async (req, res) => {
       const token = jwt.sign(
         { id: updatedUser._id.toString(), email: updatedUser.email, role: updatedUser.role || 'user' },
         process.env.JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '90d' }
       );
 
       console.log('New user created:', user.email);
