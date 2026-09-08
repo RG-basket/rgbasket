@@ -9,19 +9,42 @@ const CategoryStrip = () => {
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null); // nothing clicked initially
 
+  // Sort categories: 1st Seafood -> Vegetables -> Poultry (Chicken) -> Mutton -> Rest -> Fruits (last)
+  const sortCategories = (list) => {
+    if (!Array.isArray(list)) return [];
+    const getRank = (name = '', slug = '') => {
+      const val = `${name} ${slug}`.toLowerCase();
+      if (val.includes('fish') || val.includes('seafood')) return 1;
+      if (val.includes('veg')) return 2;
+      if (val.includes('poultry') || val.includes('chicken')) return 3;
+      if (val.includes('mutton') || val.includes('goat') || val.includes('lamb')) return 4;
+      if (val.includes('fruit')) return 999;
+      return 50;
+    };
+
+    return [...list].sort((a, b) => {
+      const diff = getRank(a.name, a.slug) - getRank(b.name, b.slug);
+      if (diff !== 0) return diff;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  };
+
   // Fetch categories with caching
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        // Clear old un-ordered cache
+        localStorage.removeItem('categories_cache');
+
         // Check cache first
-        const cached = localStorage.getItem('categories_cache');
+        const cached = localStorage.getItem('categories_cache_v2');
         if (cached) {
           const parsedCache = JSON.parse(cached);
           const now = Date.now();
           // Cache valid for 1 hour
-          if (parsedCache.timestamp && (now - parsedCache.timestamp) < 3600000) {
+          if (parsedCache.timestamp && (now - parsedCache.timestamp) < 3600000 && Array.isArray(parsedCache.data)) {
             console.log('✅ Using cached categories');
-            setCategories(parsedCache.data);
+            setCategories(sortCategories(parsedCache.data));
             return;
           }
         }
@@ -31,17 +54,18 @@ const CategoryStrip = () => {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
         const data = await res.json();
 
-        if (data.success) {
+        if (data.success && Array.isArray(data.categories)) {
           const formatted = data.categories.map(cat => ({
             name: cat.name,
             emoji: cat.emoji,
             slug: cat.name.toLowerCase().replace(/\s+/g, '-')
           }));
-          setCategories(formatted);
+          const sorted = sortCategories(formatted);
+          setCategories(sorted);
 
           // Store in cache
-          localStorage.setItem('categories_cache', JSON.stringify({
-            data: formatted,
+          localStorage.setItem('categories_cache_v2', JSON.stringify({
+            data: sorted,
             timestamp: Date.now()
           }));
         } else {

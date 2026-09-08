@@ -42,6 +42,21 @@ class TelegramService {
 
             const loc = order.deliveryLocation?.coordinates?.latitude ? order.deliveryLocation.coordinates : (order.location?.coordinates?.latitude ? order.location.coordinates : null);
 
+            const isGiftOrder = Boolean(order.orderForSomeoneElse?.isOrderingForSomeoneElse);
+            const recipientName = escapeHTML(order.orderForSomeoneElse?.recipientName || '');
+            const recipientPhone = escapeHTML(order.orderForSomeoneElse?.recipientPhone || '');
+
+            let orderForSomeoneElseBanner = '';
+            if (isGiftOrder) {
+                orderForSomeoneElseBanner = `
+🎁 <b>ORDER FOR SOMEONE ELSE!</b>
+━━━━━━━━━━━━━━━━━━━━
+👤 <b>Ordered By (Buyer):</b> ${customerName} (📞 <code>${customerPhone}</code>)
+🎯 <b>Deliver To (Receiver):</b> <b>${recipientName}</b>
+📱 <b>Receiver Phone:</b> <code>${recipientPhone}</code>
+`;
+            }
+
             // Surge Surcharges Text
             let surgeText = '';
             if (Array.isArray(order.surgeCharges) && order.surgeCharges.length > 0) {
@@ -50,13 +65,19 @@ class TelegramService {
                 surgeText = `\n⚡ <b>${escapeHTML(order.surgeCharge.name || 'Surge Surcharge')}:</b> +₹${order.surgeCharge.amount.toFixed(2)}`;
             }
 
+            const addrType = order.shippingAddress?.addressType || 'Home';
+            const addrIcon = addrType === 'Office' ? '🏢' : addrType === 'Other' ? '📍' : '🏠';
+            const addrTypeLabel = addrType === 'Other' && order.shippingAddress?.otherLabel
+                ? `Other - ${escapeHTML(order.shippingAddress.otherLabel)}`
+                : addrType;
+
             const message = `
 <b>🛍️ NEW ORDER RECEIVED!</b>
 ━━━━━━━━━━━━━━━━━━━━
 🆔 <b>Order ID:</b> #${orderId.toString().slice(-8).toUpperCase()}
-👤 <b>Customer:</b> ${customerName}
+${isGiftOrder ? orderForSomeoneElseBanner : `👤 <b>Customer:</b> ${customerName}
 📞 <b>Phone:</b> <code>${customerPhone}</code>
-📧 <b>Email:</b> ${customerEmail}
+📧 <b>Email:</b> ${customerEmail}`}
 
 <b>🛒 ORDERED ITEMS (${totalItemsCount}):</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -79,13 +100,12 @@ ${itemsText}
 📅 <b>Delivery:</b> ${new Date(order.deliveryDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
 ⏰ <b>Slot:</b> ${deliverySlot}
 
-📍 <b>DELIVERY ADDRESS:</b>
+📍 <b>${isGiftOrder ? `DELIVERY ADDRESS (Receiver: ${recipientName})` : `DELIVERY ADDRESS (${addrIcon} ${addrTypeLabel})`}:</b>
 ━━━━━━━━━━━━━━━━━━━━
-<b>${customerName}</b>
+<b>${isGiftOrder ? recipientName : customerName}</b>
 ${escapeHTML(order.shippingAddress?.street)}, ${escapeHTML(order.shippingAddress?.locality)}
 ${escapeHTML(order.shippingAddress?.city)} - ${escapeHTML(order.shippingAddress?.pincode)}
-${order.shippingAddress?.landmark ? `<b>Landmark:</b> ${escapeHTML(order.shippingAddress.landmark)}` : ''}
-${order.shippingAddress?.alternatePhone ? `<b>Alt Phone:</b> <code>${escapeHTML(order.shippingAddress.alternatePhone)}</code>` : ''}
+${order.shippingAddress?.landmark ? `<b>Landmark:</b> ${escapeHTML(order.shippingAddress.landmark)}\n` : ''}${isGiftOrder ? `📞 <b>Receiver Phone:</b> <code>${recipientPhone}</code>` : (order.shippingAddress?.alternatePhone ? `<b>Alt Phone:</b> <code>${escapeHTML(order.shippingAddress.alternatePhone)}</code>` : '')}
 
 📝 <b>Note:</b> <i>${instruction}</i>
 
@@ -138,6 +158,15 @@ ${(order.liveLocation?.coordinates?.latitude)
                 .map(item => `• ${item.name} (${item.weight}${item.unit}) x${item.quantity}`)
                 .join('\n');
 
+            const isGiftOrder = Boolean(order.orderForSomeoneElse?.isOrderingForSomeoneElse);
+            const receiverName = isGiftOrder ? (order.orderForSomeoneElse.recipientName || 'Recipient') : (order.userInfo?.name || 'Guest');
+            const receiverPhone = isGiftOrder ? (order.orderForSomeoneElse.recipientPhone || order.shippingAddress?.phoneNumber || 'N/A') : (order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A');
+            const buyerInfoLine = isGiftOrder ? `\n👤 <b>Ordered By (Buyer):</b> ${order.userInfo?.name || 'Customer'} (<code>${order.userInfo?.phone || 'N/A'}</code>)` : '';
+
+            const rType = order.shippingAddress?.addressType || 'Home';
+            const rIcon = rType === 'Office' ? '🏢' : rType === 'Other' ? '📍' : '🏠';
+            const rLabel = rType === 'Other' && order.shippingAddress?.otherLabel ? `Other (${order.shippingAddress.otherLabel})` : rType;
+
             const message = `
 🛵 <b>ORDER PICKED UP!</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -150,11 +179,11 @@ ${(order.liveLocation?.coordinates?.latitude)
 📞 <b>Phone:</b> <code>${rider.phone}</code>
 🚗 <b>Vehicle:</b> ${rider.vehiclePlateNumber || 'N/A'}
 
-👤 <b>CUSTOMER:</b>
+👤 <b>${isGiftOrder ? 'DELIVER TO (RECEIVER):' : 'CUSTOMER:'}</b>
 ━━━━━━━━━━━━━━━━━━━━
-🙍 <b>Name:</b> ${order.userInfo?.name || 'Guest'}
-📱 <b>Phone:</b> <code>${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</code>
-📍 <b>Address:</b> ${order.shippingAddress.street}, ${order.shippingAddress.locality}, ${order.shippingAddress.city}
+🙍 <b>Name:</b> ${receiverName}${buyerInfoLine}
+📱 <b>Call Receiver On:</b> <code>${receiverPhone}</code>
+📍 <b>Address (${rIcon} ${rLabel}):</b> ${order.shippingAddress.street}, ${order.shippingAddress.locality}, ${order.shippingAddress.city}
 ${order.shippingAddress.landmark ? `🏷️ <b>Landmark:</b> ${order.shippingAddress.landmark}` : ''}
 
 🛒 <b>ITEMS:</b>

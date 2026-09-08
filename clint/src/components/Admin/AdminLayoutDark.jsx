@@ -30,7 +30,8 @@ const AdminLayoutDark = ({ children }) => {
             label: 'Products',
             children: [
                 { path: '/portal-dashboard/products', label: 'All Products' },
-                { path: '/portal-dashboard/products/bulk-edit', label: 'Bulk Price Editor' }
+                { path: '/portal-dashboard/products/bulk-edit', label: 'Bulk Price Editor' },
+                { path: '/portal-dashboard/products/day-pricing', label: 'Day-Wise Pricing' }
             ]
         },
         { path: '/portal-dashboard/orders', icon: ShoppingCart, label: 'Orders' },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Upload, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { X, Save, Upload, Plus, Trash2, ArrowLeft, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -22,7 +22,8 @@ const ProductForm = () => {
     active: true,
     requiresSlotSelection: false,
     availableSlots: [],
-    isSpecialRequest: false
+    isSpecialRequest: false,
+    specialRequestInfo: ''
   });
 
   const [images, setImages] = useState([]);
@@ -80,7 +81,8 @@ const ProductForm = () => {
           active: product.active,
           requiresSlotSelection: product.requiresSlotSelection || false,
           availableSlots: product.availableSlots || [],
-          isSpecialRequest: product.isSpecialRequest || false
+          isSpecialRequest: product.isSpecialRequest || false,
+          specialRequestInfo: product.specialRequestInfo || ''
         });
         setImagePreviews(product.images || []);
       }
@@ -207,6 +209,7 @@ const ProductForm = () => {
       formDataToSend.append('active', formData.active);
       formDataToSend.append('requiresSlotSelection', formData.requiresSlotSelection);
       formDataToSend.append('isSpecialRequest', formData.isSpecialRequest);
+      formDataToSend.append('specialRequestInfo', formData.specialRequestInfo || '');
 
       formData.availableSlots.forEach(slot => {
         formDataToSend.append('availableSlots', slot);
@@ -440,6 +443,25 @@ const ProductForm = () => {
                 <span className="text-sm text-gray-700">Special Request (WhatsApp)</span>
               </label>
             </div>
+
+            {formData.isSpecialRequest && (
+              <div className="mt-4 p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  Special Request Details / Instructions for Customers
+                </div>
+                <p className="text-xs text-gray-500">
+                  Write the product details, pre-order timelines, cut/cleaning guidelines, or pricing rules that customers will see in the Details popup before placing a special request.
+                </p>
+                <textarea
+                  rows={4}
+                  value={formData.specialRequestInfo || ''}
+                  onChange={(e) => handleInputChange('specialRequestInfo', e.target.value)}
+                  placeholder="e.g. Sourced fresh daily. Minimum order 1.5 kg. Specify Bengali cut, Curry cut, or Boneless on WhatsApp. Order 12 hours ahead for morning delivery."
+                  className="w-full bg-white text-gray-800 border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            )}
           </div>
 
           {/* Slot Availability */}

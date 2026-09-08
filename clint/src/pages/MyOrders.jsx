@@ -612,11 +612,20 @@ const MyOrders = () => {
           <div class="info-item"><span class="info-label">Payment:</span><span class="info-value">${order.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}</span></div>
         </div>
 
+        ${order.orderForSomeoneElse?.isOrderingForSomeoneElse ? `
+        <div class="info-card" style="border: 2px solid #8b5cf6; background: #f5f3ff;">
+          <div class="card-title" style="color: #7c3aed; font-weight: 800;">🎁 ORDER FOR SOMEONE ELSE</div>
+          <div class="info-item"><span class="info-label">Deliver To:</span><span class="info-value" style="font-weight: 700; color: #5b21b6;">${order.orderForSomeoneElse.recipientName}</span></div>
+          <div class="info-item"><span class="info-label">Receiver 📞:</span><span class="info-value" style="font-weight: 700; color: #5b21b6;">${order.orderForSomeoneElse.recipientPhone}</span></div>
+          <div class="info-item"><span class="info-label">Ordered By:</span><span class="info-value">${order.userInfo?.name || 'Customer'} (${order.userInfo?.phone || 'N/A'})</span></div>
+        </div>
+        ` : `
         <div class="info-card">
           <div class="card-title">CUSTOMER INFORMATION</div>
           <div class="info-item"><span class="info-label">Name:</span><span class="info-value">${order.userInfo?.name || order.shippingAddress?.fullName || 'Guest'}</span></div>
           <div class="info-item"><span class="info-label">Phone:</span><span class="info-value">${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</span></div>
         </div>
+        `}
       </div>
 
       <div class="items-section">
@@ -1039,6 +1048,11 @@ const MyOrders = () => {
                           <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${getOrderStatusColor(order.status)}`}>
                             {getDisplayStatus(order.status)}
                           </span>
+                          {order.orderForSomeoneElse?.isOrderingForSomeoneElse && (
+                            <span className="text-[8px] px-2 py-0.5 rounded-full font-bold bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1">
+                              <span>🎁</span> For: {order.orderForSomeoneElse.recipientName}
+                            </span>
+                          )}
                         </div>
                         
                         <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1">
@@ -1115,6 +1129,24 @@ const MyOrders = () => {
                         className="overflow-hidden border-t border-gray-100 bg-gray-50/30"
                       >
                         <div className="p-4 sm:p-6 space-y-6">
+                          {order.orderForSomeoneElse?.isOrderingForSomeoneElse && (
+                            <div className="p-3.5 bg-purple-50/80 border border-purple-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🎁</span>
+                                <div>
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-purple-600 block">
+                                    Ordered for Someone Else
+                                  </span>
+                                  <p className="text-xs font-bold text-purple-950 mt-0.5">
+                                    Deliver To: {order.orderForSomeoneElse.recipientName} (📞 {order.orderForSomeoneElse.recipientPhone})
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-[10px] font-semibold text-purple-700 bg-white/70 px-2.5 py-1 rounded-lg border border-purple-100">
+                                Destination: {order.shippingAddress?.locality || order.shippingAddress?.city || 'Cuttack'}
+                              </div>
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-2">
                             {order.status === 'delivered' && (
                               <>

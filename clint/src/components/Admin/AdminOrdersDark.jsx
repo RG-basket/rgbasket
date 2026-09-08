@@ -997,12 +997,21 @@ const AdminOrdersDark = () => {
           <div class="info-item"><span class="info-label">Payment:</span><span class="info-value">${order.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}</span></div>
         </div>
 
+        ${order.orderForSomeoneElse?.isOrderingForSomeoneElse ? `
+        <div class="info-card" style="border: 2px solid #8b5cf6; background: #f5f3ff;">
+          <div class="card-title" style="color: #7c3aed; font-weight: 800;">🎁 ORDER FOR SOMEONE ELSE</div>
+          <div class="info-item"><span class="info-label">Deliver To:</span><span class="info-value" style="font-weight: 700; color: #5b21b6;">${order.orderForSomeoneElse.recipientName}</span></div>
+          <div class="info-item"><span class="info-label">Receiver 📞:</span><span class="info-value" style="font-weight: 700; color: #5b21b6;">${order.orderForSomeoneElse.recipientPhone}</span></div>
+          <div class="info-item"><span class="info-label">Ordered By:</span><span class="info-value">${order.userInfo?.name || 'Customer'} (${order.userInfo?.phone || 'N/A'})</span></div>
+        </div>
+        ` : `
         <div class="info-card">
           <div class="card-title">CUSTOMER INFORMATION</div>
           <div class="info-item"><span class="info-label">Name:</span><span class="info-value">${order.userInfo?.name || order.shippingAddress?.fullName || 'Guest'}</span></div>
           <div class="info-item"><span class="info-label">Email:</span><span class="info-value">${order.userInfo?.email || 'N/A'}</span></div>
           <div class="info-item"><span class="info-label">Phone:</span><span class="info-value">${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</span></div>
         </div>
+        `}
       </div>
 
       <div class="grid-3">
@@ -1813,6 +1822,26 @@ const AdminOrdersDark = () => {
                       </div>
                     </div>
                   </div>
+
+                {/* Order For Someone Else Banner */}
+                {selectedOrder.orderForSomeoneElse?.isOrderingForSomeoneElse && (
+                  <div className="p-3.5 rounded-xl border border-purple-500/40 bg-purple-500/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-2xl">🎁</span>
+                      <div>
+                        <span className="text-[10px] font-black text-purple-400 uppercase tracking-wider block">
+                          ORDER FOR SOMEONE ELSE
+                        </span>
+                        <p className="text-xs text-purple-200 mt-0.5">
+                          Deliver To: <strong className="text-white font-bold">{selectedOrder.orderForSomeoneElse.recipientName}</strong> (📞 <a href={`tel:${selectedOrder.orderForSomeoneElse.recipientPhone}`} className="underline font-mono text-green-400 font-bold">{selectedOrder.orderForSomeoneElse.recipientPhone}</a>)
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-gray-400 bg-[#1a1b26] px-3 py-1.5 rounded-lg border border-gray-700">
+                      Ordered By: <strong className="text-gray-200">{selectedOrder.userInfo?.name || 'Customer'}</strong> ({selectedOrder.userInfo?.phone || 'N/A'})
+                    </div>
+                  </div>
+                )}
 
                   <div className={`p-4 rounded-xl border ${tw.borderPrimary} bg-[#1a1b26]/30`}>
                     <h3 className={`text-[10px] uppercase font-black tracking-widest ${tw.textSecondary} mb-3 flex items-center gap-2`}>

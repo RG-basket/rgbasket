@@ -27,10 +27,17 @@ const PromoCodeSection = ({ onApply, onRemove, appliedCode, discountAmount, curr
     };
 
     return (
-        <div className="bg-white rounded-2xl border border-emerald-100 p-4 mb-6 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 bg-emerald-100 text-emerald-600 rounded-lg text-xs">🏷️</span>
-                Promo Code
+        <div className="bg-white rounded-2xl border border-emerald-100 p-4 mb-4 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                    <span className="flex items-center justify-center w-6 h-6 bg-emerald-100 text-emerald-600 rounded-lg text-xs">🏷️</span>
+                    Promo Code
+                </span>
+                {appliedCode && (
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Active
+                    </span>
+                )}
             </h3>
 
             {appliedCode ? (

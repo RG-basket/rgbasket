@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Plus, Minus, Check } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext.jsx';
 import { formatWeight } from '../../utils/weightFormatter.js';
+import { getEffectivePrice } from '../../utils/pricingUtils.js';
 
 const VariantSelectionModal = ({ isOpen, onClose, product }) => {
     const { 
@@ -11,7 +12,8 @@ const VariantSelectionModal = ({ isOpen, onClose, product }) => {
         addToCart, 
         updateCartItem, 
         currency = '₹', 
-        getProductStockStatus
+        getProductStockStatus,
+        selectedSlot
     } = useAppContext();
 
     const [isMounted, setIsMounted] = useState(false);
@@ -134,8 +136,9 @@ const VariantSelectionModal = ({ isOpen, onClose, product }) => {
                                     const stockStatus = getProductStockStatus ? getProductStockStatus(product._id, weightObj.originalIndex) : { inStock: true, stock: 10 };
                                     const isAvailable = stockStatus.inStock && stockStatus.stock > 0;
                                     
-                                    const price = Number(weightObj.price) || 0;
-                                    const offerPrice = Number(weightObj.offerPrice) || price;
+                                    const effectivePricing = getEffectivePrice(weightObj, selectedSlot?.date);
+                                    const price = Number(effectivePricing.price) || 0;
+                                    const offerPrice = Number(effectivePricing.offerPrice) || price;
                                     const discount = price > offerPrice ? price - offerPrice : 0;
 
                                     return (

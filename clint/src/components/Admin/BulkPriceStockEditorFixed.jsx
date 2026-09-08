@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, AlertCircle, Search, Filter, RefreshCw, CheckCircle, AlertTriangle, Package, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, X, AlertCircle, Search, Filter, RefreshCw, CheckCircle, AlertTriangle, Package, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -16,6 +16,10 @@ const BulkPriceStockEditorFixed = () => {
     const [categories, setCategories] = useState([]);
     const [editedProducts, setEditedProducts] = useState({});
     const [expandedProducts, setExpandedProducts] = useState({});
+    const [newVariantForms, setNewVariantForms] = useState({});
+    const [isAddingVariant, setIsAddingVariant] = useState({});
+
+    const ALLOWED_UNITS = ['kg', 'g', 'piece', 'pack', 'l', 'ml', 'dozen', 'bundle'];
 
     useEffect(() => {
         fetchProducts();
@@ -60,71 +64,274 @@ const BulkPriceStockEditorFixed = () => {
         }
     };
 
+    const getProductWeights = (product) => {
+        if (editedProducts[product._id]?.weights) {
+            return editedProducts[product._id].weights;
+        }
+        return product.weights || [];
+    };
+
+    const getRealProductStock = (product) => {
+        if (!product) return 0;
+        if (editedProducts[product._id]?.stock !== undefined && editedProducts[product._id]?.stock !== '') {
+            return editedProducts[product._id].stock;
+        }
+        if (product.stock !== undefined && product.stock !== null) {
+            return product.stock;
+        }
+        const weights = editedProducts[product._id]?.weights || product.weights || [];
+        if (weights[0]?.stock !== undefined && weights[0]?.stock !== null && weights[0]?.stock !== '') {
+            return weights[0].stock;
+        }
+        return 0;
+    };
+
     const handleFieldChange = (productId, field, value) => {
+        const product = products.find(p => p._id === productId);
+        const currentWeights = product ? getProductWeights(product) : [];
+        let updatedWeights = currentWeights.map(w => ({ ...w }));
+
+        if (field === 'normalPrice' && updatedWeights.length > 0) {
+            updatedWeights[0].price = value === '' ? '' : parseFloat(value) || 0;
+        }
+        if (field === 'offerPrice' && updatedWeights.length > 0) {
+            updatedWeights[0].offerPrice = value === '' ? '' : parseFloat(value) || 0;
+        }
+        if (field === 'stock') {
+            const stockVal = value === '' ? '' : parseInt(value) || 0;
+            // Sync this real stock quantity to all variants
+            updatedWeights = updatedWeights.map(w => ({
+                ...w,
+                stock: stockVal,
+                inStock: stockVal === '' ? w.inStock : (stockVal > 0)
+            }));
+        }
+        if (field === 'inStock') {
+            const inStockVal = value === true || value === 'true';
+            updatedWeights = updatedWeights.map(w => ({
+                ...w,
+                inStock: inStockVal
+            }));
+        }
+
         setEditedProducts(prev => ({
             ...prev,
             [productId]: {
                 ...prev[productId],
-                [field]: value
+                [field]: value,
+                weights: updatedWeights
             }
         }));
     };
 
     const handleVariantChange = (productId, variantIndex, field, value) => {
+        const product = products.find(p => p._id === productId);
+        if (!product) return;
+
+        const currentWeights = getProductWeights(product);
+        let updatedWeights = currentWeights.map((w, idx) => {
+            if (idx !== variantIndex) return { ...w };
+            return {
+                ...w,
+                [field]: (field === 'price' || field === 'offerPrice')
+                    ? (value === '' ? '' : parseFloat(value) || 0)
+                    : field === 'stock'
+                    ? (value === '' ? '' : parseInt(value) || 0)
+                    : value
+            };
+        });
+
+        const productUpdates = {
+            weights: updatedWeights
+        };
+
+        // If stock is edited in any variant row, treat it as real stock and keep all variants in sync
+        if (field === 'stock') {
+            const stockVal = value === '' ? '' : parseInt(value) || 0;
+            productUpdates.stock = stockVal;
+            productUpdates.weights = updatedWeights.map(w => ({
+                ...w,
+                stock: stockVal,
+                inStock: stockVal === '' ? w.inStock : (stockVal > 0)
+            }));
+        }
+
+        if (field === 'inStock') {
+            const inStockVal = value === true || value === 'true';
+            const anyInStock = updatedWeights.some((w, idx) => idx === variantIndex ? inStockVal : (w.inStock !== false));
+            productUpdates.inStock = anyInStock;
+        }
+
         setEditedProducts(prev => ({
             ...prev,
             [productId]: {
                 ...prev[productId],
-                variants: {
-                    ...prev[productId]?.variants,
-                    [variantIndex]: {
-                        ...prev[productId]?.variants?.[variantIndex],
-                        [field]: value
-                    }
-                }
+                ...productUpdates
             }
         }));
     };
 
+    const handleAddVariant = (productId) => {
+        const product = products.find(p => p._id === productId);
+        if (!product) return;
+
+        const form = newVariantForms[productId] || {};
+        if (!form.weight || String(form.weight).trim() === '') {
+            toast.error('Please enter a weight label (e.g. 500 or 1)');
+            return;
+        }
+        if (form.price === '' || form.price === undefined || Number(form.price) < 0) {
+            toast.error('Please enter a valid Normal Price (MRP)');
+            return;
+        }
+
+        const currentWeights = getProductWeights(product);
+        const normalPrice = parseFloat(form.price) || 0;
+        const offerPrice = (form.offerPrice !== '' && form.offerPrice !== undefined && form.offerPrice !== null)
+            ? parseFloat(form.offerPrice) || 0
+            : normalPrice;
+
+        if (offerPrice > normalPrice) {
+            toast.error('Offer price cannot be higher than Normal price (MRP)');
+            return;
+        }
+
+        // Real product stock is the single inventory pool
+        const realStock = getRealProductStock(product);
+        const numericRealStock = realStock !== '' && realStock !== undefined ? parseInt(realStock) || 0 : 0;
+        const variantStock = (form.stock !== '' && form.stock !== undefined && form.stock !== null)
+            ? (parseInt(form.stock) || 0)
+            : numericRealStock;
+
+        const realInStock = getProductValue(product, 'inStock');
+        const variantInStock = form.inStock !== undefined ? (form.inStock !== false) : (realInStock !== false);
+
+        const newVariant = {
+            weight: String(form.weight).trim(),
+            unit: form.unit || 'kg',
+            price: normalPrice,
+            offerPrice: offerPrice,
+            stock: numericRealStock,
+            inStock: variantInStock,
+            customizationCharge: 0
+        };
+
+        // Ensure all existing variants and the new variant keep the real stock
+        const updatedWeights = currentWeights.map(w => ({
+            ...w,
+            stock: numericRealStock
+        })).concat(newVariant);
+
+        setEditedProducts(prev => ({
+            ...prev,
+            [productId]: {
+                ...prev[productId],
+                weights: updatedWeights,
+                stock: prev[productId]?.stock !== undefined ? prev[productId].stock : numericRealStock,
+                inStock: prev[productId]?.inStock !== undefined ? prev[productId].inStock : variantInStock
+            }
+        }));
+
+        setNewVariantForms(prev => ({
+            ...prev,
+            [productId]: { weight: '', unit: 'kg', price: '', offerPrice: '', stock: numericRealStock, inStock: true }
+        }));
+        setIsAddingVariant(prev => ({
+            ...prev,
+            [productId]: false
+        }));
+
+        toast.success(`Variant (${newVariant.weight} ${newVariant.unit}) added with stock ${numericRealStock}! Click "Save All Changes" to persist.`);
+    };
+
+    const handleRemoveVariant = (productId, variantIndex) => {
+        const product = products.find(p => p._id === productId);
+        if (!product) return;
+
+        const currentWeights = getProductWeights(product);
+        if (currentWeights.length <= 1) {
+            toast.error('A product must have at least one variant.');
+            return;
+        }
+
+        const toRemove = currentWeights[variantIndex];
+        if (!window.confirm(`Are you sure you want to remove variant "${toRemove.weight} ${toRemove.unit}"?`)) {
+            return;
+        }
+
+        const updatedWeights = currentWeights.filter((_, idx) => idx !== variantIndex);
+
+        setEditedProducts(prev => ({
+            ...prev,
+            [productId]: {
+                ...prev[productId],
+                weights: updatedWeights
+            }
+        }));
+
+        toast.success('Variant removed. Click "Save All Changes" to persist.');
+    };
+
     const getProductValue = (product, field) => {
+        if (!product) return '';
         // Check if there's an edited value first
         if (editedProducts[product._id] && editedProducts[product._id][field] !== undefined) {
             return editedProducts[product._id][field];
         }
 
+        if (field === 'stock') {
+            return getRealProductStock(product);
+        }
+
         // Get values from weights array structure
-        const weight = product.weights?.[0] || {};
+        const weights = getProductWeights(product);
+        const weight = weights[0] || {};
 
         if (field === 'normalPrice') {
-            return weight.price || ''; // Normal/MRP price
+            return weight.price !== undefined ? weight.price : '';
         }
         if (field === 'offerPrice') {
-            return weight.offerPrice || ''; // Selling/Discounted price
-        }
-        if (field === 'stock') {
-            return weight.stock || product.stock || 0;
+            return weight.offerPrice !== undefined ? weight.offerPrice : '';
         }
         if (field === 'inStock') {
-            // Priority: weight.inStock -> product.inStock -> true
-            return weight.inStock ?? product.inStock ?? true;
+            return product.inStock !== undefined ? product.inStock : (weight.inStock ?? true);
         }
         return '';
     };
 
     const getVariantValue = (productId, variantIndex, field) => {
         const product = products.find(p => p._id === productId);
-        const weight = product?.weights?.[variantIndex] || {};
+        if (!product) return '';
+        const currentWeights = getProductWeights(product);
+        const weight = currentWeights[variantIndex] || {};
 
-        // Check if there's an edited value first
-        if (editedProducts[productId]?.variants?.[variantIndex]?.[field] !== undefined) {
-            return editedProducts[productId].variants[variantIndex][field];
+        if (field === 'stock') {
+            // Treat the top product stock as the real stock quantity
+            return getRealProductStock(product);
         }
 
-        return weight[field] || '';
+        if (field === 'inStock') {
+            if (weight.inStock !== undefined && weight.inStock !== '' && weight.inStock !== null) {
+                return weight.inStock;
+            }
+            return getProductValue(product, 'inStock');
+        }
+
+        return weight[field] !== undefined ? weight[field] : '';
     };
 
     const isVariantEdited = (productId, variantIndex, field) => {
-        return editedProducts[productId]?.variants?.[variantIndex]?.[field] !== undefined;
+        const product = products.find(p => p._id === productId);
+        if (!product || !editedProducts[productId]?.weights) return false;
+        const originalWeights = product.weights || [];
+        const currentWeights = editedProducts[productId].weights;
+        if (variantIndex >= originalWeights.length) return true; // Newly added variant
+        if (field === 'stock') {
+            const originalStock = product.stock !== undefined ? product.stock : 0;
+            const currentStock = editedProducts[productId]?.stock !== undefined ? editedProducts[productId].stock : originalStock;
+            return originalStock !== currentStock;
+        }
+        return originalWeights[variantIndex]?.[field] !== currentWeights[variantIndex]?.[field];
     };
 
     const handleSaveAll = async () => {
@@ -136,105 +343,75 @@ const BulkPriceStockEditorFixed = () => {
         try {
             const token = localStorage.getItem('adminToken');
 
-            // Process updates sequentially to avoid overwhelming the server
             for (const productId of changedProductIds) {
                 const changes = editedProducts[productId];
                 const originalProduct = products.find(p => p._id === productId);
-
                 if (!originalProduct) continue;
 
-                // Check if we have variant edits
-                const hasVariantEdits = changes.variants && Object.keys(changes.variants).length > 0;
+                let updatedWeights = changes.weights 
+                    ? [...changes.weights] 
+                    : [...(originalProduct.weights || [])];
 
-                if (hasVariantEdits) {
-                    // Handle variant updates
-                    const updatedWeights = [...(originalProduct.weights || [])];
+                // Treat top stock as the real product inventory pool
+                const realStockRaw = changes.stock !== undefined 
+                    ? changes.stock 
+                    : (originalProduct.stock !== undefined ? originalProduct.stock : (updatedWeights[0]?.stock || 0));
+                const realStock = realStockRaw === '' ? 0 : (parseInt(realStockRaw) || 0);
 
-                    Object.keys(changes.variants).forEach(variantIndex => {
-                        const variantChanges = changes.variants[variantIndex];
-                        if (updatedWeights[variantIndex]) {
-                            updatedWeights[variantIndex] = {
-                                ...updatedWeights[variantIndex],
-                                ...variantChanges
-                            };
-                        }
+                const inStockStatus = changes.inStock !== undefined
+                    ? (changes.inStock === true || changes.inStock === 'true')
+                    : (realStock > 0 && originalProduct.inStock !== false);
+
+                // Ensure clean numbers and validity, with each variant inheriting realStock
+                updatedWeights = updatedWeights.map(w => {
+                    const price = parseFloat(w.price) || 0;
+                    const offerPrice = (w.offerPrice !== '' && w.offerPrice !== null && w.offerPrice !== undefined)
+                        ? parseFloat(w.offerPrice) || 0
+                        : price;
+                    return {
+                        ...w,
+                        weight: String(w.weight || '').trim(),
+                        unit: w.unit || 'kg',
+                        price: price,
+                        offerPrice: Math.min(price, offerPrice),
+                        stock: realStock,
+                        inStock: inStockStatus
+                    };
+                });
+
+                const updateData = {
+                    weights: updatedWeights,
+                    stock: realStock,
+                    inStock: inStockStatus
+                };
+
+                try {
+                    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/products/${productId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify(updateData)
                     });
 
-                    const updateData = {
-                        weights: updatedWeights
-                    };
-
-                    try {
-                        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/products/${productId}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`
-                            },
-                            body: JSON.stringify(updateData)
-                        });
-
-                        if (response.ok) {
-                            successCount++;
-                        } else {
-                            failCount++;
-                            console.error(`Failed to update product ${productId}`);
-                        }
-                    } catch (err) {
+                    if (response.ok) {
+                        successCount++;
+                    } else {
                         failCount++;
-                        console.error(`Error updating product ${productId}:`, err);
+                        console.error(`Failed to update product ${productId}`);
                     }
-                } else {
-                    // Handle main product updates (existing logic)
-                    const currentWeight = originalProduct.weights?.[0] || {};
-
-                    const updateData = {
-                        weights: [{
-                            ...currentWeight,
-                            price: changes.normalPrice !== undefined
-                                ? (parseFloat(changes.normalPrice) || 0)
-                                : (currentWeight.price || 0),
-                            offerPrice: changes.offerPrice !== undefined
-                                ? (parseFloat(changes.offerPrice) || 0)
-                                : (currentWeight.offerPrice || 0),
-                            stock: changes.stock !== undefined
-                                ? (parseInt(changes.stock) || 0)
-                                : (currentWeight.stock || originalProduct.stock || 0),
-                            inStock: changes.inStock !== undefined
-                                ? changes.inStock
-                                : (currentWeight.inStock ?? originalProduct.inStock ?? true)
-                        }]
-                    };
-
-                    if (changes.stock !== undefined) updateData.stock = parseInt(changes.stock) || 0;
-                    if (changes.inStock !== undefined) updateData.inStock = changes.inStock;
-
-                    try {
-                        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/products/${productId}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`
-                            },
-                            body: JSON.stringify(updateData)
-                        });
-
-                        if (response.ok) {
-                            successCount++;
-                        } else {
-                            failCount++;
-                            console.error(`Failed to update product ${productId}`);
-                        }
-                    } catch (err) {
-                        failCount++;
-                        console.error(`Error updating product ${productId}:`, err);
-                    }
+                } catch (err) {
+                    failCount++;
+                    console.error(`Error updating product ${productId}:`, err);
                 }
             }
 
             if (successCount > 0) {
                 toast.success(`Successfully updated ${successCount} products`);
                 setEditedProducts({});
+                setNewVariantForms({});
+                setIsAddingVariant({});
                 fetchProducts(); // Refresh data
             }
 
@@ -401,6 +578,7 @@ const BulkPriceStockEditorFixed = () => {
                                     filteredProducts.map(product => {
                                         const isEdited = editedProducts[product._id];
                                         const isExpanded = expandedProducts[product._id];
+                                        const productWeights = getProductWeights(product);
 
                                         return (
                                             <React.Fragment key={product._id}>
@@ -419,9 +597,14 @@ const BulkPriceStockEditorFixed = () => {
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                                                {isExpanded ? <ChevronDown className="w-4 h-4 text-[#7aa2f7]" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
                                                                 <div>
-                                                                    <p className={`font-medium ${tw.textPrimary} line-clamp-1`}>{product.name}</p>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <p className={`font-medium ${tw.textPrimary} line-clamp-1`}>{product.name}</p>
+                                                                        <span className="px-1.5 py-0.5 bg-[#7aa2f7]/10 text-[#7aa2f7] border border-[#7aa2f7]/30 rounded text-[10px] font-semibold">
+                                                                            {productWeights.length} variant{productWeights.length > 1 ? 's' : ''}
+                                                                        </span>
+                                                                    </div>
                                                                     <p className={`text-xs ${tw.textSecondary}`}>{product.weight} {product.unit}</p>
                                                                 </div>
                                                             </div>
@@ -478,51 +661,235 @@ const BulkPriceStockEditorFixed = () => {
                                                 </tr>
 
                                                 {/* Variants Dropdown Row */}
-                                                {isExpanded && product.weights && product.weights.length > 1 && (
-                                                    <tr className="bg-[#1a1b26]/50">
-                                                        <td colSpan="6" className="px-4 py-3">
-                                                            <div className="ml-12">
+                                                {isExpanded && (
+                                                    <tr className="bg-[#1a1b26]/60 border-b border-[#414868]/40">
+                                                        <td colSpan="6" className="px-4 py-4">
+                                                            <div className="ml-8 mr-4 space-y-3">
+                                                                {/* Header with Title & Add Variant Button */}
+                                                                <div className="flex items-center justify-between pb-1 border-b border-[#414868]/30">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs font-bold uppercase tracking-wider text-[#7aa2f7]">
+                                                                            Variants for {product.name} ({productWeights.length})
+                                                                        </span>
+                                                                        <span className="text-[11px] text-[#9aa5ce]">
+                                                                            &bull; Manage sizes, MRP, selling price & stock
+                                                                        </span>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const willOpen = !isAddingVariant[product._id];
+                                                                            if (willOpen && !newVariantForms[product._id]) {
+                                                                                setNewVariantForms(prev => ({
+                                                                                    ...prev,
+                                                                                    [product._id]: {
+                                                                                        weight: '',
+                                                                                        unit: 'kg',
+                                                                                        price: '',
+                                                                                        offerPrice: '',
+                                                                                        stock: getRealProductStock(product),
+                                                                                        inStock: true
+                                                                                    }
+                                                                                }));
+                                                                            }
+                                                                            setIsAddingVariant(prev => ({
+                                                                                ...prev,
+                                                                                [product._id]: willOpen
+                                                                            }));
+                                                                        }}
+                                                                        className="px-3 py-1 bg-[#7aa2f7]/20 hover:bg-[#7aa2f7]/30 text-[#7aa2f7] hover:text-white border border-[#7aa2f7]/40 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+                                                                    >
+                                                                        <Plus className="w-3.5 h-3.5" />
+                                                                        {isAddingVariant[product._id] ? 'Cancel Adding' : 'Add New Variant'}
+                                                                    </button>
+                                                                </div>
 
-                                                                <div className="overflow-x-auto">
+                                                                {/* Inline Add Variant Form */}
+                                                                {isAddingVariant[product._id] && (
+                                                                    <div className="p-3.5 bg-[#1f2335] border border-[#7aa2f7]/40 rounded-xl space-y-3 shadow-lg" onClick={(e) => e.stopPropagation()}>
+                                                                        <div className="flex items-center justify-between">
+                                                                            <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                                                                                <Plus className="w-3.5 h-3.5 text-[#7aa2f7]" />
+                                                                                Add New Weight Variant
+                                                                            </p>
+                                                                            <span className="text-[11px] text-[#9aa5ce]">
+                                                                                e.g. 500g, 1kg &bull; Stock auto-inherits {getRealProductStock(product)}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
+                                                                            <div>
+                                                                                <label className="text-[10px] text-[#9aa5ce] uppercase font-semibold block mb-1">Weight Label</label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="e.g. 500 or 1"
+                                                                                    value={newVariantForms[product._id]?.weight || ''}
+                                                                                    onChange={(e) => setNewVariantForms(prev => ({
+                                                                                        ...prev,
+                                                                                        [product._id]: { ...prev[product._id], weight: e.target.value }
+                                                                                    }))}
+                                                                                    className={`w-full px-2.5 py-1.5 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                />
+                                                                            </div>
+
+                                                                            <div>
+                                                                                <label className="text-[10px] text-[#9aa5ce] uppercase font-semibold block mb-1">Unit</label>
+                                                                                <select
+                                                                                    value={newVariantForms[product._id]?.unit || 'kg'}
+                                                                                    onChange={(e) => setNewVariantForms(prev => ({
+                                                                                        ...prev,
+                                                                                        [product._id]: { ...prev[product._id], unit: e.target.value }
+                                                                                    }))}
+                                                                                    className={`w-full px-2.5 py-1.5 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded-lg text-white focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                >
+                                                                                    {ALLOWED_UNITS.map(u => (
+                                                                                        <option key={u} value={u}>{u}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
+
+                                                                            <div>
+                                                                                <label className="text-[10px] text-[#9aa5ce] uppercase font-semibold block mb-1">Normal Price (MRP ₹)</label>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    step="0.01"
+                                                                                    placeholder="e.g. 350"
+                                                                                    value={newVariantForms[product._id]?.price || ''}
+                                                                                    onChange={(e) => setNewVariantForms(prev => ({
+                                                                                        ...prev,
+                                                                                        [product._id]: { ...prev[product._id], price: e.target.value }
+                                                                                    }))}
+                                                                                    className={`w-full px-2.5 py-1.5 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                />
+                                                                            </div>
+
+                                                                            <div>
+                                                                                <label className="text-[10px] text-[#9aa5ce] uppercase font-semibold block mb-1">Offer Price (Selling ₹)</label>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    step="0.01"
+                                                                                    placeholder="e.g. 320"
+                                                                                    value={newVariantForms[product._id]?.offerPrice || ''}
+                                                                                    onChange={(e) => setNewVariantForms(prev => ({
+                                                                                        ...prev,
+                                                                                        [product._id]: { ...prev[product._id], offerPrice: e.target.value }
+                                                                                    }))}
+                                                                                    className={`w-full px-2.5 py-1.5 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                />
+                                                                            </div>
+
+                                                                            <div>
+                                                                                <label className="text-[10px] text-[#9aa5ce] uppercase font-semibold block mb-1">
+                                                                                    Stock Qty (Real: {getRealProductStock(product)})
+                                                                                </label>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    placeholder={String(getRealProductStock(product))}
+                                                                                    value={newVariantForms[product._id]?.stock !== undefined ? newVariantForms[product._id]?.stock : getRealProductStock(product)}
+                                                                                    onChange={(e) => setNewVariantForms(prev => ({
+                                                                                        ...prev,
+                                                                                        [product._id]: { ...prev[product._id], stock: e.target.value }
+                                                                                    }))}
+                                                                                    className={`w-full px-2.5 py-1.5 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                />
+                                                                            </div>
+
+                                                                            <div>
+                                                                                <label className="text-[10px] text-[#9aa5ce] uppercase font-semibold block mb-1">Status</label>
+                                                                                <select
+                                                                                    value={newVariantForms[product._id]?.inStock !== false ? 'true' : 'false'}
+                                                                                    onChange={(e) => setNewVariantForms(prev => ({
+                                                                                        ...prev,
+                                                                                        [product._id]: { ...prev[product._id], inStock: e.target.value === 'true' }
+                                                                                    }))}
+                                                                                    className={`w-full px-2.5 py-1.5 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded-lg text-white focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                >
+                                                                                    <option value="true">In Stock</option>
+                                                                                    <option value="false">Out of Stock</option>
+                                                                                </select>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="flex justify-end gap-2 pt-1 border-t border-[#414868]/30">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setIsAddingVariant(prev => ({ ...prev, [product._id]: false }))}
+                                                                                className="px-3 py-1.5 text-xs text-[#9aa5ce] hover:text-white"
+                                                                            >
+                                                                                Cancel
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleAddVariant(product._id)}
+                                                                                className="px-4 py-1.5 bg-[#7aa2f7] hover:bg-[#7aa2f7]/90 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5"
+                                                                            >
+                                                                                <Plus className="w-3.5 h-3.5" />
+                                                                                Add Variant to Table
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Variants Table */}
+                                                                <div className="overflow-x-auto rounded-xl border border-[#414868]/40">
                                                                     <table className="w-full min-w-full">
                                                                         <thead>
-                                                                            <tr className={`border-b ${tw.borderPrimary}`}>
-                                                                                <th className={`px-3 py-2 text-left text-xs font-medium ${tw.textSecondary} uppercase tracking-wider`}>Variant</th>
+                                                                            <tr className={`border-b ${tw.borderPrimary} bg-[#1f2335]`}>
+                                                                                <th className={`px-3 py-2 text-left text-xs font-medium ${tw.textSecondary} uppercase tracking-wider`}>Variant (Weight & Unit)</th>
                                                                                 <th className={`px-3 py-2 text-left text-xs font-medium ${tw.textSecondary} uppercase tracking-wider`}>Normal Price (₹)</th>
                                                                                 <th className={`px-3 py-2 text-left text-xs font-medium ${tw.textSecondary} uppercase tracking-wider`}>Offer Price (₹)</th>
                                                                                 <th className={`px-3 py-2 text-left text-xs font-medium ${tw.textSecondary} uppercase tracking-wider`}>Stock</th>
                                                                                 <th className={`px-3 py-2 text-left text-xs font-medium ${tw.textSecondary} uppercase tracking-wider`}>Status</th>
+                                                                                <th className={`px-3 py-2 text-right text-xs font-medium ${tw.textSecondary} uppercase tracking-wider`}>Action</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
-                                                                            {product.weights.map((weight, index) => (
-                                                                                <tr key={index} className={`border-b ${tw.borderPrimary} last:border-b-0`}>
-                                                                                    <td className={`px-3 py-2 text-sm ${tw.textPrimary}`}>
-                                                                                        {weight.weight} {weight.unit && `(${weight.unit})`}
-                                                                                    </td>
+                                                                            {productWeights.map((weight, index) => (
+                                                                                <tr key={index} className={`border-b ${tw.borderPrimary} last:border-b-0 hover:bg-[#414868]/20`}>
                                                                                     <td className="px-3 py-2">
+                                                                                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={weight.weight || ''}
+                                                                                                onChange={(e) => handleVariantChange(product._id, index, 'weight', e.target.value)}
+                                                                                                className={`w-16 px-2 py-1 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded text-white focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                                placeholder="Weight"
+                                                                                            />
+                                                                                            <select
+                                                                                                value={weight.unit || 'kg'}
+                                                                                                onChange={(e) => handleVariantChange(product._id, index, 'unit', e.target.value)}
+                                                                                                className={`px-2 py-1 text-xs ${tw.bgSecondary} border ${tw.borderPrimary} rounded text-white focus:outline-none focus:border-[#7aa2f7]`}
+                                                                                            >
+                                                                                                {ALLOWED_UNITS.map(u => (
+                                                                                                    <option key={u} value={u}>{u}</option>
+                                                                                                ))}
+                                                                                            </select>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                                                                                         <input
                                                                                             type="number"
                                                                                             step="0.01"
                                                                                             min="0"
                                                                                             value={getVariantValue(product._id, index, 'price')}
                                                                                             onChange={(e) => handleVariantChange(product._id, index, 'price', e.target.value)}
-                                                                                            className={`w-full px-2 py-1 ${tw.bgSecondary} border ${isVariantEdited(product._id, index, 'price') ? 'border-[#7aa2f7] ring-1 ring-[#7aa2f7]' : tw.borderPrimary} rounded focus:outline-none focus:ring-1 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
+                                                                                            className={`w-24 px-2 py-1 ${tw.bgSecondary} border ${isVariantEdited(product._id, index, 'price') ? 'border-[#7aa2f7] ring-1 ring-[#7aa2f7]' : tw.borderPrimary} rounded focus:outline-none focus:ring-1 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
                                                                                             placeholder="MRP"
                                                                                         />
                                                                                     </td>
-                                                                                    <td className="px-3 py-2">
+                                                                                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                                                                                         <input
                                                                                             type="number"
                                                                                             step="0.01"
                                                                                             min="0"
                                                                                             value={getVariantValue(product._id, index, 'offerPrice')}
                                                                                             onChange={(e) => handleVariantChange(product._id, index, 'offerPrice', e.target.value)}
-                                                                                            className={`w-full px-2 py-1 ${tw.bgSecondary} border ${isVariantEdited(product._id, index, 'offerPrice') ? 'border-[#7aa2f7] ring-1 ring-[#7aa2f7]' : tw.borderPrimary} rounded focus:outline-none focus:ring-1 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
+                                                                                            className={`w-24 px-2 py-1 ${tw.bgSecondary} border ${isVariantEdited(product._id, index, 'offerPrice') ? 'border-[#7aa2f7] ring-1 ring-[#7aa2f7]' : tw.borderPrimary} rounded focus:outline-none focus:ring-1 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
                                                                                             placeholder="Selling"
                                                                                         />
                                                                                     </td>
-                                                                                    <td className="px-3 py-2">
+                                                                                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                                                                                         <input
                                                                                             type="number"
                                                                                             min="0"
@@ -531,15 +898,27 @@ const BulkPriceStockEditorFixed = () => {
                                                                                             className={`w-20 px-2 py-1 ${tw.bgSecondary} border ${isVariantEdited(product._id, index, 'stock') ? 'border-[#7aa2f7] ring-1 ring-[#7aa2f7]' : tw.borderPrimary} rounded focus:outline-none focus:ring-1 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
                                                                                         />
                                                                                     </td>
-                                                                                    <td className="px-3 py-2">
+                                                                                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                                                                                         <select
                                                                                             value={getVariantValue(product._id, index, 'inStock').toString()}
                                                                                             onChange={(e) => handleVariantChange(product._id, index, 'inStock', e.target.value === 'true')}
-                                                                                            className={`w-full px-2 py-1 ${tw.bgSecondary} border ${isVariantEdited(product._id, index, 'inStock') ? 'border-[#7aa2f7] ring-1 ring-[#7aa2f7]' : tw.borderPrimary} rounded focus:outline-none focus:ring-1 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
+                                                                                            className={`px-2 py-1 text-xs ${tw.bgSecondary} border ${isVariantEdited(product._id, index, 'inStock') ? 'border-[#7aa2f7] ring-1 ring-[#7aa2f7]' : tw.borderPrimary} rounded focus:outline-none focus:ring-1 focus:ring-[#7aa2f7] ${tw.textPrimary}`}
                                                                                         >
                                                                                             <option value="true">In Stock</option>
                                                                                             <option value="false">Out of Stock</option>
                                                                                         </select>
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                                                                        {productWeights.length > 1 && (
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => handleRemoveVariant(product._id, index)}
+                                                                                                className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded transition-colors"
+                                                                                                title="Remove this variant"
+                                                                                            >
+                                                                                                <Trash2 className="w-4 h-4" />
+                                                                                            </button>
+                                                                                        )}
                                                                                     </td>
                                                                                 </tr>
                                                                             ))}

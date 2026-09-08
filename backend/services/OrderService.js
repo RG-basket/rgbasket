@@ -36,8 +36,8 @@ class OrderService {
         : "";
 
       console.log('🛒 OrderService receiving data. User:', checkUserId);
-      // Validate products and inventory
-      const validationResult = await this.validateOrderItems(orderData.items);
+      // Validate products and inventory with day-wise dynamic pricing
+      const validationResult = await this.validateOrderItems(orderData.items, orderData.deliveryDate);
       validatedItems = validationResult.validatedItems;
       const subtotal = validationResult.subtotal;
 
@@ -347,11 +347,33 @@ class OrderService {
   }
 
   /**
-   * Validate order items and check inventory
+   * Validate order items and check inventory (with Day-Wise Dynamic Pricing)
    */
-  async validateOrderItems(items) {
+  async validateOrderItems(items, deliveryDate = null) {
     if (!items || items.length === 0) {
       throw new AppError('Order must contain at least one item', 400);
+    }
+
+    // Determine the day of the week (in IST)
+    let orderDayOfWeek = null;
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    if (deliveryDate) {
+      if (deliveryDate instanceof Date && !isNaN(deliveryDate.getTime())) {
+        orderDayOfWeek = days[deliveryDate.getDay()];
+      } else if (typeof deliveryDate === 'string') {
+        const datePart = deliveryDate.split('T')[0];
+        const parts = datePart.split('-');
+        if (parts.length === 3) {
+          const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          if (!isNaN(d.getTime())) {
+            orderDayOfWeek = days[d.getDay()];
+          }
+        }
+      }
+    }
+    if (!orderDayOfWeek) {
+      const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      orderDayOfWeek = days[nowIST.getDay()];
     }
 
     const validatedItems = [];
@@ -366,7 +388,15 @@ class OrderService {
       const productVariant = product.weights.find(w => w.weight === item.weight);
       if (!productVariant) throw new AppError(`Invalid variant for ${product.name}`, 400);
 
-      const price = productVariant.offerPrice || productVariant.price;
+      // Check for day-specific price override
+      let price = productVariant.offerPrice || productVariant.price;
+      if (productVariant.dailyPrices && orderDayOfWeek) {
+        const dayPrice = productVariant.dailyPrices[orderDayOfWeek];
+        if (dayPrice && dayPrice.offerPrice !== undefined && dayPrice.offerPrice !== null && dayPrice.offerPrice > 0) {
+          price = dayPrice.offerPrice;
+        }
+      }
+
       const validatedItem = {
         productId: product._id,
         name: product.name,

@@ -985,9 +985,14 @@ export const AppContextProvider = ({ children }) => {
     if (!product) return { inStock: false, stock: 0 };
 
     const weight = product.weights?.[weightIndex];
+    const isExplicitlyOutOfStock = product.inStock === false || weight?.inStock === false;
+    const effectiveStock = (weight?.stock && weight.stock > 0) 
+      ? weight.stock 
+      : (product.stock !== undefined && product.stock !== null ? product.stock : 0);
+
     return {
-      inStock: weight?.inStock ?? product.inStock ?? false,
-      stock: weight?.stock ?? product.stock ?? 0
+      inStock: !isExplicitlyOutOfStock && effectiveStock > 0,
+      stock: effectiveStock
     };
   };
 

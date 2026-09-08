@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Plus, Search, Filter, MoreVertical, Edit, Trash2,
-    Package, CheckCircle, XCircle, Grid, List, ChevronDown
+    Package, CheckCircle, XCircle, Grid, List, ChevronDown, Calendar
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -164,7 +164,14 @@ const AdminProductsDark = () => {
                         )}
                     </div>
                     <div>
-                        <p className={`font-medium ${tw.textPrimary}`}>{product.name}</p>
+                        <div className="flex items-center gap-2">
+                            <p className={`font-medium ${tw.textPrimary}`}>{product.name}</p>
+                            {product.hasDayWisePricing && (
+                                <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[10px] font-bold">
+                                    📅 Day Rates
+                                </span>
+                            )}
+                        </div>
                         <p className={`text-xs ${tw.textSecondary}`}>{product.weight} {product.unit}</p>
                     </div>
                 </div>
@@ -257,6 +264,15 @@ const AdminProductsDark = () => {
                         <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>Manage your product inventory</p>
                     </div>
                     <div className="flex flex-wrap gap-2 sm:gap-3">
+                        <AdminButtonDark
+                            variant="secondary"
+                            size="sm"
+                            icon={Calendar}
+                            className="flex-1 sm:flex-none"
+                            onClick={() => navigate('/portal-dashboard/products/day-pricing')}
+                        >
+                            Day Pricing
+                        </AdminButtonDark>
                         <AdminButtonDark
                             variant="secondary"
                             size="sm"
@@ -403,7 +419,14 @@ const AdminProductsDark = () => {
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
                                                 <h3 className={`font-medium ${tw.textPrimary} line-clamp-1`}>{product.name}</h3>
-                                                <p className={`text-xs ${tw.textSecondary}`}>{product.category}</p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <p className={`text-xs ${tw.textSecondary}`}>{product.category}</p>
+                                                    {product.hasDayWisePricing && (
+                                                        <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[9px] font-bold">
+                                                            📅 Day Rates
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="text-right">
                                                 {offerPrice > 0 ? (

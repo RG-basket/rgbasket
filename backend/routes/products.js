@@ -139,7 +139,24 @@ router.get('/category/:category', async (req, res) => {
   }
 });
 
-// ADMIN ROUTES
+// Helper to cleanly parse and unwrap description array (prevents nested JSON stringification)
+function parseAndCleanDescription(raw) {
+  if (!raw) return [];
+  let cur = raw;
+  for (let i = 0; i < 5; i++) {
+    if (typeof cur === 'string') {
+      try { cur = JSON.parse(cur); continue; } catch (e) { break; }
+    }
+    if (Array.isArray(cur) && cur.length === 1 && typeof cur[0] === 'string' && cur[0].trim().startsWith('[')) {
+      try { cur = JSON.parse(cur[0]); continue; } catch (e) { break; }
+    }
+    break;
+  }
+  if (Array.isArray(cur)) {
+    return cur.map(s => String(s).trim()).filter(s => s && s !== '[]' && s !== '.');
+  }
+  return cur ? [String(cur).trim()] : [];
+}
 
 // CREATE product (Admin only) - UPDATED FOR CLOUDINARY
 router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
@@ -156,9 +173,9 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
       productData.customizationCharges = JSON.parse(productData.customizationCharges);
     }
 
-    // Parse description if sent as string
-    if (typeof productData.description === 'string') {
-      productData.description = JSON.parse(productData.description);
+    // Parse and normalize description
+    if (productData.description !== undefined) {
+      productData.description = parseAndCleanDescription(productData.description);
     }
 
     // Handle uploaded images from Cloudinary
@@ -199,9 +216,9 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
       productData.customizationCharges = JSON.parse(productData.customizationCharges);
     }
 
-    // Parse description if sent as string
-    if (typeof productData.description === 'string') {
-      productData.description = JSON.parse(productData.description);
+    // Parse and normalize description
+    if (productData.description !== undefined) {
+      productData.description = parseAndCleanDescription(productData.description);
     }
 
     // Handle new images from Cloudinary

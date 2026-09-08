@@ -4,13 +4,15 @@ import toast from 'react-hot-toast';
 import debounce from 'lodash/debounce';
 import { useAppContext } from '../../context/AppContext';
 
-const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
+const AddressForm = ({ user, onAddressSaved, onCancel, initialData, defaultType = 'Home' }) => {
   const { serviceAreas } = useAppContext();
   const [formData, setFormData] = useState({
     fullName: initialData?.fullName || '',
     phoneNumber: initialData?.phoneNumber || '',
     confirmPhoneNumber: initialData?.phoneNumber || '',
     alternatePhone: initialData?.alternatePhone || '',
+    addressType: initialData?.addressType || defaultType || 'Home',
+    otherLabel: initialData?.otherLabel || '',
     street: initialData?.street || '',
     locality: initialData?.locality || '',
     city: initialData?.city || '',
@@ -144,6 +146,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
         phoneNumber: initialData.phoneNumber || '',
         confirmPhoneNumber: initialData.phoneNumber || '',
         alternatePhone: initialData.alternatePhone || '',
+        addressType: initialData.addressType || defaultType || 'Home',
+        otherLabel: initialData.otherLabel || '',
         street: initialData.street || '',
         locality: initialData.locality || '',
         city: initialData.city || '',
@@ -167,6 +171,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
         phoneNumber: '',
         confirmPhoneNumber: '',
         alternatePhone: '',
+        addressType: defaultType || 'Home',
+        otherLabel: '',
         street: '',
         locality: '',
         city: '',
@@ -184,7 +190,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
       });
       setShowBudgetPopup(true);
     }
-  }, [initialData, user]);
+  }, [initialData, user, defaultType]);
 
   // Auto-detect location and fill landmark
   useEffect(() => {
@@ -402,6 +408,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
         fullName: formData.fullName,
         phoneNumber: formData.phoneNumber,
         alternatePhone: formData.alternatePhone,
+        addressType: formData.addressType || 'Home',
+        otherLabel: formData.otherLabel || '',
         street: formData.street,
         locality: formData.locality,
         city: formData.city,
@@ -440,7 +448,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
       }
 
       if (data.success) {
-        toast.success(initialData?._id ? 'Address updated successfully!' : 'Address saved successfully!');
+        toast.success(initialData?._id ? 'Address updated successfully!' : `${formData.addressType || 'Address'} saved successfully!`);
         onAddressSaved(data.address);
       } else {
         throw new Error(data.message || 'Failed to save address');
@@ -459,6 +467,8 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
             fullName: formData.fullName,
             phoneNumber: formData.phoneNumber,
             alternatePhone: formData.alternatePhone,
+            addressType: formData.addressType || 'Home',
+            otherLabel: formData.otherLabel || '',
             street: formData.street,
             locality: formData.locality,
             city: formData.city,
@@ -521,7 +531,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
 
   return (
     <>
-      {/* Budget Constraint Popup */}
+      {/* Budget Constraint Popup - Mobile Optimized */}
       <AnimatePresence>
         {showBudgetPopup && (
           <motion.div
@@ -529,66 +539,66 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60]"
+            className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-[10000]"
           >
             <motion.div
               variants={popupVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"
+              className="bg-white rounded-2xl max-w-sm sm:max-w-md w-full shadow-2xl overflow-hidden"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6">
-                <h3 className="text-2xl font-bold text-white text-center">
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-4 sm:p-5">
+                <h3 className="text-lg sm:text-xl font-bold text-white text-center">
                   Important Notice
                 </h3>
               </div>
 
               {/* Content */}
-              <div className="p-6">
-                <div className="flex justify-center mb-4">
-                  <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+              <div className="p-4 sm:p-5">
+                <div className="flex justify-center mb-3">
+                  <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <p className="text-lg font-medium text-gray-800 text-center">
+                <div className="space-y-3 text-xs sm:text-sm">
+                  <p className="font-bold text-gray-800 text-center">
                     Budget Constraints Notice
                   </p>
 
-                  <div className="space-y-3">
-                    <p className="text-gray-600">
-                      <span className="font-semibold">Important:</span> Due to current budget limitations, we are unable to provide OTP-based phone verification at this time.
+                  <div className="space-y-2 text-gray-600">
+                    <p>
+                      <span className="font-semibold text-gray-800">Important:</span> Due to budget limitations, OTP phone verification is temporarily disabled.
                     </p>
 
-                    <p className="text-gray-600">
-                      <span className="font-semibold">Please double-check:</span>
+                    <p className="font-semibold text-gray-800 pt-0.5">
+                      Please double-check:
                     </p>
 
-                    <ul className="list-disc pl-5 text-gray-600 space-y-1">
+                    <ul className="list-disc pl-4 space-y-1 text-[11px] sm:text-xs">
                       <li>Your phone number is entered correctly</li>
-                      <li>Your delivery address is accurate and complete</li>
-                      <li>All information is verified before saving </li>
+                      <li>Your delivery address is complete and clear</li>
+                      <li>All information is verified before saving</li>
                     </ul>
 
-                    <p className="text-gray-600">
-                      This helps ensure smooth and timely delivery service. Thank you for your understanding!
+                    <p className="text-[11px] sm:text-xs text-gray-500 pt-1">
+                      This helps ensure smooth delivery. Thank you for understanding!
                     </p>
                   </div>
                 </div>
 
                 {/* Action Button */}
-                <div className="mt-6">
+                <div className="mt-4 sm:mt-5">
                   <motion.button
                     type="button"
                     onClick={() => setShowBudgetPopup(false)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-md"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 sm:py-3 px-4 rounded-xl text-xs sm:text-sm transition-all duration-200 shadow-md"
                   >
                     I Understand & Will Double-Check
                   </motion.button>
@@ -599,37 +609,42 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
         )}
       </AnimatePresence>
 
-      {/* Main Address Form */}
+      {/* Main Address Form Modal - Mobile Optimized */}
       <AnimatePresence>
         <motion.div
           variants={backdropVariants}
           initial="hidden"
           animate="visible"
           exit="hidden"
-          className="fixed inset-0 bg-white/80 flex items-center justify-center p-4 z-50"
-          style={{ backdropFilter: "blur(10px)" }}
+          className="fixed inset-0 bg-black/60 sm:bg-white/80 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[9999]"
+          style={{ backdropFilter: "blur(8px)" }}
         >
           <motion.div
             variants={modalVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="bg-white/95 backdrop-blur-lg rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20"
+            className="bg-white rounded-t-3xl sm:rounded-3xl max-w-xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 sm:border-white/20 overscroll-contain"
           >
-            <div className="p-8">
+            {/* Top Sheet Drag Handle on mobile */}
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+            <div className="p-3.5 sm:p-6 pt-1 sm:pt-6">
               {/* Header */}
               <motion.div
                 variants={itemVariants}
-                className="flex justify-between items-center mb-8"
+                className="flex justify-between items-center mb-3 sm:mb-4 pb-2 border-b border-gray-100"
               >
-                <h2 className="text-3xl font-bold text-gray-900">
-                  Add / Edit Delivery <span className="text-[#2e8b57]">Address</span>
-                </h2>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-gray-900 leading-tight">
+                    Add / Edit Delivery <span className="text-emerald-600">Address</span>
+                  </h2>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Please provide accurate details for fast delivery</p>
+                </div>
                 <motion.button
-                  whileHover={{ scale: 1.1, backgroundColor: "rgba(0,0,0,0.1)" }}
+                  whileHover={{ scale: 1.1, backgroundColor: "rgba(0,0,0,0.05)" }}
                   whileTap={{ scale: 0.9 }}
                   onClick={onCancel}
-                  className="text-gray-500 hover:text-gray-700 text-2xl w-10 h-10 flex items-center justify-center rounded-full transition-colors"
+                  className="text-gray-400 hover:text-gray-700 text-lg sm:text-xl w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full transition-colors bg-gray-100 hover:bg-gray-200 shrink-0"
                 >
                   &times;
                 </motion.button>
@@ -639,11 +654,11 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
               {isDetectingLocation && (
                 <motion.div
                   variants={itemVariants}
-                  className="mb-6 p-4 bg-blue-50/80 border border-blue-200 rounded-2xl"
+                  className="mb-2.5 sm:mb-3 p-2 sm:p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    <span className="text-blue-800 font-medium">Detecting your location...</span>
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-b-transparent border-blue-600"></div>
+                    <span className="text-blue-800 text-xs font-medium">Detecting your location...</span>
                   </div>
                 </motion.div>
               )}
@@ -651,58 +666,127 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
               {/* Important Notice */}
               <motion.div
                 variants={itemVariants}
-                className="mb-6 p-6 bg-amber-50/80 backdrop-blur-sm border border-amber-200/50 rounded-2xl"
+                className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-amber-50/90 border border-amber-200/70 rounded-xl flex items-start gap-2.5"
               >
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center mt-0.5">
-                    <span className="text-white text-sm font-bold">!</span>
-                  </div>
-                  <div>
-                    <p className="text-amber-800 font-medium text-lg">
-                      Service Area Notice
-                    </p>
-                    <p className="text-amber-700 mt-1">
-                      We currently deliver only in select areas of Cuttack. Please enter a valid Cuttack pincode to check service availability.
-                    </p>
-                  </div>
+                <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 bg-amber-500 rounded-full flex items-center justify-center mt-0.5 shadow-sm">
+                  <span className="text-white text-[10px] sm:text-xs font-black">!</span>
+                </div>
+                <div>
+                  <p className="text-amber-900 font-bold text-xs sm:text-sm leading-tight">
+                    Service Area Notice
+                  </p>
+                  <p className="text-amber-800 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
+                    We currently deliver only in select areas of Cuttack. Please enter a valid Cuttack pincode to check service availability.
+                  </p>
                 </div>
               </motion.div>
 
-              <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Personal Information */}
-                <motion.div variants={itemVariants} className="space-y-6">
-                  <h3 className="text-2xl font-bold text-gray-900 border-b pb-3">
-                    Personal Details
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                {/* 3-Location Slot Selector */}
+                <motion.div variants={itemVariants} className="space-y-2 bg-emerald-50/40 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-emerald-200/70 shadow-sm">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <label className="block text-lg font-semibold text-gray-800 mb-3">
+                      <label className="block text-xs sm:text-sm font-bold text-gray-900">
+                        Save address as <span className="text-emerald-600">*</span>
+                      </label>
+                      <p className="text-[10px] sm:text-xs text-gray-500">Choose location slot</p>
+                    </div>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-full border border-emerald-200 shadow-sm uppercase tracking-wider">
+                      3 Slots Max
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
+                    {[
+                      { type: 'Home', icon: '🏠', title: 'Home', desc: 'Personal home' },
+                      { type: 'Office', icon: '🏢', title: 'Office / Work', desc: 'Workplace' },
+                      { type: 'Other', icon: '📍', title: 'Other', desc: 'Friends, gym, etc.' }
+                    ].map((item) => {
+                      const isSelected = formData.addressType === item.type;
+                      return (
+                        <motion.button
+                          key={item.type}
+                          type="button"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setFormData(prev => ({ ...prev, addressType: item.type }))}
+                          className={`relative flex flex-col items-center justify-center py-2 px-1 sm:py-3 sm:px-2 rounded-xl border-2 transition-all duration-150 cursor-pointer ${
+                            isSelected
+                              ? 'border-emerald-600 bg-white text-emerald-950 shadow-sm ring-2 ring-emerald-500/20'
+                              : 'border-emerald-100/80 hover:border-emerald-300 bg-white/70 text-gray-700 hover:bg-white'
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="absolute top-1 right-1 text-white font-bold text-[8px] sm:text-[9px] bg-emerald-600 rounded-full w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center shadow">
+                              ✓
+                            </span>
+                          )}
+                          <span className="text-lg sm:text-2xl mb-0.5">{item.icon}</span>
+                          <span className="font-bold text-[11px] sm:text-xs text-center leading-tight">{item.title}</span>
+                          <span className="text-[9px] text-gray-400 hidden sm:block mt-0.5 leading-tight">{item.desc}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+
+                  {formData.addressType === 'Other' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="pt-1.5 border-t border-emerald-100"
+                    >
+                      <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1">
+                        Location Nickname / Label (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        name="otherLabel"
+                        value={formData.otherLabel || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, otherLabel: e.target.value }))}
+                        placeholder="e.g. Parents' House, Gym, Friend's Flat"
+                        className="w-full border border-emerald-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all"
+                        maxLength="30"
+                      />
+                    </motion.div>
+                  )}
+                </motion.div>
+
+                {/* Personal Information */}
+                <motion.div variants={itemVariants} className="space-y-2.5">
+                  <div className="flex items-center gap-1.5 border-b border-gray-100 pb-1">
+                    <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">
+                      Personal Details
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
                         Full Name *
                       </label>
                       <motion.input
-                        whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
+                        whileFocus={{ scale: 1.01, borderColor: "#059669" }}
                         type="text"
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleChange}
-                        className="w-full border-2 border-gray-200 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all duration-150"
                         placeholder="Enter your full name"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-lg font-semibold text-gray-800 mb-3">
+                      <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
                         Phone Number *
                       </label>
                       <motion.input
-                        whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
+                        whileFocus={{ scale: 1.01, borderColor: "#059669" }}
                         type="tel"
                         name="phoneNumber"
                         value={formData.phoneNumber}
                         onChange={handleChange}
-                        className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${phoneValidation.status === 'valid'
+                        className={`w-full border rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all duration-150 ${phoneValidation.status === 'valid'
                           ? 'border-green-500'
                           : phoneValidation.status === 'invalid'
                             ? 'border-red-500'
@@ -716,22 +800,21 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
                   </div>
 
                   {/* Phone Number Confirmation Field */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-lg font-semibold text-gray-800">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] sm:text-xs font-bold text-gray-700">
                         Confirm Phone Number *
                       </label>
 
-                      {/* Manual Verify Button - Shows when both fields have 10 digits but validation hasn't triggered */}
                       {formData.phoneNumber.length === 10 &&
                         formData.confirmPhoneNumber.length === 10 &&
                         phoneValidation.status === 'idle' && (
                           <motion.button
                             type="button"
                             onClick={handleManualVerify}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium px-4 py-2 rounded-lg transition-colors"
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            className="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-md transition-colors"
                           >
                             Verify Match
                           </motion.button>
@@ -739,12 +822,12 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
                     </div>
 
                     <motion.input
-                      whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
+                      whileFocus={{ scale: 1.01, borderColor: "#059669" }}
                       type="tel"
                       name="confirmPhoneNumber"
                       value={formData.confirmPhoneNumber}
                       onChange={handleChange}
-                      className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${phoneValidation.status === 'valid'
+                      className={`w-full border rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all duration-150 ${phoneValidation.status === 'valid'
                         ? 'border-green-500'
                         : phoneValidation.status === 'invalid'
                           ? 'border-red-500'
@@ -759,27 +842,27 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
                     <AnimatePresence>
                       {phoneValidation.showValidation && (
                         <motion.div
-                          initial={{ opacity: 0, y: -10 }}
+                          initial={{ opacity: 0, y: -6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${phoneValidation.status === 'valid'
-                            ? 'text-green-700 bg-green-50/80 border-green-200'
-                            : 'text-red-700 bg-red-50/80 border-red-200'
+                          exit={{ opacity: 0, y: -6 }}
+                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px] sm:text-xs font-medium mt-1.5 ${phoneValidation.status === 'valid'
+                            ? 'text-green-700 bg-green-50 border-green-200'
+                            : 'text-red-700 bg-red-50 border-red-200'
                             }`}
                         >
                           {phoneValidation.status === 'valid' ? (
                             <>
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
-                              <span className="font-medium">{phoneValidation.message}</span>
+                              <span>{phoneValidation.message}</span>
                             </>
                           ) : (
                             <>
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                               </svg>
-                              <span className="font-medium">{phoneValidation.message}</span>
+                              <span>{phoneValidation.message}</span>
                             </>
                           )}
                         </motion.div>
@@ -788,16 +871,16 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
                   </div>
 
                   <div>
-                    <label className="block text-lg font-semibold text-gray-800 mb-3">
-                      ☎️ Alternate Contact Phone / WhatsApp
+                    <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
+                      ☎️ Alternate Contact Phone / WhatsApp <span className="font-normal text-gray-400">(Optional)</span>
                     </label>
                     <motion.input
-                      whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
+                      whileFocus={{ scale: 1.01, borderColor: "#059669" }}
                       type="tel"
                       name="alternatePhone"
                       value={formData.alternatePhone}
                       onChange={handleChange}
-                      className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${formData.alternatePhone && formData.alternatePhone === formData.phoneNumber
+                      className={`w-full border rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all duration-150 ${formData.alternatePhone && formData.alternatePhone === formData.phoneNumber
                         ? 'border-red-500'
                         : 'border-gray-200'
                         }`}
@@ -807,12 +890,12 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
                     <AnimatePresence>
                       {formData.alternatePhone && formData.alternatePhone === formData.phoneNumber && (
                         <motion.div
-                          initial={{ opacity: 0, y: -10 }}
+                          initial={{ opacity: 0, y: -6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="mt-2 text-red-600 text-sm font-medium flex items-center gap-2"
+                          exit={{ opacity: 0, y: -6 }}
+                          className="mt-1 text-red-600 text-[11px] font-medium flex items-center gap-1.5"
                         >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                           Alternate number cannot be same as primary number
@@ -823,256 +906,237 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
                 </motion.div>
 
                 {/* Address Information */}
-                <motion.div variants={itemVariants} className="space-y-6 pt-6 border-t">
-                  <h3 className="text-2xl font-bold text-gray-900 border-b pb-3">
-                    Address Details
-                  </h3>
+                <motion.div variants={itemVariants} className="space-y-2.5 pt-2 border-t border-gray-100">
+                  <div className="flex items-center gap-1.5 border-b border-gray-100 pb-1">
+                    <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">
+                      Address Details
+                    </span>
+                  </div>
 
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-lg font-semibold text-gray-800 mb-3">
-                        Street / House Number *
-                      </label>
-                      <motion.input
-                        whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
-                        type="text"
-                        name="street"
-                        value={formData.street}
-                        onChange={handleChange}
-                        className="w-full border-2 border-gray-200 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200"
-                        placeholder="House no, building, apartment"
-                        required
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
+                      Street / House Number *
+                    </label>
+                    <motion.input
+                      whileFocus={{ scale: 1.01, borderColor: "#059669" }}
+                      type="text"
+                      name="street"
+                      value={formData.street}
+                      onChange={handleChange}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all duration-150"
+                      placeholder="House no, building, apartment"
+                      required
+                    />
+                  </div>
 
-                    <div>
-                      <label className="block text-lg font-semibold text-gray-800 mb-3">
-                        Locality / Area *
-                      </label>
-                      <motion.input
-                        whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
-                        type="text"
-                        name="locality"
-                        value={formData.locality}
-                        onChange={handleChange}
-                        className="w-full border-2 border-gray-200 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200"
-                        placeholder="Area, locality, sector"
-                        required
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
+                      Locality / Area *
+                    </label>
+                    <motion.input
+                      whileFocus={{ scale: 1.01, borderColor: "#059669" }}
+                      type="text"
+                      name="locality"
+                      value={formData.locality}
+                      onChange={handleChange}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all duration-150"
+                      placeholder="Area, locality, landmark nearby"
+                      required
+                    />
+                  </div>
 
-                    {/* Pincode with validation */}
-                    <div className="space-y-3">
-                      <label className="block text-lg font-semibold text-gray-800 mb-3">
-                        Pincode *
-                      </label>
-                      <motion.input
-                        whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
-                        type="text"
-                        name="pincode"
-                        value={formData.pincode}
-                        onChange={handleChange}
-                        className={`w-full border-2 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200 ${pincodeStatus === 'valid'
-                          ? 'border-green-500'
-                          : pincodeStatus === 'invalid'
-                            ? 'border-red-500'
-                            : 'border-gray-200'
-                          }`}
-                        placeholder="6-digit pincode"
-                        maxLength="6"
-                        required
-                      />
+                  {/* Pincode with validation */}
+                  <div>
+                    <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
+                      Pincode *
+                    </label>
+                    <motion.input
+                      whileFocus={{ scale: 1.01, borderColor: "#059669" }}
+                      type="text"
+                      name="pincode"
+                      value={formData.pincode}
+                      onChange={handleChange}
+                      className={`w-full border rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition-all duration-150 ${pincodeStatus === 'valid'
+                        ? 'border-green-500'
+                        : pincodeStatus === 'invalid'
+                          ? 'border-red-500'
+                          : 'border-gray-200'
+                        }`}
+                      placeholder="6-digit pincode"
+                      maxLength="6"
+                      required
+                    />
 
-                      {/* Pincode Status Messages */}
-                      <AnimatePresence>
-                        {pincodeStatus === 'valid' && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="mt-2 text-green-600 text-sm font-medium flex flex-col gap-2"
-                          >
-                            <div className="flex items-center gap-3 text-green-700 bg-green-50/80 px-4 py-3 rounded-xl border border-green-200">
-                              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                              <span className="font-medium">✅ Serviceable area: {serviceAreas.find(p => p.pincode === formData.pincode)?.name}</span>
-                            </div>
-                            {deliveryInfo && (
-                              <div className="bg-emerald-50/40 p-5 rounded-2xl border-2 border-emerald-100 shadow-sm mt-3">
-                                <div className="flex justify-between items-center pb-3 border-b border-emerald-100 mb-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2 h-5 bg-emerald-500 rounded-full"></div>
-                                    <span className="text-sm font-bold text-emerald-900">Delivery Information</span>
-                                  </div>
-                                  <span className="text-[10px] font-black text-emerald-600 bg-white px-3 py-1 rounded-full border border-emerald-100 uppercase tracking-widest shadow-sm">
-                                    Cuttack Region
-                                  </span>
+                    {/* Pincode Status Messages */}
+                    <AnimatePresence>
+                      {pincodeStatus === 'valid' && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          className="mt-1.5 space-y-2"
+                        >
+                          <div className="flex items-center gap-2 text-green-700 bg-green-50 px-3 py-2 rounded-xl border border-green-200 text-xs font-medium">
+                            <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0"></div>
+                            <span>✅ Serviceable area: {serviceAreas.find(p => p.pincode === formData.pincode)?.name}</span>
+                          </div>
+
+                          {deliveryInfo && (
+                            <div className="bg-emerald-50/50 p-2.5 sm:p-3 rounded-xl border border-emerald-200 shadow-sm">
+                              <div className="flex justify-between items-center pb-1.5 border-b border-emerald-100 mb-2">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-3.5 bg-emerald-500 rounded-full"></div>
+                                  <span className="text-xs font-bold text-emerald-900">Delivery Information</span>
+                                </div>
+                                <span className="text-[9px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-wider">
+                                  Cuttack Region
+                                </span>
+                              </div>
+
+                              <div className="space-y-1.5 text-xs">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-500 text-[11px] font-semibold">Base Delivery Fee</span>
+                                  <span className="font-bold text-gray-800">₹{deliveryInfo.standardFee}</span>
                                 </div>
 
-                                <div className="space-y-3">
-                                  <div className="flex justify-between text-sm items-center">
-                                    <span className="text-gray-500 font-bold uppercase text-[11px] tracking-wider">Base Delivery Fee</span>
-                                    <span className="font-bold text-gray-800">₹{deliveryInfo.standardFee}</span>
+                                {deliveryInfo.surcharge > 0 && (
+                                  <div className="flex justify-between items-center bg-white/60 px-2 py-1 rounded-lg border border-emerald-100">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-amber-800 font-semibold text-[11px]">Distance Surcharge</span>
+                                      <span className="text-[10px] text-amber-600">🚚</span>
+                                    </div>
+                                    <span className="font-bold text-amber-700">+ ₹{deliveryInfo.surcharge}</span>
                                   </div>
+                                )}
 
-                                  {deliveryInfo.surcharge > 0 && (
-                                    <div className="flex justify-between items-start text-sm bg-white/40 p-2 rounded-xl border border-emerald-100/50">
-                                      <div className="flex flex-col">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="text-gray-600 font-bold uppercase text-[11px] tracking-wider">Distance Surcharge</span>
-                                          <div className="group relative">
-                                            <span className="cursor-help text-amber-500">
-                                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                              </svg>
-                                            </span>
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-white text-[11px] rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-2xl leading-relaxed">
-                                              This ₹{deliveryInfo.surcharge} extra covers fuel and effort for remote locations, ensuring we can reach you!
-                                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <span className="text-[10px] text-amber-600 font-bold mt-0.5">Additional fee for long-distance 🚚</span>
-                                      </div>
-                                      <span className="font-black text-amber-600 text-base">+ ₹{deliveryInfo.surcharge}</span>
-                                    </div>
-                                  )}
-
-                                  <div className="flex justify-between items-center pt-4 mt-2 border-t-2 border-dashed border-emerald-200">
-                                    <div className="flex flex-col gap-2">
-                                      <span className="text-[11px] font-black text-emerald-800/50 uppercase tracking-[0.2em]">Total Charge</span>
-                                      <div className="group relative">
-                                        <motion.div
-                                          animate={{ scale: [1, 1.02, 1] }}
-                                          transition={{ duration: 2, repeat: Infinity }}
-                                          className="bg-emerald-600 text-white px-3 py-1.5 rounded-xl shadow-lg shadow-emerald-200 flex items-center gap-2 cursor-pointer"
-                                        >
-                                          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                                          <span className="text-[12px] font-black uppercase tracking-tight">FREE OVER ₹{deliveryInfo.freeAbove}</span>
-                                        </motion.div>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-4xl font-black text-emerald-700 tracking-tighter block leading-none">₹{deliveryInfo.charge}</span>
-                                      <span className="text-[10px] font-bold text-emerald-600/40 uppercase tracking-widest mt-1 block">Current Area Rate</span>
-                                    </div>
+                                <div className="flex justify-between items-center pt-2 border-t border-emerald-200/80 mt-1.5">
+                                  <div>
+                                    <span className="text-[9px] font-bold text-emerald-800/60 uppercase block">Total Charge</span>
+                                    <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full inline-block mt-0.5">
+                                      FREE OVER ₹{deliveryInfo.freeAbove}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-xl sm:text-2xl font-black text-emerald-700 leading-none block">₹{deliveryInfo.charge}</span>
+                                    <span className="text-[9px] text-emerald-600 font-medium mt-0.5 block">Current Area Rate</span>
                                   </div>
                                 </div>
                               </div>
-                            )}
-                          </motion.div>
-                        )}
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
 
-                        {pincodeStatus === 'invalid' && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="flex items-center gap-3 text-red-700 bg-red-50/80 px-4 py-3 rounded-xl border border-red-200"
-                          >
-                            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                            <span className="font-medium">❌ Not serviceable in this area</span>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                      {pincodeStatus === 'invalid' && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          className="flex items-center gap-2 text-red-700 bg-red-50 px-3 py-2 rounded-xl border border-red-200 text-xs font-medium mt-1.5"
+                        >
+                          <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shrink-0"></div>
+                          <span>❌ Not serviceable in this area</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-lg font-semibold text-gray-800 mb-3">
-                          City *
-                        </label>
-                        <motion.input
-                          whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
-                          type="text"
-                          name="city"
-                          value={formData.city}
-                          onChange={handleChange}
-                          className="w-full border-2 border-gray-200 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200"
-                          placeholder="City"
-                          required
-                          readOnly={pincodeStatus === 'valid'}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-lg font-semibold text-gray-800 mb-3">
-                          State *
-                        </label>
-                        <motion.input
-                          whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
-                          type="text"
-                          name="state"
-                          value={formData.state}
-                          onChange={handleChange}
-                          className="w-full border-2 border-gray-200 rounded-xl px-5 py-4 text-lg focus:ring-2 focus:ring-[#2e8b57] focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200"
-                          placeholder="State"
-                          required
-                          readOnly={pincodeStatus === 'valid'}
-                        />
-                      </div>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div>
+                      <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
+                        City *
+                      </label>
+                      <motion.input
+                        whileFocus={{ scale: 1.01, borderColor: "#059669" }}
+                        type="text"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm bg-gray-50/80 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        placeholder="City"
+                        required
+                        readOnly={pincodeStatus === 'valid'}
+                      />
                     </div>
 
                     <div>
-                      <label className="block text-lg font-semibold text-gray-800 mb-3">
-                        📍 Landmark (Auto-detected)
+                      <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
+                        State *
                       </label>
                       <motion.input
-                        whileFocus={{ scale: 1.02, borderColor: "#2e8b57" }}
+                        whileFocus={{ scale: 1.01, borderColor: "#059669" }}
                         type="text"
-                        name="landmark"
-                        value={formData.landmark}
+                        name="state"
+                        value={formData.state}
                         onChange={handleChange}
-                        readOnly
-                        className="w-full border-2 border-gray-200 rounded-xl px-5 py-4 text-lg bg-gray-50/80 cursor-not-allowed backdrop-blur-sm transition-all duration-200"
-                        placeholder="Location will be auto-detected"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm bg-gray-50/80 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        placeholder="State"
+                        required
+                        readOnly={pincodeStatus === 'valid'}
                       />
-                      <p className="text-sm text-gray-500 mt-2">
-                        This field is automatically filled with your detected location
-                      </p>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] sm:text-xs font-bold text-gray-700 mb-1">
+                      📍 Landmark (Auto-detected)
+                    </label>
+                    <motion.input
+                      whileFocus={{ scale: 1.01, borderColor: "#059669" }}
+                      type="text"
+                      name="landmark"
+                      value={formData.landmark}
+                      onChange={handleChange}
+                      readOnly
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-xs sm:text-sm bg-gray-50/80 cursor-not-allowed text-gray-600 transition-all"
+                      placeholder="Location will be auto-detected"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      This field is automatically filled with your detected location
+                    </p>
                   </div>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="flex items-center space-x-3">
-                  <motion.input
-                    whileTap={{ scale: 0.95 }}
+                <motion.div variants={itemVariants} className="flex items-center space-x-2 pt-1">
+                  <input
                     type="checkbox"
+                    id="isDefaultCheckbox"
                     name="isDefault"
                     checked={formData.isDefault}
                     onChange={handleChange}
-                    className="h-5 w-5 text-[#2e8b57] focus:ring-[#2e8b57] border-gray-300 rounded"
+                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded cursor-pointer"
                   />
-                  <label className="text-lg font-medium text-gray-900">
+                  <label htmlFor="isDefaultCheckbox" className="text-xs sm:text-sm font-medium text-gray-800 cursor-pointer">
                     Set as default address
                   </label>
                 </motion.div>
 
                 <motion.div
                   variants={itemVariants}
-                  className="flex space-x-4 pt-6 border-t"
+                  className="flex space-x-3 pt-3 border-t border-gray-100"
                 >
                   <motion.button
                     type="button"
                     onClick={onCancel}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex-1 bg-gray-100/80 hover:bg-gray-200/80 text-gray-800 py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-200 backdrop-blur-sm"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 sm:py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-150"
                   >
                     Cancel
                   </motion.button>
                   <motion.button
                     type="submit"
                     disabled={loading || !isFormComplete}
-                    whileHover={{ scale: (loading || !isFormComplete) ? 1 : 1.02 }}
-                    whileTap={{ scale: (loading || !isFormComplete) ? 1 : 0.98 }}
-                    className="flex-1 bg-[#2e8b57] hover:bg-[#26734d] text-white py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl backdrop-blur-sm"
+                    whileHover={{ scale: (loading || !isFormComplete) ? 1 : 1.01 }}
+                    whileTap={{ scale: (loading || !isFormComplete) ? 1 : 0.99 }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 sm:py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
                   >
                     {loading ? (
                       <div className="flex items-center justify-center">
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="rounded-full h-6 w-6 border-b-2 border-white mr-3"
+                          className="rounded-full h-4 w-4 border-2 border-b-transparent border-white mr-2"
                         ></motion.div>
                         Saving...
                       </div>
@@ -1085,7 +1149,7 @@ const AddressForm = ({ user, onAddressSaved, onCancel, initialData }) => {
             </div>
           </motion.div>
         </motion.div>
-      </AnimatePresence >
+      </AnimatePresence>
     </>
   );
 };

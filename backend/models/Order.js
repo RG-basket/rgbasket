@@ -146,6 +146,8 @@ const OrderSchema = new mongoose.Schema({
     fullName: { type: String, required: true },
     phoneNumber: { type: String, required: true },
     alternatePhone: { type: String, default: '' },
+    addressType: { type: String, enum: ['Home', 'Office', 'Other'], default: 'Home' },
+    otherLabel: { type: String, default: '' },
     street: { type: String, required: true },
     locality: { type: String, required: true },
     city: { type: String, required: true },
@@ -153,9 +155,22 @@ const OrderSchema = new mongoose.Schema({
     pincode: { type: String, required: true },
     landmark: { type: String, default: '' }
   },
+  orderForSomeoneElse: {
+    isOrderingForSomeoneElse: { type: Boolean, default: false },
+    recipientName: { type: String, default: '' },
+    recipientPhone: { type: String, default: '' },
+    recipientAddress: {
+      street: { type: String, default: '' },
+      locality: { type: String, default: '' },
+      city: { type: String, default: 'Cuttack' },
+      state: { type: String, default: 'Odisha' },
+      pincode: { type: String, default: '' },
+      landmark: { type: String, default: '' }
+    }
+  },
   paymentMethod: {
     type: String,
-    enum: ['cash_on_delivery', 'card', 'upi'],
+    enum: ['cash_on_delivery', 'card', 'upi', 'online'],
     default: 'cash_on_delivery'
   },
   deliveryDate: {

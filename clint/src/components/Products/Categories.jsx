@@ -50,7 +50,23 @@ const Categories = () => {
         const data = await res.json();
         
         if (data.success && Array.isArray(data.categories)) {
-          const processedCats = data.categories.map((cat, index) => ({
+          const getCategoryRank = (name = '') => {
+            const lower = (name || '').toLowerCase();
+            if (lower.includes('fish') || lower.includes('seafood')) return 1;
+            if (lower.includes('veg')) return 2;
+            if (lower.includes('poultry') || lower.includes('chicken')) return 3;
+            if (lower.includes('mutton') || lower.includes('goat') || lower.includes('lamb')) return 4;
+            if (lower.includes('fruit')) return 999;
+            return 50;
+          };
+
+          const sortedCats = [...data.categories].sort((a, b) => {
+            const rankDiff = getCategoryRank(a.name) - getCategoryRank(b.name);
+            if (rankDiff !== 0) return rankDiff;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+
+          const processedCats = sortedCats.map((cat, index) => ({
             _id: cat._id || `category-${index}`,
             name: cat.name,
             slug: cat.name.toLowerCase().replace(/\s+/g, '-'),

@@ -17,6 +17,7 @@ import {
 import OfferSelectionModal from "../components/Cart/OfferSelectionModal";
 import OfferFloatingBubble from "../components/Cart/OfferFloatingBubble";
 import LocationPrompt from "../components/Cart/LocationPrompt";
+import { getEffectivePrice } from "../utils/pricingUtils";
 
 
 
@@ -67,9 +68,95 @@ const Cart = () => {
   const summaryRef = useRef(null);
 
   const [cartArray, setCartArray] = useState([]);
-  const [addresses, setAddresses] = useState([]);
-  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [addresses, setAddresses] = useState(() => {
+    try {
+      const cached = localStorage.getItem('userAddresses');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [selectedAddress, setSelectedAddress] = useState(() => {
+    try {
+      const cached = localStorage.getItem('selectedAddress');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && (parsed._id || parsed.street)) return parsed;
+      }
+      const cachedAddrs = JSON.parse(localStorage.getItem('userAddresses') || '[]');
+      if (Array.isArray(cachedAddrs) && cachedAddrs.length > 0) {
+        return cachedAddrs.find(a => a.isDefault) || cachedAddrs[0] || null;
+      }
+    } catch {}
+    return null;
+  });
+  const [isAddressResolved, setIsAddressResolved] = useState(() => {
+    try {
+      const cached = localStorage.getItem('selectedAddress');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (
+          parsed?.location?.coordinates &&
+          Array.isArray(parsed.location.coordinates) &&
+          parsed.location.coordinates.length === 2 &&
+          (Number(parsed.location.coordinates[0]) !== 0 || Number(parsed.location.coordinates[1]) !== 0)
+        ) {
+          return true;
+        }
+      }
+    } catch {}
+    return false;
+  });
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressModalConfig, setAddressModalConfig] = useState({
+    isOpen: false,
+    initialData: null,
+    defaultType: 'Home'
+  });
+
+  const handleAddNewAddress = (type = 'Home') => {
+    setAddressModalConfig({
+      isOpen: true,
+      initialData: null,
+      defaultType: type
+    });
+    setShowAddressForm(true);
+  };
+
+  const handleEditAddress = (addr) => {
+    setAddressModalConfig({
+      isOpen: true,
+      initialData: addr,
+      defaultType: addr?.addressType || 'Home'
+    });
+    setShowAddressForm(true);
+  };
+
+  const handleDeleteAddress = async (addressId) => {
+    if (!window.confirm("Are you sure you want to delete this saved location?")) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/addresses/${addressId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Location deleted successfully");
+        const remaining = addresses.filter(a => a._id !== addressId);
+        setAddresses(remaining);
+        if (selectedAddress?._id === addressId) {
+          setSelectedAddress(remaining.length > 0 ? remaining[0] : null);
+        }
+      } else {
+        toast.error(data.message || "Failed to delete address");
+      }
+    } catch (err) {
+      console.error("Delete address error:", err);
+      toast.error("Failed to delete address");
+    }
+  };
+
   const [paymentOption, setPaymentOption] = useState("COD");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
@@ -79,15 +166,44 @@ const Cart = () => {
   const [instruction, setInstruction] = useState(() => {
     return localStorage.getItem('cartInstruction') || "";
   });
+
+  // Order For Someone Else State
+  const [isOrderingForSomeoneElse, setIsOrderingForSomeoneElse] = useState(false);
+  const [recipientData, setRecipientData] = useState({
+    name: '',
+    phone: '',
+    street: '',
+    locality: '',
+    city: 'Cuttack',
+    pincode: '',
+    landmark: '',
+    useSelectedAddress: false // Default to 2nd option: enter receiver's own delivery address
+  });
   // Persist location across Cart remounts (e.g. user browses then comes back)
   // sessionStorage survives navigation within the same app session but clears on close
   const [orderLocation, setOrderLocation] = useState(() => {
     try {
       const cached = sessionStorage.getItem('orderLocationCache');
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    try {
+      const cachedAddr = JSON.parse(localStorage.getItem('selectedAddress') || 'null');
+      if (
+        cachedAddr?.location?.coordinates &&
+        Array.isArray(cachedAddr.location.coordinates) &&
+        cachedAddr.location.coordinates.length === 2 &&
+        (Number(cachedAddr.location.coordinates[0]) !== 0 || Number(cachedAddr.location.coordinates[1]) !== 0)
+      ) {
+        const [lng, lat] = cachedAddr.location.coordinates;
+        return {
+          coordinates: { latitude: Number(lat), longitude: Number(lng) },
+          accuracy: cachedAddr.location.accuracy || 0,
+          timestamp: cachedAddr.location.capturedAt || new Date().toISOString(),
+          source: 'saved_address'
+        };
+      }
+    } catch {}
+    return null;
   });
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [isGeoBlocked, setIsGeoBlocked] = useState(false);
@@ -99,6 +215,15 @@ const Cart = () => {
       try { sessionStorage.setItem('orderLocationCache', JSON.stringify(loc)); } catch {}
     }
   };
+
+  // Sync selectedAddress to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedAddress) {
+      try {
+        localStorage.setItem('selectedAddress', JSON.stringify(selectedAddress));
+      } catch {}
+    }
+  }, [selectedAddress]);
 
   // Stale Cart Detection State
   const [staleCartItems, setStaleCartItems] = useState([]);
@@ -325,30 +450,62 @@ const Cart = () => {
 
   // Sync Local -> Global logic removed. Using selectedSlot directly.
 
+  // Helper: check if an address has valid non-zero geo coordinates
+  const hasCoordinates = (addr) => {
+    const coords = addr?.location?.coordinates;
+    return (
+      Array.isArray(coords) &&
+      coords.length === 2 &&
+      coords[0] != null &&
+      coords[1] != null &&
+      (Number(coords[0]) !== 0 || Number(coords[1]) !== 0)
+    );
+  };
+
   // Automatically request location when entering cart
   useEffect(() => {
     const initLocation = async () => {
-      // 1. If the selected address already has coordinates, skip prompting for location
-      if (selectedAddress?.location?.coordinates && selectedAddress.location.coordinates.length === 2) {
+      // 1. Silent Check: If selected address already has coordinates, lock them silently & skip prompt
+      if (hasCoordinates(selectedAddress)) {
         const [lng, lat] = selectedAddress.location.coordinates;
-        if (lat && lng) {
-          console.log('📍 Address already has saved coordinates, skipping prompt.');
-          setShowLocationPrompt(false);
-          return;
+        console.log('📍 Address already has saved coordinates, skipping prompt.');
+        setShowLocationPrompt(false);
+        if (!orderLocation || orderLocation.source !== 'saved_address' || orderLocation.coordinates?.latitude !== Number(lat)) {
+          persistLocation({
+            coordinates: { latitude: Number(lat), longitude: Number(lng) },
+            accuracy: selectedAddress.location.accuracy || 0,
+            timestamp: selectedAddress.location.capturedAt || new Date().toISOString(),
+            source: 'saved_address'
+          });
         }
-      }
-
-      // Already have a location cached from this session — skip everything
-      // This prevents the popup showing again when the user navigates back to Cart
-      if (orderLocation) {
-        console.log('📍 Using cached session location, skipping prompt.');
         return;
       }
 
+      // 2. Silent Check: If session already has a location cached, skip prompt
+      if (orderLocation) {
+        console.log('📍 Using cached session location, skipping prompt.');
+        setShowLocationPrompt(false);
+        return;
+      }
+
+      // 3. SILENT CHECK: If user is logged in and address check is still in progress,
+      // WAIT SILENTLY! Do NOT display the popup modal while backend address data is in-flight.
+      const userId = user?.id || user?._id;
+      if (userId && !isAddressResolved) {
+        console.log('📍 Checking address coordinates silently in background...');
+        return;
+      }
+
+      // 4. If address check is resolved and the user definitely has NO coordinates anywhere:
       if (!navigator.permissions) {
         // Fallback for browsers without permissions API (some Capacitor webviews)
         const loc = await captureLocation();
-        if (loc) persistLocation(loc);
+        if (loc) {
+          persistLocation(loc);
+          setShowLocationPrompt(false);
+        } else {
+          setShowLocationPrompt(true);
+        }
         return;
       }
 
@@ -356,10 +513,12 @@ const Cart = () => {
         const result = await navigator.permissions.query({ name: 'geolocation' });
 
         if (result.state === 'granted') {
+          // Browser permission is already granted: silently capture location without modal!
+          setShowLocationPrompt(false);
           const loc = await captureLocation();
           if (loc) persistLocation(loc);
         } else if (result.state === 'prompt') {
-          // Show our beautiful popup before browser prompt
+          // Truly no coordinates saved and permission is prompt -> show modal
           setShowLocationPrompt(true);
         } else if (result.state === 'denied') {
           setIsGeoBlocked(true);
@@ -369,6 +528,7 @@ const Cart = () => {
         result.onchange = () => {
           if (result.state === 'granted') {
             setIsGeoBlocked(false);
+            setShowLocationPrompt(false);
             captureLocation().then(persistLocation);
           }
         };
@@ -376,8 +536,9 @@ const Cart = () => {
         console.warn("Permissions API error:", err);
       }
     };
+
     initLocation();
-  }, [selectedAddress]); // Dependency array includes selectedAddress
+  }, [selectedAddress, isAddressResolved, user]);
 
   const handleAcceptLocation = async () => {
     setShowLocationPrompt(false);
@@ -385,6 +546,38 @@ const Cart = () => {
     if (loc) {
       persistLocation(loc); // cache so future Cart visits don't prompt again
       toast.success("Location locked for delivery!");
+
+      // If user has a selected address, save captured coordinates so future visits never prompt
+      if (selectedAddress?._id) {
+        try {
+          const updatePayload = {
+            ...selectedAddress,
+            location: {
+              type: 'Point',
+              coordinates: [loc.coordinates.longitude, loc.coordinates.latitude],
+              accuracy: loc.accuracy || 0,
+              capturedAt: new Date()
+            }
+          };
+          fetch(`${import.meta.env.VITE_API_URL}/api/addresses/${selectedAddress._id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatePayload)
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data?.success && data?.address) {
+                setSelectedAddress(data.address);
+                try {
+                  localStorage.setItem('selectedAddress', JSON.stringify(data.address));
+                } catch {}
+              }
+            })
+            .catch(err => console.warn('Failed to save captured coords to address:', err));
+        } catch (e) {
+          console.warn('Silent address save error:', e);
+        }
+      }
     } else {
       toast.error("Could not get location. Please type address manually.");
     }
@@ -397,6 +590,7 @@ const Cart = () => {
     if (!userId) {
       setAddresses([]);
       setSelectedAddress(null);
+      setIsAddressResolved(true);
       return;
     }
 
@@ -413,16 +607,29 @@ const Cart = () => {
 
       if (data.success && data.addresses && data.addresses.length > 0) {
         setAddresses(data.addresses);
+        try {
+          localStorage.setItem('userAddresses', JSON.stringify(data.addresses));
+        } catch {}
 
-        const defaultAddress = data.addresses.find(addr => addr.isDefault);
-        if (defaultAddress) {
-          setSelectedAddress(defaultAddress);
-        } else {
-          setSelectedAddress(data.addresses[0]);
-        }
+        setSelectedAddress(prev => {
+          let chosen = null;
+          if (prev?._id) {
+            chosen = data.addresses.find(addr => addr._id === prev._id);
+          }
+          if (!chosen) {
+            chosen = data.addresses.find(addr => addr.isDefault) || data.addresses[0];
+          }
+          try {
+            localStorage.setItem('selectedAddress', JSON.stringify(chosen));
+          } catch {}
+          return chosen;
+        });
       } else {
         setAddresses([]);
         setSelectedAddress(null);
+        try {
+          localStorage.removeItem('selectedAddress');
+        } catch {}
       }
     } catch (error) {
       console.error('Error fetching addresses:', error);
@@ -430,16 +637,12 @@ const Cart = () => {
       // Fallback to localStorage
       try {
         const localAddresses = JSON.parse(localStorage.getItem('userAddresses') || '[]');
-        const userAddresses = localAddresses.filter(addr => addr.user === userId);
+        const userAddresses = localAddresses.filter(addr => addr.user === userId || !addr.user);
 
         if (userAddresses.length > 0) {
           setAddresses(userAddresses);
-          const defaultAddress = userAddresses.find(addr => addr.isDefault);
-          if (defaultAddress) {
-            setSelectedAddress(defaultAddress);
-          } else {
-            setSelectedAddress(userAddresses[0]);
-          }
+          const defaultAddress = userAddresses.find(addr => addr.isDefault) || userAddresses[0];
+          setSelectedAddress(defaultAddress);
         } else {
           setAddresses([]);
           setSelectedAddress(null);
@@ -451,6 +654,7 @@ const Cart = () => {
       }
     } finally {
       setLoadingAddresses(false);
+      setIsAddressResolved(true);
     }
   };
 
@@ -656,12 +860,14 @@ const Cart = () => {
           customizationCharge = getCustomizationCharge(product, totalGrams);
         }
 
+        const effectivePricing = getEffectivePrice(variant, selectedSlot?.date);
+
         tempArray.push({
           ...product,
           weight: variant.weight,
           unit: variant.unit,
-          offerPrice: variant.offerPrice,
-          price: variant.price,
+          offerPrice: effectivePricing.offerPrice,
+          price: effectivePricing.price,
           quantity: quantity,
           cartKey: key,
           inStock: variant.inStock !== false,
@@ -821,19 +1027,95 @@ const Cart = () => {
         userImage: user?.photo || ''
       }));
 
-      const orderData = {
-        items: orderItems,
-        shippingAddress: {
+      // Validation for Order For Someone Else
+      if (isOrderingForSomeoneElse) {
+        if (!recipientData.name?.trim()) {
+          toast.error("Please enter the receiver's full name");
+          setIsPlacingOrder(false);
+          return;
+        }
+        if (!recipientData.phone?.trim() || !/^\d{10}$/.test(recipientData.phone.trim())) {
+          toast.error("Please enter a valid 10-digit receiver phone number");
+          setIsPlacingOrder(false);
+          return;
+        }
+        if (!recipientData.useSelectedAddress) {
+          if (!recipientData.street?.trim()) {
+            toast.error("Please enter the receiver's street / house address");
+            setIsPlacingOrder(false);
+            return;
+          }
+          if (!recipientData.locality?.trim()) {
+            toast.error("Please enter the receiver's locality / area");
+            setIsPlacingOrder(false);
+            return;
+          }
+          if (!recipientData.pincode?.trim() || !/^\d{6}$/.test(recipientData.pincode.trim())) {
+            toast.error("Please enter a valid 6-digit receiver pincode");
+            setIsPlacingOrder(false);
+            return;
+          }
+        }
+      }
+
+      let finalShippingAddress;
+      let orderForSomeoneElsePayload = null;
+
+      if (isOrderingForSomeoneElse) {
+        const destStreet = recipientData.useSelectedAddress ? selectedAddress.street : recipientData.street.trim();
+        const destLocality = recipientData.useSelectedAddress ? selectedAddress.locality : recipientData.locality.trim();
+        const destCity = recipientData.useSelectedAddress ? selectedAddress.city : (recipientData.city?.trim() || 'Cuttack');
+        const destState = recipientData.useSelectedAddress ? selectedAddress.state : 'Odisha';
+        const destPincode = recipientData.useSelectedAddress ? selectedAddress.pincode : recipientData.pincode.trim();
+        const destLandmark = recipientData.useSelectedAddress ? (selectedAddress.landmark || '') : (recipientData.landmark?.trim() || '');
+
+        finalShippingAddress = {
+          fullName: recipientData.name.trim(),
+          phoneNumber: recipientData.phone.trim(),
+          alternatePhone: selectedAddress?.alternatePhone || '',
+          addressType: selectedAddress?.addressType || 'Other',
+          otherLabel: recipientData.useSelectedAddress ? (selectedAddress?.otherLabel || '') : 'Recipient',
+          street: destStreet,
+          locality: destLocality,
+          city: destCity,
+          state: destState,
+          pincode: destPincode,
+          landmark: destLandmark
+        };
+
+        orderForSomeoneElsePayload = {
+          isOrderingForSomeoneElse: true,
+          recipientName: recipientData.name.trim(),
+          recipientPhone: recipientData.phone.trim(),
+          recipientAddress: {
+            street: destStreet,
+            locality: destLocality,
+            city: destCity,
+            state: destState,
+            pincode: destPincode,
+            landmark: destLandmark
+          }
+        };
+      } else {
+        finalShippingAddress = {
           fullName: selectedAddress.fullName,
           phoneNumber: selectedAddress.phoneNumber,
           alternatePhone: selectedAddress.alternatePhone || '',
+          addressType: selectedAddress.addressType || 'Home',
+          otherLabel: selectedAddress.otherLabel || '',
           street: selectedAddress.street,
           locality: selectedAddress.locality,
           city: selectedAddress.city,
           state: selectedAddress.state,
           pincode: selectedAddress.pincode,
           landmark: selectedAddress.landmark || ''
-        },
+        };
+      }
+
+      const orderData = {
+        items: orderItems,
+        shippingAddress: finalShippingAddress,
+        orderForSomeoneElse: orderForSomeoneElsePayload,
         paymentMethod: paymentOption === "COD" ? "cash_on_delivery" : "online",
         deliveryDate: selectedSlot.date,
         timeSlot: selectedSlot.timeSlot, // Save full string like "Morning (7:00 AM - 10:00 AM)"
@@ -842,7 +1124,7 @@ const Cart = () => {
           name: user?.name || 'Guest',
           email: user?.email || '',
           photo: user?.photo || '',
-          phone: selectedAddress.phoneNumber
+          phone: user?.phone || selectedAddress.phoneNumber
         },
         instruction: instruction || "",
         promoCode: promoCode || null,
@@ -926,6 +1208,7 @@ const Cart = () => {
     } else {
       setAddresses([]);
       setSelectedAddress(null);
+      setIsAddressResolved(true);
     }
   }, [user]);
 
@@ -933,7 +1216,7 @@ const Cart = () => {
     if (products && cartItems) {
       getCart();
     }
-  }, [products, cartItems, customizationData]);
+  }, [products, cartItems, customizationData, selectedSlot?.date]);
 
   // Removed redundant deliveryDate initialization. Global state handles this now.
 
@@ -1271,22 +1554,33 @@ const Cart = () => {
   return (
     <div className="flex flex-col lg:flex-row mt-16 min-h-screen gap-4 lg:gap-6 px-3 sm:px-4">
       {/* Address Form Modal */}
-      {showAddressForm && (
+      {(showAddressForm || addressModalConfig.isOpen) && (
         <AddressForm
           user={user}
-          initialData={selectedAddress}
+          initialData={addressModalConfig.isOpen ? addressModalConfig.initialData : selectedAddress}
+          defaultType={addressModalConfig.defaultType || selectedAddress?.addressType || 'Home'}
           onAddressSaved={(newAddress) => {
-            if (selectedAddress?._id === newAddress._id) {
-              // Update existing
-              setAddresses(prev => prev.map(addr => addr._id === newAddress._id ? newAddress : addr));
-            } else {
-              // Add new
-              setAddresses(prev => [newAddress, ...prev]);
-            }
+            setAddresses(prev => {
+              const existingIdx = prev.findIndex(addr =>
+                addr._id === newAddress._id ||
+                ((addr.addressType || 'Home') === (newAddress.addressType || 'Home'))
+              );
+              if (existingIdx >= 0) {
+                const updated = [...prev];
+                updated[existingIdx] = newAddress;
+                return updated;
+              } else {
+                return [newAddress, ...prev];
+              }
+            });
             setSelectedAddress(newAddress);
             setShowAddressForm(false);
+            setAddressModalConfig(prev => ({ ...prev, isOpen: false, initialData: null }));
           }}
-          onCancel={() => setShowAddressForm(false)}
+          onCancel={() => {
+            setShowAddressForm(false);
+            setAddressModalConfig(prev => ({ ...prev, isOpen: false, initialData: null }));
+          }}
         />
       )}
 
@@ -1472,8 +1766,12 @@ const Cart = () => {
             user={user}
             addresses={addresses}
             selectedAddress={selectedAddress}
+            setSelectedAddress={setSelectedAddress}
             loadingAddresses={loadingAddresses}
             setShowAddressForm={setShowAddressForm}
+            onAddNewAddress={handleAddNewAddress}
+            onEditAddress={handleEditAddress}
+            onDeleteAddress={handleDeleteAddress}
             paymentOption={paymentOption}
             setPaymentOption={setPaymentOption}
             deliveryDate={selectedSlot?.date || ""}
@@ -1516,6 +1814,11 @@ const Cart = () => {
             coinDebtRecovery={roundedCoinDebtRecovery}
             // Surge Surcharges
             surgeCharges={activeSurges}
+            // Order For Someone Else Props
+            isOrderingForSomeoneElse={isOrderingForSomeoneElse}
+            setIsOrderingForSomeoneElse={setIsOrderingForSomeoneElse}
+            recipientData={recipientData}
+            setRecipientData={setRecipientData}
           />
         </div>
       )}

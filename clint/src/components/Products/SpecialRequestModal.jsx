@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Phone, User, Package, Send, Loader2, Minus, Plus, ChevronRight, Check, AlertCircle } from 'lucide-react';
+import { X, MapPin, Phone, User, Package, Send, Loader2, Minus, Plus, ChevronRight, Check, AlertCircle, FileText } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import toast from 'react-hot-toast';
 
 const SpecialRequestModal = ({ isOpen, onClose, product }) => {
     const { user, API_URL, serviceAreas } = useAppContext();
     const [quantity, setQuantity] = useState('');
+    const [instructions, setInstructions] = useState('');
     const [address, setAddress] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isFetchingAddress, setIsFetchingAddress] = useState(false);
@@ -48,6 +49,7 @@ const SpecialRequestModal = ({ isOpen, onClose, product }) => {
             setErrors({}); // Reset errors when opening
         } else {
             document.body.style.overflow = 'unset';
+            setInstructions('');
         }
         return () => {
             document.body.style.overflow = 'unset';
@@ -181,7 +183,7 @@ Email: ${user?.email || 'N/A'}
 * ORDER ITEM *
 ------------------------------------
 Product: ${product.name}
-Requirement: ${quantity}
+Requirement: ${quantity}${instructions && instructions.trim() ? `\nInstructions: ${instructions.trim()}` : ''}
 
 * DELIVERY ADDRESS *
 ------------------------------------
@@ -206,159 +208,182 @@ RG Basket - Freshness Delivered!`;
     const modalContent = (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-0 md:p-4 pointer-events-none">
+                <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-3 pointer-events-none">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm pointer-events-auto"
+                        className="fixed inset-0 bg-black/70 backdrop-blur-xs pointer-events-auto"
                         onClick={onClose}
                     />
 
                     {/* Modal Container */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 50 }}
+                        initial={{ opacity: 0, scale: 0.96, y: 30 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 50 }}
-                        className="bg-white w-full max-w-lg md:rounded-[2.5rem] rounded-t-[2.5rem] overflow-hidden shadow-2xl z-[10001] pointer-events-auto max-h-[95vh] flex flex-col relative mt-auto md:mt-0"
+                        exit={{ opacity: 0, scale: 0.96, y: 30 }}
+                        transition={{ type: "spring", duration: 0.28, bounce: 0.15 }}
+                        className="bg-white w-full max-w-[420px] rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl z-[10001] pointer-events-auto max-h-[88vh] flex flex-col relative border border-gray-200"
                     >
                         {/* Mobile Pull Indicator */}
-                        <div className="md:hidden w-12 h-1.5 bg-gray-200 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+                        <div className="sm:hidden w-10 h-1 bg-gray-300 rounded-full mx-auto mt-2 mb-1 shrink-0" />
 
                         {/* Header */}
-                        <div className="bg-white px-6 py-5 flex items-center justify-between border-b border-gray-100 shrink-0 sticky top-0 z-10">
-                            <div className="flex gap-4 items-center">
-                                <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center border border-green-100 shrink-0">
-                                    <Package className="w-6 h-6 text-green-600" />
+                        <div className="bg-gray-50/90 px-4 py-2.5 flex items-center justify-between border-b border-gray-100 shrink-0 sticky top-0 z-10">
+                            <div className="flex gap-2.5 items-center">
+                                <div className="w-8 h-8 bg-emerald-100 text-emerald-700 rounded-lg flex items-center justify-center border border-emerald-200 shrink-0">
+                                    <Package className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black text-gray-900 leading-tight">Special Request</h2>
-                                    <p className="text-xs font-bold text-green-600 uppercase tracking-widest mt-0.5">Order Customization</p>
+                                    <h2 className="text-sm font-bold text-gray-900 leading-tight">Special Request</h2>
+                                    <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">Order Customization</p>
                                 </div>
                             </div>
                             <button 
                                 onClick={onClose}
-                                className="p-2.5 hover:bg-gray-100 rounded-full transition-all shrink-0 outline-none active:scale-90"
+                                className="w-7 h-7 rounded-full bg-white hover:bg-gray-200 text-gray-400 hover:text-gray-700 flex items-center justify-center transition-colors border border-gray-200 shadow-xs"
+                                aria-label="Close"
                             >
-                                <X className="w-6 h-6 text-gray-400" />
+                                <X className="w-3.5 h-3.5" />
                             </button>
                         </div>
 
-                        {/* Body */}
-                        <div className="flex-grow overflow-y-auto px-6 py-6 custom-scrollbar-light bg-gray-50/30">
-                            {/* Product Summary */}
-                            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-6 flex flex-col gap-4">
-                                <div className="flex items-center gap-5">
-                                    <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center overflow-hidden border border-gray-100 p-2 shrink-0">
-                                        <img 
-                                            src={product.images?.[0] || product.image?.[0]} 
-                                            alt={product.name} 
-                                            className="w-full h-full object-contain"
-                                        />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="font-black text-gray-900 text-lg leading-tight truncate">{product.name}</h3>
-                                        <p className="text-sm font-bold text-green-600 mt-1">Price on Request</p>
-                                    </div>
+                        {/* Scrollable Body */}
+                        <div className="flex-grow overflow-y-auto p-3.5 space-y-3 custom-scrollbar-light bg-gray-50/30 text-xs">
+                            {/* Product Header Card */}
+                            <div className="bg-white rounded-xl p-2.5 border border-gray-200 shadow-xs flex items-center gap-3">
+                                <div className="w-14 h-14 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200 p-1 shrink-0">
+                                    <img 
+                                        src={(Array.isArray(product.images) && product.images[0]) || (typeof product.image === 'string' && product.image) || (Array.isArray(product.image) && product.image[0]) || (typeof product.images === 'string' && product.images) || "https://placehold.co/400x400?text=No+Image"} 
+                                        alt={product.name} 
+                                        onError={(e) => { e.currentTarget.src = "https://placehold.co/400x400?text=No+Image"; }}
+                                        className="w-full h-full object-contain"
+                                    />
                                 </div>
-
-                                <div className="space-y-3 mt-2">
-                                    <div className="flex items-center justify-between px-1">
-                                        <label className={`text-[11px] font-black uppercase tracking-[0.2em] transition-colors ${errors.quantity ? 'text-red-500' : 'text-gray-400'}`}>
-                                            Quantity Requirement *
-                                        </label>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${errors.quantity ? 'bg-red-50 text-red-500' : 'text-green-600 bg-green-50'}`}>
-                                            Mandatory
-                                        </span>
-                                    </div>
-                                    <motion.div 
-                                        animate={errors.quantity ? { x: [0, -5, 5, -5, 5, 0] } : {}}
-                                        className="relative group"
-                                    >
-                                        <div className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${errors.quantity ? 'text-red-500' : 'text-green-600 group-focus-within:text-emerald-700'}`}>
-                                            <Package className="w-5 h-5" strokeWidth={2.5} />
-                                        </div>
-                                        <input 
-                                            type="text" 
-                                            value={quantity}
-                                            onChange={(e) => {
-                                                setQuantity(e.target.value);
-                                                if (errors.quantity) setErrors(prev => ({ ...prev, quantity: false }));
-                                            }}
-                                            className={`w-full bg-white border-2 rounded-3xl pl-14 pr-6 py-4.5 text-lg font-bold text-gray-900 placeholder:text-gray-300 shadow-sm transition-all outline-none ${
-                                                errors.quantity 
-                                                ? 'border-red-500 ring-4 ring-red-500/10' 
-                                                : 'border-gray-100 focus:border-green-500 focus:ring-4 focus:ring-green-500/10'
-                                            }`}
-                                            placeholder=" write quantity here "
-                                        />
-                                        {errors.quantity && (
-                                            <div className="absolute right-5 top-1/2 -translate-y-1/2 text-red-500">
-                                                <AlertCircle size={18} />
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                </div>
-
-                                {/* Marketplace Note */}
-                                <div className="mt-2">
-                                    <button 
-                                        onClick={() => setIsPolicyExpanded(!isPolicyExpanded)}
-                                        className="w-full flex items-center justify-between p-4 bg-amber-50/50 border border-amber-100 rounded-[1.5rem] transition-all hover:bg-amber-50"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="shrink-0 w-6 h-6 bg-amber-500 rounded-lg flex items-center justify-center text-white shadow-sm">
-                                                <span className="font-black text-[10px]">!</span>
-                                            </div>
-                                            <h4 className="text-[11px] font-black text-amber-800 uppercase tracking-[0.1em]">Purchase Policy</h4>
-                                        </div>
-                                        <motion.div
-                                            animate={{ rotate: isPolicyExpanded ? 180 : 0 }}
-                                            className="text-amber-500"
-                                        >
-                                            <ChevronRight className="w-4 h-4" />
-                                        </motion.div>
-                                    </button>
-                                    
-                                    <AnimatePresence>
-                                        {isPolicyExpanded && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: "auto", opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                className="overflow-hidden"
-                                            >
-                                                    <div className="p-5 pt-3 bg-amber-50/50 border-x border-b border-amber-100 rounded-b-[1.5rem] -mt-4 shadow-inner">
-                                                        <p className="text-xs font-semibold text-amber-900 leading-relaxed">
-                                                            Some High-value premium items and certain fish varieties are sold only as <span className="text-amber-600 font-black">complete whole units</span> based on their final weight. 
-                                                            <br/><br/>
-                                                            We cannot provide partial cuts or specific gram-based portions for these exclusive selections to maintain quality standards.
-                                                        </p>
-                                                    </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                <div className="flex-1 min-w-0">
+                                    <span className="inline-block px-1.5 py-0.2 text-[9px] font-bold text-emerald-800 bg-emerald-100 rounded uppercase tracking-wider mb-0.5">
+                                        {product.category || 'Custom Order'}
+                                    </span>
+                                    <h3 className="font-bold text-gray-900 text-xs sm:text-sm leading-snug truncate">{product.name}</h3>
+                                    <p className="text-[11px] font-bold text-emerald-700 mt-0.5">Price on Request</p>
                                 </div>
                             </div>
 
-                            {/* Address Section */}
-                            <div className="space-y-6">
-                                <button 
-                                    onClick={() => setIsAddressExpanded(!isAddressExpanded)}
-                                    className="w-full flex items-center justify-between px-1 group"
+                            {/* Quantity Requirement Input */}
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-xs space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                    <label className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${errors.quantity ? 'text-red-500' : 'text-gray-500'}`}>
+                                        Quantity Requirement *
+                                    </label>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${errors.quantity ? 'bg-red-50 text-red-500' : 'text-emerald-700 bg-emerald-50'}`}>
+                                        Mandatory
+                                    </span>
+                                </div>
+                                <motion.div 
+                                    animate={errors.quantity ? { x: [0, -4, 4, -4, 4, 0] } : {}}
+                                    className="relative"
                                 >
-                                    <div className="flex items-center gap-2.5">
-                                        <div className={`h-4 w-1 rounded-full transition-colors ${errors.address ? 'bg-red-500' : 'bg-green-600'}`} />
-                                        <h3 className={`text-sm font-black uppercase tracking-widest transition-colors ${errors.address ? 'text-red-500' : 'text-gray-900'}`}>
+                                    <div className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${errors.quantity ? 'text-red-500' : 'text-emerald-600'}`}>
+                                        <Package className="w-4 h-4" />
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={quantity}
+                                        onChange={(e) => {
+                                            setQuantity(e.target.value);
+                                            if (errors.quantity) setErrors(prev => ({ ...prev, quantity: false }));
+                                        }}
+                                        className={`w-full bg-gray-50/70 border rounded-lg pl-9 pr-8 py-2 text-xs font-semibold text-gray-900 placeholder:text-gray-400 outline-none transition-all ${
+                                            errors.quantity 
+                                            ? 'border-red-500 ring-2 ring-red-500/10' 
+                                            : 'border-gray-200 focus:bg-white focus:border-emerald-500'
+                                        }`}
+                                        placeholder="e.g. 1.5 kg, 2 pieces, 500g"
+                                    />
+                                    {errors.quantity && (
+                                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500">
+                                            <AlertCircle size={15} />
+                                        </div>
+                                    )}
+                                </motion.div>
+                            </div>
+
+                            {/* Special Instructions Box */}
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-xs space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1">
+                                        <FileText className="w-3 h-3 text-emerald-600" />
+                                        <span>Special Instructions</span>
+                                    </label>
+                                    <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded text-gray-400 bg-gray-100 uppercase">
+                                        Optional
+                                    </span>
+                                </div>
+                                <textarea 
+                                    rows={2}
+                                    value={instructions}
+                                    onChange={(e) => setInstructions(e.target.value)}
+                                    className="w-full bg-gray-50/70 border border-gray-200 rounded-lg p-2 text-xs font-medium text-gray-800 placeholder:text-gray-400 outline-none focus:bg-white focus:border-emerald-500 resize-none transition-all leading-relaxed"
+                                    placeholder="e.g. Bengali cut, curry cut, skinless, clean thoroughly"
+                                />
+                            </div>
+
+                            {/* Purchase Policy Accordion */}
+                            <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 overflow-hidden shadow-xs">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsPolicyExpanded(!isPolicyExpanded)}
+                                    className="w-full flex items-center justify-between p-2.5 transition-colors hover:bg-amber-50/80 text-left"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold text-[10px]">
+                                            !
+                                        </div>
+                                        <h4 className="text-[11px] font-bold text-amber-900 uppercase tracking-wide">Purchase Policy</h4>
+                                    </div>
+                                    <motion.div
+                                        animate={{ rotate: isPolicyExpanded ? 90 : 0 }}
+                                        className="text-amber-700"
+                                    >
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </motion.div>
+                                </button>
+                                
+                                <AnimatePresence>
+                                    {isPolicyExpanded && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="overflow-hidden border-t border-amber-200/60"
+                                        >
+                                            <div className="p-2.5 text-[11px] text-amber-900 leading-relaxed font-medium bg-amber-50/70">
+                                                Certain premium seafood and fish varieties are sold as <strong className="text-amber-800">complete whole units</strong> based on final weight. Partial cuts or specific gram-based portions may not be available to ensure quality standards.
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Delivery Address Section */}
+                            <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-xs space-y-2">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsAddressExpanded(!isAddressExpanded)}
+                                    className="w-full flex items-center justify-between group text-left"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <MapPin className={`w-3.5 h-3.5 ${errors.address ? 'text-red-500' : 'text-emerald-600'}`} />
+                                        <h3 className={`text-[11px] font-bold uppercase tracking-wider ${errors.address ? 'text-red-500' : 'text-gray-800'}`}>
                                             Delivery Address
                                         </h3>
                                     </div>
                                     <motion.div
                                         animate={{ rotate: isAddressExpanded ? 90 : 0 }}
-                                        className="text-gray-400 group-hover:text-green-600 transition-colors"
+                                        className="text-gray-400 group-hover:text-emerald-600 transition-colors"
                                     >
-                                        <ChevronRight className="w-5 h-5" strokeWidth={3} />
+                                        <ChevronRight className="w-3.5 h-3.5" />
                                     </motion.div>
                                 </button>
 
@@ -368,191 +393,156 @@ RG Basket - Freshness Delivered!`;
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: "auto", opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
-                                            className="overflow-hidden"
+                                            className="overflow-hidden pt-1"
                                         >
-                                            <div className="pt-2 pb-1">
-                                                {isFetchingAddress ? (
-                                                    <div className="flex flex-col items-center justify-center py-12 gap-3">
-                                                        <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
-                                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Fetching details...</p>
+                                            {isFetchingAddress ? (
+                                                <div className="flex items-center justify-center py-4 gap-2 text-gray-400 text-xs">
+                                                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                                                    <span>Loading address...</span>
+                                                </div>
+                                            ) : !showForm && address ? (
+                                                <div className="bg-emerald-50/50 border border-emerald-300 rounded-lg p-2.5 relative">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <div className="flex items-center gap-1.5 min-w-0">
+                                                            <span className="text-xs">🏠</span>
+                                                            <h4 className="font-bold text-gray-900 text-xs truncate">{address.fullName}</h4>
+                                                        </div>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setShowForm(true);
+                                                            }}
+                                                            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200 transition-colors shrink-0"
+                                                        >
+                                                            CHANGE
+                                                        </button>
                                                     </div>
-                                                ) : !showForm && address ? (
-                                                    <motion.div 
-                                                        initial={{ opacity: 0, y: 10 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        className="bg-white border-2 border-green-500 rounded-3xl p-6 shadow-xl shadow-green-100 relative overflow-hidden"
-                                                    >
-                                                        <div className="absolute top-0 right-0 p-3">
-                                                            <div className="bg-green-500 text-white p-1 rounded-full">
-                                                                <Check className="w-3 h-3" strokeWidth={4} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex justify-between items-start mb-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                                                                    <User className="w-5 h-5 text-green-600" />
-                                                                </div>
-                                                                <h4 className="font-black text-gray-900 text-lg">{address.fullName}</h4>
-                                                            </div>
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setShowForm(true);
-                                                                }}
-                                                                className="text-xs font-black text-green-600 hover:text-green-700 underline underline-offset-4"
-                                                            >
-                                                                CHANGE
-                                                            </button>
-                                                        </div>
-                                                        <div className="space-y-2 text-gray-600 font-medium">
-                                                            <p className="leading-relaxed">{address.street}, {address.locality}</p>
-                                                            <p>{address.city}, {address.state} - <span className="font-bold text-gray-900">{address.pincode}</span></p>
-                                                            <div className="flex items-center gap-2 text-gray-900 font-bold mt-4 pt-4 border-t border-gray-50">
-                                                                <Phone className="w-4 h-4 text-green-600" /> 
-                                                                <span>{address.phoneNumber}</span>
-                                                            </div>
-                                                        </div>
-                                                    </motion.div>
-                                                ) : (
-                                                    <motion.div 
-                                                        initial={{ opacity: 0, y: 10 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        className="space-y-5 px-1"
-                                                    >
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className={`text-[11px] font-black uppercase tracking-widest ml-1 ${errors.fullName ? 'text-red-500' : 'text-gray-400'}`}>Full Name *</label>
-                                                                <input 
-                                                                    type="text" 
-                                                                    name="fullName"
-                                                                    value={formData.fullName}
-                                                                    onChange={handleFormChange}
-                                                                    className={`w-full bg-white border-2 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all outline-none ${
-                                                                        errors.fullName ? 'border-red-500 ring-2 ring-red-500/10' : 'border-gray-100 focus:border-green-500'
-                                                                    }`}
-                                                                    placeholder="Receiver's name"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className={`text-[11px] font-black uppercase tracking-widest ml-1 ${errors.phoneNumber ? 'text-red-500' : 'text-gray-400'}`}>Phone Number *</label>
-                                                                <input 
-                                                                    type="tel" 
-                                                                    name="phoneNumber"
-                                                                    value={formData.phoneNumber}
-                                                                    onChange={handleFormChange}
-                                                                    className={`w-full bg-white border-2 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all outline-none ${
-                                                                        errors.phoneNumber ? 'border-red-500 ring-2 ring-red-500/10' : 'border-gray-100 focus:border-green-500'
-                                                                    }`}
-                                                                    placeholder="10-digit mobile"
-                                                                    maxLength="10"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className={`text-[11px] font-black uppercase tracking-widest ml-1 ${errors.street ? 'text-red-500' : 'text-gray-400'}`}>Street / Area *</label>
-                                                                <input 
-                                                                    type="text" 
-                                                                    name="street"
-                                                                    value={formData.street}
-                                                                    onChange={handleFormChange}
-                                                                    className={`w-full bg-white border-2 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all outline-none ${
-                                                                        errors.street ? 'border-red-500 ring-2 ring-red-500/10' : 'border-gray-100 focus:border-green-500'
-                                                                    }`}
-                                                                    placeholder="House, Street, Area"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Alternate Phone</label>
-                                                                <input 
-                                                                    type="tel" 
-                                                                    name="alternatePhone"
-                                                                    value={formData.alternatePhone}
-                                                                    onChange={handleFormChange}
-                                                                    className="w-full bg-white border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-green-500 transition-all outline-none"
-                                                                    placeholder="Optional"
-                                                                    maxLength="10"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className={`text-[11px] font-black uppercase tracking-widest ml-1 ${errors.pincode ? 'text-red-500' : 'text-gray-400'}`}>Pincode *</label>
-                                                                <input 
-                                                                    type="text" 
-                                                                    name="pincode"
-                                                                    value={formData.pincode}
-                                                                    onChange={handleFormChange}
-                                                                    className={`w-full bg-white border-2 ${
-                                                                        errors.pincode || pincodeValid === 'invalid' ? 'border-red-500' : pincodeValid === 'valid' ? 'border-green-500' : 'border-gray-100'
-                                                                    } rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-green-500 transition-all outline-none`}
-                                                                    placeholder="6-digit"
-                                                                    maxLength="6"
-                                                                />
-                                                                {pincodeValid === 'invalid' && <p className="text-[10px] text-red-500 font-black tracking-widest uppercase mt-1 ml-1">Non-serviceable</p>}
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Locality</label>
-                                                                <input 
-                                                                    type="text" 
-                                                                    name="locality"
-                                                                    value={formData.locality}
-                                                                    onChange={handleFormChange}
-                                                                    className="w-full bg-white border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-green-500 transition-all outline-none"
-                                                                    placeholder="Neighborhood"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Landmark</label>
+                                                    <p className="text-[11px] text-gray-600 leading-snug line-clamp-2">
+                                                        {address.street}, {address.locality}, {address.city} - <span className="font-semibold text-gray-800">{address.pincode}</span>
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 mt-1 pt-1 border-t border-emerald-100">
+                                                        <span>📞 {address.phoneNumber}</span>
+                                                        {address.alternatePhone && <span className="text-gray-400 text-[10px]">• Alt: {address.alternatePhone}</span>}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2 pt-1 text-xs">
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className={`block text-[10px] font-bold uppercase mb-0.5 ${errors.fullName ? 'text-red-500' : 'text-gray-500'}`}>Full Name *</label>
                                                             <input 
                                                                 type="text" 
-                                                                name="landmark"
-                                                                value={formData.landmark}
+                                                                name="fullName"
+                                                                value={formData.fullName}
                                                                 onChange={handleFormChange}
-                                                                className="w-full bg-white border-2 border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-green-500 transition-all outline-none"
-                                                                placeholder="E.g. Near Big Temple"
+                                                                className={`w-full bg-gray-50 border rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none ${
+                                                                    errors.fullName ? 'border-red-500' : 'border-gray-200 focus:bg-white focus:border-emerald-500'
+                                                                }`}
+                                                                placeholder="Your name"
                                                             />
                                                         </div>
-                                                        {address && (
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setShowForm(false);
-                                                                }}
-                                                                className="flex items-center gap-2 text-xs font-black text-green-600 hover:text-green-700 uppercase tracking-widest pt-2 outline-none"
-                                                            >
-                                                                ← USE SAVED ADDRESS
-                                                            </button>
-                                                        )}
-                                                    </motion.div>
-                                                )}
-                                            </div>
+                                                        <div>
+                                                            <label className={`block text-[10px] font-bold uppercase mb-0.5 ${errors.phoneNumber ? 'text-red-500' : 'text-gray-500'}`}>Phone Number *</label>
+                                                            <input 
+                                                                type="tel" 
+                                                                name="phoneNumber"
+                                                                value={formData.phoneNumber}
+                                                                onChange={handleFormChange}
+                                                                className={`w-full bg-gray-50 border rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none ${
+                                                                    errors.phoneNumber ? 'border-red-500' : 'border-gray-200 focus:bg-white focus:border-emerald-500'
+                                                                }`}
+                                                                placeholder="10-digit phone"
+                                                                maxLength="10"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className={`block text-[10px] font-bold uppercase mb-0.5 ${errors.street ? 'text-red-500' : 'text-gray-500'}`}>Street / House Address *</label>
+                                                        <input 
+                                                            type="text" 
+                                                            name="street"
+                                                            value={formData.street}
+                                                            onChange={handleFormChange}
+                                                            className={`w-full bg-gray-50 border rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none ${
+                                                                errors.street ? 'border-red-500' : 'border-gray-200 focus:bg-white focus:border-emerald-500'
+                                                            }`}
+                                                            placeholder="House, street, colony"
+                                                        />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className={`block text-[10px] font-bold uppercase mb-0.5 ${errors.pincode ? 'text-red-500' : 'text-gray-500'}`}>Pincode *</label>
+                                                            <input 
+                                                                type="text" 
+                                                                name="pincode"
+                                                                value={formData.pincode}
+                                                                onChange={handleFormChange}
+                                                                className={`w-full bg-gray-50 border rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none ${
+                                                                    errors.pincode || pincodeValid === 'invalid' ? 'border-red-500' : pincodeValid === 'valid' ? 'border-emerald-500' : 'border-gray-200'
+                                                                }`}
+                                                                placeholder="6-digit"
+                                                                maxLength="6"
+                                                            />
+                                                            {pincodeValid === 'invalid' && <p className="text-[9px] text-red-500 font-bold mt-0.5">Non-serviceable</p>}
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold uppercase text-gray-500 mb-0.5">Area / Locality</label>
+                                                            <input 
+                                                                type="text" 
+                                                                name="locality"
+                                                                value={formData.locality}
+                                                                onChange={handleFormChange}
+                                                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none focus:bg-white focus:border-emerald-500"
+                                                                placeholder="Locality"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {address && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setShowForm(false);
+                                                            }}
+                                                            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline uppercase tracking-wider pt-1 block"
+                                                        >
+                                                            ← Use Saved Address
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
                             </div>
                         </div>
 
-                        {/* Footer */}
-                        <div className="px-6 py-6 border-t border-gray-100 shrink-0 bg-white">
+                        {/* Compact Footer */}
+                        <div className="p-3 border-t border-gray-100 shrink-0 bg-white">
                             <button
+                                type="button"
                                 onClick={handleSend}
                                 disabled={loading || isFetchingAddress}
-                                className="w-full py-4.5 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 transition-all shadow-[0_12px_40px_-12px_rgba(37,211,102,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
+                                className="w-full h-11 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
                             >
                                 {loading ? (
-                                    <Loader2 className="w-7 h-7 animate-spin" strokeWidth={3} />
+                                    <Loader2 className="w-4 h-4 animate-spin" strokeWidth={3} />
                                 ) : (
                                     <>
-                                        <Send className="w-6 h-6" fill="currentColor" />
-                                        REQUEST ON WHATSAPP
+                                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                                        </svg>
+                                        <span>REQUEST ON WHATSAPP</span>
                                     </>
                                 )}
                             </button>
-                            <div className="flex items-center justify-center gap-2 mt-4 opacity-30">
+                            <div className="flex items-center justify-center gap-1.5 mt-2 text-gray-400">
                                 <Package className="w-3 h-3" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Secure RG Basket Order</span>
+                                <span className="text-[9px] font-bold uppercase tracking-wider">Secure RG Basket Order</span>
                             </div>
                         </div>
                     </motion.div>

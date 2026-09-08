@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Upload, Plus, Trash2, ArrowLeft, Package, DollarSign, Layers, Image as ImageIcon, Settings } from 'lucide-react';
+import { X, Save, Upload, Plus, Trash2, ArrowLeft, Package, DollarSign, Layers, Image as ImageIcon, Settings, Info, Sparkles } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayoutDark from './AdminLayoutDark';
@@ -29,6 +29,7 @@ const ProductFormDark = () => {
         availableSlots: [],
         isCustomizable: false,
         isSpecialRequest: false,
+        specialRequestInfo: '',
         customizationCharges: []
     });
 
@@ -90,6 +91,7 @@ const ProductFormDark = () => {
                     availableSlots: product.availableSlots || [],
                     isCustomizable: product.isCustomizable || false,
                     isSpecialRequest: product.isSpecialRequest || false,
+                    specialRequestInfo: product.specialRequestInfo || '',
                     customizationCharges: product.customizationCharges || []
                 });
                 setImagePreviews(product.images || []);
@@ -198,6 +200,7 @@ const ProductFormDark = () => {
             formDataToSend.append('requiresSlotSelection', formData.requiresSlotSelection);
             formDataToSend.append('isCustomizable', formData.isCustomizable);
             formDataToSend.append('isSpecialRequest', formData.isSpecialRequest);
+            formDataToSend.append('specialRequestInfo', formData.specialRequestInfo || '');
 
             // AUTOMATICALLY derive customization rules from variants if enabled
             let cleanedCharges = [];
@@ -508,6 +511,25 @@ const ProductFormDark = () => {
                                 <span className={`text-sm ${tw.textPrimary}`}>Special Request (WhatsApp)</span>
                             </label>
                         </div>
+
+                        {formData.isSpecialRequest && (
+                            <div className="mt-4 p-4 rounded-xl bg-[#16161e] border border-emerald-500/30 space-y-2">
+                                <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                                    <Sparkles className="w-4 h-4" />
+                                    Special Request Details / Instructions for Customers
+                                </div>
+                                <p className={`text-xs ${tw.textSecondary}`}>
+                                    Write the product info, pre-order timelines, cut/cleaning guidelines, or pricing rules that customers will see in the Details popup before placing a special request.
+                                </p>
+                                <textarea
+                                    rows={4}
+                                    value={formData.specialRequestInfo || ''}
+                                    onChange={(e) => handleInputChange('specialRequestInfo', e.target.value)}
+                                    placeholder="e.g. Sourced fresh daily. Minimum order 1.5 kg. Specify Bengali cut, Curry cut, or Boneless on WhatsApp. Order 12 hours ahead for morning delivery."
+                                    className={`w-full ${tw.bgInput} ${tw.textPrimary} border ${tw.borderPrimary} rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500`}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Slot Availability */}

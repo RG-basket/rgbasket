@@ -8,6 +8,7 @@ import OutOfStockWarning from './OutOfStockWarning';
 import DeliveryInstruction from './DeliveryInstruction';
 import PromoCodeSection from './PromoCodeSection';
 import RGCoinSection from './RGCoinSection';
+import OrderForSomeoneElse from './OrderForSomeoneElse';
 import { FaTimes } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
@@ -15,8 +16,12 @@ const OrderSummary = ({
     user,
     addresses,
     selectedAddress,
+    setSelectedAddress,
     loadingAddresses,
     setShowAddressForm,
+    onAddNewAddress,
+    onEditAddress,
+    onDeleteAddress,
     paymentOption,
     setPaymentOption,
     deliveryDate,
@@ -55,9 +60,19 @@ const OrderSummary = ({
     totalBeforeCoins = 0,
     totalForThresholds = 0,
     coinDebtRecovery = 0,
-    surgeCharges = []
+    surgeCharges = [],
+    // Order For Someone Else Props
+    isOrderingForSomeoneElse,
+    setIsOrderingForSomeoneElse,
+    recipientData,
+    setRecipientData
 }) => {
-    const tipOptions = [10, 20, 30];
+    const tipOptions = [
+        { amount: 10, emoji: '☕', label: 'Chai', treat: 'a hot Chai' },
+        { amount: 20, emoji: '🥟', label: 'Samosa', treat: 'a crispy Samosa' },
+        { amount: 30, emoji: '🥤', label: 'Juice', treat: 'a cool drink' },
+        { amount: 50, emoji: '🍛', label: 'Meal', treat: 'a hearty Meal' }
+    ];
     const [isCustomTip, setIsCustomTip] = React.useState(false);
     const [customTipValue, setCustomTipValue] = React.useState('');
 
@@ -69,8 +84,21 @@ const OrderSummary = ({
             <AddressSection
                 addresses={addresses}
                 selectedAddress={selectedAddress}
+                setSelectedAddress={setSelectedAddress}
                 loadingAddresses={loadingAddresses}
                 setShowAddressForm={setShowAddressForm}
+                onAddNewAddress={onAddNewAddress}
+                onEditAddress={onEditAddress}
+                onDeleteAddress={onDeleteAddress}
+            />
+
+            {/* Order For Someone Else Section */}
+            <OrderForSomeoneElse
+                isOrderingForSomeoneElse={isOrderingForSomeoneElse}
+                setIsOrderingForSomeoneElse={setIsOrderingForSomeoneElse}
+                recipientData={recipientData}
+                setRecipientData={setRecipientData}
+                selectedAddress={selectedAddress}
             />
 
             {/* Only show payment/delivery if address exists and no issues */}
@@ -92,6 +120,15 @@ const OrderSummary = ({
                         setDeliverySlot={setDeliverySlot}
                     />
 
+                    {/* Promo Code Section */}
+                    <PromoCodeSection
+                        onApply={applyPromo}
+                        onRemove={removePromo}
+                        appliedCode={promoCode}
+                        discountAmount={discountAmount}
+                        currencySymbol={currencySymbol}
+                    />
+
                     {/* RG Coin Section */}
                     <RGCoinSection
                         userCoins={userCoins}
@@ -100,15 +137,8 @@ const OrderSummary = ({
                         onToggle={toggleCoins}
                         currencySymbol={currencySymbol}
                         totalBeforeCoins={totalForThresholds}
-                    />
-
-                    {/* Promo Code Section */}
-                    <PromoCodeSection
-                        onApply={applyPromo}
-                        onRemove={removePromo}
-                        appliedCode={promoCode}
-                        discountAmount={discountAmount}
-                        currencySymbol={currencySymbol}
+                        appliedPromo={promoCode}
+                        appliedGift={selectedGift}
                     />
 
                     {/* Selected Gift (Read Only) */}
@@ -136,46 +166,101 @@ const OrderSummary = ({
                     )}
 
 
-                    {/* Delivery Partner Tip Section */}
-                    <div className="mb-6 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 shadow-sm shadow-emerald-50/50">
-                        <div className="flex items-center gap-2 mb-3">
-                            <span className="text-xl">🛵</span>
-                            <div className="flex flex-col">
-                                <span className="font-bold text-gray-800 text-sm">Thank Your Delivery Hero</span>
-                                <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">100% of your tip goes to the partner</span>
+                    {/* Delivery Partner Tip Section - Mobile Optimized */}
+                    <div className="mb-3 sm:mb-4 bg-white border border-emerald-100 rounded-2xl p-2.5 sm:p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-base">🛵</span>
+                                <span className="font-bold text-gray-900 text-xs">Thank Delivery Hero</span>
                             </div>
+                            <span className="text-[9px] text-emerald-700 bg-emerald-50 font-bold px-2 py-0.5 rounded-full border border-emerald-100">
+                                100% to partner
+                            </span>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-2 mb-3">
-                            {tipOptions.map((amount) => (
-                                <button
-                                    key={amount}
-                                    onClick={() => {
-                                        setTipAmount(amount);
-                                        setIsCustomTip(false);
-                                    }}
-                                    className={`py-2 rounded-xl text-xs font-black transition-all ${tipAmount === amount && !isCustomTip
-                                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 scale-105'
-                                        : 'bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50'
+                        {/* Food Treat Options Grid */}
+                        <div className="grid grid-cols-4 gap-1.5 mb-2">
+                            {tipOptions.map((opt) => {
+                                const isSelected = tipAmount === opt.amount && !isCustomTip;
+                                return (
+                                    <button
+                                        key={opt.amount}
+                                        type="button"
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                setTipAmount(0);
+                                                setIsCustomTip(false);
+                                            } else {
+                                                setTipAmount(opt.amount);
+                                                setIsCustomTip(false);
+                                                setCustomTipValue('');
+                                            }
+                                        }}
+                                        className={`py-1.5 px-0.5 rounded-xl flex flex-col items-center justify-center transition-all duration-150 active:scale-95 border ${
+                                            isSelected
+                                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm scale-[1.02]'
+                                                : 'bg-emerald-50/30 border-emerald-100 text-gray-800 hover:border-emerald-300'
                                         }`}
-                                >
-                                    {currencySymbol}{amount}
-                                </button>
-                            ))}
-                            <button
-                                onClick={() => setIsCustomTip(true)}
-                                className={`py-2 rounded-xl text-xs font-black transition-all ${isCustomTip
-                                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100 scale-105'
-                                    : 'bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50'
-                                    }`}
-                            >
-                                Other
-                            </button>
+                                    >
+                                        <span className="text-base leading-tight mb-0.5">{opt.emoji}</span>
+                                        <span className={`text-[11px] font-black leading-tight ${isSelected ? 'text-white' : 'text-emerald-800'}`}>
+                                            {currencySymbol}{opt.amount}
+                                        </span>
+                                        <span className={`text-[9px] font-semibold leading-tight ${isSelected ? 'text-emerald-100' : 'text-gray-500'}`}>
+                                            {opt.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
 
+                        {/* Custom Tip & Active Status Row */}
+                        <div className="flex items-center justify-between text-[11px] pt-0.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const nextState = !isCustomTip;
+                                    setIsCustomTip(nextState);
+                                    if (!nextState) {
+                                        setTipAmount(0);
+                                    } else {
+                                        setTipAmount(Number(customTipValue) || 0);
+                                    }
+                                }}
+                                className={`text-[10px] font-bold py-0.5 px-2 rounded-lg border transition-all ${
+                                    isCustomTip
+                                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-emerald-50 hover:text-emerald-700'
+                                }`}
+                            >
+                                💝 Custom
+                            </button>
+
+                            {tipAmount > 0 && (
+                                <div className="flex items-center gap-1.5 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                                    <span className="text-[10px] font-bold text-emerald-800 flex items-center gap-1">
+                                        <span>{tipOptions.find(o => o.amount === tipAmount && !isCustomTip)?.emoji || '💝'}</span>
+                                        <span>Treating {tipOptions.find(o => o.amount === tipAmount && !isCustomTip)?.label || 'Hero'} ({currencySymbol}{tipAmount})! 🎉</span>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setTipAmount(0);
+                                            setIsCustomTip(false);
+                                            setCustomTipValue('');
+                                        }}
+                                        className="text-[9px] font-black text-rose-500 hover:text-rose-700 ml-1 uppercase"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Custom Input */}
                         {isCustomTip && (
-                            <div className="relative animate-in slide-in-from-top-2 duration-300">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold ml-1">{currencySymbol}</span>
+                            <div className="relative mt-2">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">{currencySymbol}</span>
                                 <input
                                     type="number"
                                     value={customTipValue}
@@ -193,29 +278,10 @@ const OrderSummary = ({
                                         setCustomTipValue(val);
                                         setTipAmount(numVal || 0);
                                     }}
-                                    placeholder="Enter custom tip"
+                                    placeholder="Enter tip amount"
                                     min="0"
-                                    className="w-full bg-white border-2 border-emerald-100 rounded-xl py-3 pl-8 pr-4 text-sm font-bold focus:border-emerald-600 focus:ring-0 transition-colors"
+                                    className="w-full bg-white border border-emerald-200 rounded-lg py-1.5 pl-7 pr-3 text-xs font-bold focus:border-emerald-600 outline-none transition-colors"
                                 />
-                            </div>
-                        )}
-
-                        {tipAmount > 0 && (
-                            <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-emerald-700 bg-emerald-100/30 py-2 px-3 rounded-lg border border-emerald-100 animate-in fade-in duration-300">
-                                <div className="flex items-center gap-1.5">
-                                    <span>🌟 You're amazing!</span>
-                                    <button
-                                        onClick={() => {
-                                            setTipAmount(0);
-                                            setIsCustomTip(false);
-                                            setCustomTipValue('');
-                                        }}
-                                        className="underline hover:text-emerald-900 ml-1 font-black uppercase text-[9px] tracking-wider"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                                <span className="font-black">{currencySymbol}{tipAmount}</span>
                             </div>
                         )}
                     </div>

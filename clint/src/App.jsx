@@ -43,6 +43,7 @@ const AdminOrders = lazy(() => import("./components/Admin/AdminOrdersDark.jsx"))
 const AdminUsers = lazy(() => import("./components/Admin/AdminUsersDark.jsx"));
 const AdminProducts = lazy(() => import("./components/Admin/AdminProductsDark.jsx"));
 const BulkPriceStockEditor = lazy(() => import("./components/Admin/BulkPriceStockEditorFixed.jsx"));
+const DayWisePricingManager = lazy(() => import("./components/Admin/DayWisePricingManager.jsx"));
 const ProductForm = lazy(() => import("./components/Admin/ProductFormDark.jsx"));
 const CategoryForm = lazy(() => import("./components/Products/CategoryForm.jsx"));
 const AnalyticsDashboard = lazy(() => import("./components/Admin/AnalyticsDashboard.jsx"));
@@ -373,6 +374,11 @@ const App = () => {
                 <Route path="/portal-dashboard/products/bulk-edit" element={
                   <ProtectedRoute>
                     <BulkPriceStockEditor />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/products/day-pricing" element={
+                  <ProtectedRoute>
+                    <DayWisePricingManager />
                   </ProtectedRoute>
                 } />
                 <Route path="/portal-dashboard/products/new" element={

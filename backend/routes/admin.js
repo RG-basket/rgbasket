@@ -482,7 +482,35 @@ router.post('/products', authenticateAdmin, async (req, res) => {
 router.put('/products/:id', authenticateAdmin, async (req, res) => {
   try {
     const Product = require('../models/Product');
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = { ...req.body };
+
+    // Auto-compute hasDayWisePricing and ensure variant stocks stay synced with product stock
+    if (updateData.weights && Array.isArray(updateData.weights)) {
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      let hasSpecial = false;
+      const targetStock = updateData.stock !== undefined ? updateData.stock : null;
+
+      for (const w of updateData.weights) {
+        if (targetStock !== null && targetStock > 0 && (!w.stock || w.stock === 0)) {
+          w.stock = targetStock;
+        }
+        if (updateData.inStock !== undefined && w.inStock === undefined) {
+          w.inStock = updateData.inStock;
+        }
+        if (w.dailyPrices) {
+          for (const day of days) {
+            const dp = w.dailyPrices[day];
+            if (dp && dp.offerPrice !== undefined && dp.offerPrice !== null && dp.offerPrice > 0) {
+              hasSpecial = true;
+              break;
+            }
+          }
+        }
+      }
+      updateData.hasDayWisePricing = hasSpecial;
+    }
+
+    const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json({ success: true, message: 'Product updated successfully', product });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Error updating product' });
@@ -534,11 +562,30 @@ router.patch('/products/bulk-update', authenticateAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Product IDs array is required' });
     }
 
-    const allowedFields = ['active', 'featured', 'stock', 'lowStockThreshold', 'weights', 'category', 'inStock', 'maxOrderQuantity'];
+    const allowedFields = ['active', 'featured', 'stock', 'lowStockThreshold', 'weights', 'category', 'inStock', 'maxOrderQuantity', 'hasDayWisePricing'];
     const invalidFields = Object.keys(updateData).filter(field => !allowedFields.includes(field));
 
     if (invalidFields.length > 0) {
       return res.status(400).json({ success: false, message: `Invalid fields for bulk update: ${invalidFields.join(', ')}` });
+    }
+
+    // Auto-compute hasDayWisePricing if weights are in updateData
+    if (updateData.weights && Array.isArray(updateData.weights)) {
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      let hasSpecial = false;
+      for (const w of updateData.weights) {
+        if (w.dailyPrices) {
+          for (const day of days) {
+            const dp = w.dailyPrices[day];
+            if (dp && dp.offerPrice !== undefined && dp.offerPrice !== null && dp.offerPrice > 0) {
+              hasSpecial = true;
+              break;
+            }
+          }
+        }
+        if (hasSpecial) break;
+      }
+      updateData.hasDayWisePricing = hasSpecial;
     }
 
     const result = await Product.updateMany({ _id: { $in: productIds } }, { $set: updateData });

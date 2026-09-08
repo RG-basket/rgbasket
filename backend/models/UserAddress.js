@@ -82,6 +82,16 @@ const UserAddressSchema = new mongoose.Schema({
   isDefault: {
     type: Boolean,
     default: false
+  },
+  addressType: {
+    type: String,
+    enum: ['Home', 'Office', 'Other'],
+    default: 'Home'
+  },
+  otherLabel: {
+    type: String,
+    default: '',
+    trim: true
   }
 }, {
   timestamps: true
