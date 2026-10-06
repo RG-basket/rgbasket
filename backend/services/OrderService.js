@@ -259,10 +259,32 @@ class OrderService {
         if (liveLocation) deliveryLocation = { ...liveLocation, source: 'live' };
       }
 
+      // 5.5 CALCULATE CUSTOMER ORDER NUMBER
+      let userOrderNumber = 1;
+      try {
+        const mongoose = require('mongoose');
+        let userAliases = [checkUserId.toString()];
+        const userDoc = await User.findOne({
+          $or: [
+            { _id: mongoose.isValidObjectId(checkUserId) ? checkUserId : null },
+            { googleId: checkUserId }
+          ].filter(q => q && Object.values(q)[0] !== null)
+        });
+        if (userDoc) {
+          userAliases = [userDoc._id.toString()];
+          if (userDoc.googleId) userAliases.push(userDoc.googleId);
+        }
+        const prevCount = await Order.countDocuments({ user: { $in: userAliases } });
+        userOrderNumber = prevCount + 1;
+      } catch (seqErr) {
+        console.warn('Could not compute userOrderNumber at creation:', seqErr.message);
+      }
+
       // 6. CREATE AND SAVE ORDER
       const order = new Order({
         ...orderData,
         user: checkUserId,
+        userOrderNumber: userOrderNumber,
         items: validatedItems,
         subtotal: pricing.subtotal,
         shippingFee: pricing.shippingFee,

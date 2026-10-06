@@ -6,6 +6,9 @@ const OrderSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  userOrderNumber: {
+    type: Number
+  },
   userInfo: {
     name: {
       type: String,

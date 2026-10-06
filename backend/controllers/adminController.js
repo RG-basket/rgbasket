@@ -56,13 +56,17 @@ const getAdminDashboard = async (req, res) => {
       totalUsers,
       orderStats,
       revenueChart,
-      recentOrders
+      recentOrders,
+      topSellingProducts,
+      topCustomers,
+      slotBreakdown,
+      orderingUsers
     ] = await Promise.all([
       // 1. Total Revenue
       Order.aggregate([
-        { $match: { status: { $ne: 'Cancelled' } } },
+        { $match: { status: { $nin: ['cancelled', 'Cancelled'] } } },
         { $group: { _id: null, total: { $sum: "$totalAmount" } } }
-      ]).catch(() => []), // Return empty array on error
+      ]).catch(() => []),
 
       // 2. Total Orders
       Order.countDocuments().catch(() => 0),
@@ -89,7 +93,7 @@ const getAdminDashboard = async (req, res) => {
             {
               $match: {
                 createdAt: { $gte: sevenDaysAgo },
-                status: { $ne: 'Cancelled' }
+                status: { $nin: ['cancelled', 'Cancelled'] }
               }
             },
             {
@@ -109,9 +113,65 @@ const getAdminDashboard = async (req, res) => {
       // 7. Recent Orders
       Order.find()
         .sort({ createdAt: -1 })
-        .limit(5)
-        .populate('user', 'name email')
-        .catch(() => [])
+        .limit(8)
+        .select('_id user userInfo totalAmount status createdAt items deliveryDate timeSlot')
+        .catch(() => []),
+
+      // 8. Top Selling Products (Most Selling Items)
+      Order.aggregate([
+        { $match: { status: { $nin: ['cancelled', 'Cancelled'] } } },
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.name",
+            productId: { $first: "$items.productId" },
+            image: { $first: "$items.image" },
+            weight: { $first: "$items.weight" },
+            unit: { $first: "$items.unit" },
+            totalQuantity: { $sum: "$items.quantity" },
+            totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+            orderCount: { $sum: 1 }
+          }
+        },
+        { $sort: { totalQuantity: -1 } },
+        { $limit: 20 }
+      ]).catch(() => []),
+
+      // 9. Top Customers (Who Order Most - Top 100)
+      Order.aggregate([
+        { $match: { status: { $nin: ['cancelled', 'Cancelled'] } } },
+        {
+          $group: {
+            _id: "$user",
+            name: { $first: "$userInfo.name" },
+            email: { $first: "$userInfo.email" },
+            phone: { $first: "$userInfo.phone" },
+            photo: { $first: "$userInfo.photo" },
+            totalOrders: { $sum: 1 },
+            totalSpent: { $sum: "$totalAmount" },
+            lastOrderDate: { $max: "$createdAt" }
+          }
+        },
+        { $sort: { totalOrders: -1, totalSpent: -1 } },
+        { $limit: 100 }
+      ]).catch(() => []),
+
+      // 10. Delivery Time Slot Breakdown
+      Order.aggregate([
+        { $match: { status: { $nin: ['cancelled', 'Cancelled'] } } },
+        {
+          $group: {
+            _id: "$timeSlot",
+            count: { $sum: 1 },
+            revenue: { $sum: "$totalAmount" }
+          }
+        },
+        { $sort: { count: -1 } },
+        { $limit: 6 }
+      ]).catch(() => []),
+
+      // 11. Ordering Users Count
+      Order.distinct('user').catch(() => [])
     ]);
 
     // Process revenue with safe default
@@ -148,9 +208,14 @@ const getAdminDashboard = async (req, res) => {
       totalOrders: totalOrders || 0,
       totalProducts: totalProducts || 0,
       totalUsers: totalUsers || 0,
+      totalOrderedUsers: Array.isArray(orderingUsers) ? orderingUsers.length : 0,
+      totalNotOrderedUsers: Math.max(0, (totalUsers || 0) - (Array.isArray(orderingUsers) ? orderingUsers.length : 0)),
       orders,
       revenueChart: formattedRevenueChart,
-      recentOrders: recentOrders || []
+      recentOrders: recentOrders || [],
+      topSellingProducts: topSellingProducts || [],
+      topCustomers: topCustomers || [],
+      slotBreakdown: slotBreakdown || []
     });
 
   } catch (error) {

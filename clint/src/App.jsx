@@ -41,6 +41,7 @@ const AdminLogin = lazy(() => import("./components/Admin/AdminLogin.jsx"));
 const AdminDashboard = lazy(() => import("./components/Admin/AdminDashboardDark.jsx"));
 const AdminOrders = lazy(() => import("./components/Admin/AdminOrdersDark.jsx"));
 const AdminUsers = lazy(() => import("./components/Admin/AdminUsersDark.jsx"));
+const AdminUserAnalytics = lazy(() => import("./components/Admin/AdminUserAnalyticsDark.jsx"));
 const AdminProducts = lazy(() => import("./components/Admin/AdminProductsDark.jsx"));
 const BulkPriceStockEditor = lazy(() => import("./components/Admin/BulkPriceStockEditorFixed.jsx"));
 const DayWisePricingManager = lazy(() => import("./components/Admin/DayWisePricingManager.jsx"));
@@ -359,6 +360,16 @@ const App = () => {
                 <Route path="/portal-dashboard/users" element={
                   <ProtectedRoute>
                     <AdminUsers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/users/analytics" element={
+                  <ProtectedRoute>
+                    <AdminUserAnalytics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/portal-dashboard/user-analytics" element={
+                  <ProtectedRoute>
+                    <AdminUserAnalytics />
                   </ProtectedRoute>
                 } />
                 <Route path="/portal-dashboard/analytics" element={

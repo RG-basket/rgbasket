@@ -664,4 +664,10 @@ app.use((req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+  try {
+    const NotificationScheduler = require('./services/NotificationScheduler');
+    NotificationScheduler.init();
+  } catch (schedErr) {
+    console.error('⚠️ Could not start NotificationScheduler:', schedErr);
+  }
 });

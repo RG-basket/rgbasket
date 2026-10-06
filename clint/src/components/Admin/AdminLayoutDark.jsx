@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Package, ShoppingCart, Users, Settings,
@@ -14,9 +14,45 @@ import { tokyoNight, tw } from '../../config/tokyoNightTheme';
 const AdminLayoutDark = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [imgError, setImgError] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
-    const { logout } = useAppContext();
+    const { user, logout } = useAppContext();
+
+    // Retrieve user reliably from context or localStorage fallback
+    const [storedUser, setStoredUser] = useState(() => {
+        try {
+            const raw = localStorage.getItem('user');
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+        }
+    });
+
+    useEffect(() => {
+        const syncUser = () => {
+            try {
+                const raw = localStorage.getItem('user');
+                if (raw) setStoredUser(JSON.parse(raw));
+            } catch {}
+        };
+        window.addEventListener('storage', syncUser);
+        window.addEventListener('session-refreshed', syncUser);
+        return () => {
+            window.removeEventListener('storage', syncUser);
+            window.removeEventListener('session-refreshed', syncUser);
+        };
+    }, []);
+
+    const activeUser = user || storedUser;
+    const adminName = activeUser?.name || activeUser?.displayName || 'Admin';
+    const adminEmail = activeUser?.email || '';
+    const adminPhoto = activeUser?.photo || activeUser?.picture || activeUser?.photoURL || '';
+    const adminInitial = (adminName || 'A').trim().charAt(0).toUpperCase();
+
+    useEffect(() => {
+        setImgError(false);
+    }, [adminPhoto]);
 
     const handleLogout = () => {
         logout('/admin/login');
@@ -37,7 +73,14 @@ const AdminLayoutDark = ({ children }) => {
         { path: '/portal-dashboard/orders', icon: ShoppingCart, label: 'Orders' },
         { path: '/portal-dashboard/notifications', icon: Bell, label: 'Notifications' },
         { path: '/portal-dashboard/complaints', icon: AlertCircle, label: 'Complaints' },
-        { path: '/portal-dashboard/users', icon: Users, label: 'Users' },
+        {
+            label: 'Users',
+            icon: Users,
+            children: [
+                { path: '/portal-dashboard/users', label: 'All Users' },
+                { path: '/portal-dashboard/users/analytics', label: 'User Analytics' }
+            ]
+        },
         { path: '/portal-dashboard/delivery-partners', icon: Truck, label: 'Riders' },
         { path: '/portal-dashboard/rewards', icon: FaCoins, label: 'RG Coins' },
         { path: '/portal-dashboard/offers', icon: FaGift, label: 'Gift Offers' },
@@ -139,7 +182,7 @@ const AdminLayoutDark = ({ children }) => {
                                                     key={childIndex}
                                                     to={child.path}
                                                     onClick={() => setMobileMenuOpen(false)}
-                                                    className={`block px-3 py-2 rounded-lg text-sm transition-all duration-200 ${isActive(child.path)
+                                                    className={`block px-3 py-2 rounded-lg text-sm transition-all duration-200 ${isActive(child.path, true)
                                                         ? `bg-[#7aa2f7]/10 ${tw.accentBlue} font-medium`
                                                         : `${tw.textSecondary} ${tw.hoverElevated} hover:text-[#c0caf5]`
                                                         }`}
@@ -242,13 +285,36 @@ const AdminLayoutDark = ({ children }) => {
                             </button>
 
                             {/* Admin Profile */}
-                            <div className={`flex items-center gap-2 sm:gap-3 pl-1 sm:pl-3 border-l ${tw.borderSecondary}`}>
-                                <div className="hidden sm:block text-right">
-                                    <p className={`text-xs sm:text-sm font-bold ${tw.textPrimary}`}>Admin</p>
-                                    <p className={`text-[10px] sm:text-xs font-medium text-emerald-400`}>Online</p>
+                            <div 
+                                className={`flex items-center gap-2 sm:gap-3 pl-1 sm:pl-3 border-l ${tw.borderSecondary}`}
+                                title={`${adminName}${adminEmail ? ` • ${adminEmail}` : ''}`}
+                            >
+                                <div className="text-right max-w-[110px] xs:max-w-[150px] sm:max-w-[200px]">
+                                    <p 
+                                        className={`text-xs sm:text-sm font-bold ${tw.textPrimary} truncate leading-tight`}
+                                        title={adminName}
+                                    >
+                                        {adminName}
+                                    </p>
+                                    <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                        <p className="text-[10px] sm:text-xs font-medium text-emerald-400 leading-tight">Online</p>
+                                    </div>
                                 </div>
-                                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-[#7aa2f7] to-[#bb9af7] rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20 border-2 border-[#1a1b26] ring-1 ring-[#7aa2f7]/30">
-                                    <span className="text-[#1a1b26] font-bold text-sm">A</span>
+                                <div 
+                                    className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-[#7aa2f7] to-[#bb9af7] rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20 border-2 border-[#1a1b26] ring-1 ring-[#7aa2f7]/30 flex-shrink-0 overflow-hidden"
+                                    title={adminName}
+                                >
+                                    {adminPhoto && !imgError ? (
+                                        <img
+                                            src={adminPhoto}
+                                            alt={adminName}
+                                            className="w-full h-full object-cover"
+                                            onError={() => setImgError(true)}
+                                        />
+                                    ) : (
+                                        <span className="text-[#1a1b26] font-bold text-sm">{adminInitial}</span>
+                                    )}
                                 </div>
                             </div>
                         </div>

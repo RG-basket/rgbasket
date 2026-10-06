@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const ServiceArea = require('../models/ServiceArea');
@@ -344,6 +345,182 @@ router.put('/admin/orders/bulk-status', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Admin Create Order (for WhatsApp orders & special custom items)
+router.post('/admin/create-order', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      userId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      items,
+      shippingFee = 0,
+      discountAmount = 0,
+      paymentMethod = 'cash_on_delivery',
+      deliveryDate,
+      timeSlot,
+      instruction = '',
+      status = 'confirmed'
+    } = req.body;
+
+    if (!customerPhone && !shippingAddress?.phoneNumber) {
+      return res.status(400).json({ success: false, message: 'Customer phone number is required' });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'At least one item is required in the order' });
+    }
+
+    const phone = (customerPhone || shippingAddress?.phoneNumber || '').trim();
+    const name = (customerName || shippingAddress?.fullName || 'Customer').trim();
+    const email = (customerEmail || '').trim();
+
+    // 1. Resolve or create customer account
+    let targetUser = null;
+    if (userId) {
+      targetUser = await User.findOne({
+        $or: [
+          { _id: mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : null },
+          { googleId: userId }
+        ].filter(Boolean)
+      });
+    }
+
+    if (!targetUser && phone) {
+      targetUser = await User.findOne({ phone: phone });
+    }
+
+    if (!targetUser && email) {
+      targetUser = await User.findOne({ email: email });
+    }
+
+    let targetUserId = '';
+    if (targetUser) {
+      targetUserId = targetUser._id.toString();
+      targetUser.lastActive = new Date();
+      await targetUser.save().catch(() => {});
+    } else {
+      // Create lightweight user account for this WhatsApp customer
+      try {
+        const newUser = new User({
+          name: name,
+          phone: phone,
+          email: email || `${phone.replace(/[^0-9]/g, '')}@whatsapp.customer`,
+          role: 'user',
+          active: true,
+          lastActive: new Date()
+        });
+        await newUser.save();
+        targetUserId = newUser._id.toString();
+        targetUser = newUser;
+      } catch (userErr) {
+        console.warn('Fallback user creation failed, using generated ID:', userErr.message);
+        targetUserId = `wp_${phone.replace(/[^0-9]/g, '') || Date.now()}`;
+      }
+    }
+
+    // 2. Calculate customer order sequence number
+    const previousOrderCount = await Order.countDocuments({
+      $or: [
+        { user: targetUserId },
+        { 'userInfo.phone': phone },
+        ...(targetUser?.googleId ? [{ user: targetUser.googleId }] : [])
+      ]
+    });
+    const userOrderNumber = previousOrderCount + 1;
+
+    // 3. Format order items (catalog or special request custom items)
+    const formattedItems = items.map((item, index) => {
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const price = Math.max(0, Number(item.price) || 0);
+      const isCustom = Boolean(item.isSpecialRequest || !item.productId || String(item.productId).startsWith('custom_'));
+      
+      return {
+        productId: item.productId || `custom_${Date.now()}_${index}`,
+        name: item.name || 'Custom Item',
+        description: item.description || (isCustom ? 'Special WhatsApp Request Item' : (item.name || '')),
+        weight: item.weight || item.unit || '1 unit',
+        unit: item.unit || '',
+        quantity: qty,
+        price: price,
+        isCustomized: isCustom,
+        customizationInstructions: isCustom ? (item.instructions || 'Special Request Item') : '',
+        customizationCharge: 0,
+        image: item.image || '',
+        userName: name,
+        userImage: ''
+      };
+    });
+
+    // 4. Financials
+    const subtotal = formattedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const numShipping = Math.max(0, Number(shippingFee) || 0);
+    const numDiscount = Math.max(0, Number(discountAmount) || 0);
+    const totalAmount = Math.max(0, subtotal + numShipping - numDiscount);
+
+    // 5. Build and save order
+    const orderData = {
+      user: targetUserId,
+      userOrderNumber,
+      userInfo: {
+        name: name,
+        email: email,
+        phone: phone,
+        photo: targetUser?.photo || ''
+      },
+      items: formattedItems,
+      subtotal,
+      shippingFee: numShipping,
+      tax: 0,
+      discountAmount: numDiscount,
+      originalTotal: subtotal + numShipping,
+      finalTotal: totalAmount,
+      totalAmount,
+      paymentMethod: paymentMethod || 'cash_on_delivery',
+      status: status || 'confirmed',
+      deliveryDate: deliveryDate ? new Date(deliveryDate) : new Date(),
+      timeSlot: timeSlot || 'Morning - First Half (7:00 AM - 8:30 AM)',
+      shippingAddress: {
+        fullName: shippingAddress?.fullName || name,
+        phoneNumber: shippingAddress?.phoneNumber || phone,
+        alternatePhone: shippingAddress?.alternatePhone || '',
+        addressType: shippingAddress?.addressType || 'Home',
+        otherLabel: '',
+        street: shippingAddress?.street || 'Direct Order Address',
+        locality: shippingAddress?.locality || 'Cuttack',
+        city: shippingAddress?.city || 'Cuttack',
+        state: shippingAddress?.state || 'Odisha',
+        pincode: shippingAddress?.pincode || '753001',
+        landmark: shippingAddress?.landmark || ''
+      },
+      instruction: instruction ? `[WhatsApp Order] ${instruction}` : '[WhatsApp Order]'
+    };
+
+    const createdOrder = new Order(orderData);
+    await createdOrder.save();
+
+    // 6. Notify Telegram if enabled
+    try {
+      TelegramService.sendOrderNotification(createdOrder).catch(() => {});
+    } catch (e) {}
+
+    console.log(`✅ Admin placed new order #${createdOrder._id.toString().slice(-8)} for customer ${name} (${phone}) - Sequence #${userOrderNumber}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Order created successfully!',
+      order: createdOrder
+    });
+  } catch (error) {
+    console.error('💥 Error in admin create order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating order: ' + error.message
+    });
+  }
+});
+
 // Get all orders (for admin) - WITH PAGINATION
 router.get('/admin/orders', authenticateAdmin, async (req, res) => {
   try {
@@ -433,9 +610,114 @@ router.get('/admin/orders', authenticateAdmin, async (req, res) => {
 
     console.log(`📦 Found ${orders.length} orders for current page`);
 
+    // Enrich orders with customer order sequence numbers
+    let enrichedOrders = orders;
+    try {
+      const mongoose = require('mongoose');
+      const rawUserIds = [...new Set(orders.map(o => o.user?.toString()).filter(Boolean))];
+      const rawPhones = [...new Set(orders.map(o => o.userInfo?.phone?.trim()).filter(Boolean))];
+      const rawEmails = [...new Set(orders.map(o => o.userInfo?.email?.trim()?.toLowerCase()).filter(Boolean))];
+
+      if (rawUserIds.length > 0 || rawPhones.length > 0 || rawEmails.length > 0) {
+        const objectIds = rawUserIds.filter(id => mongoose.isValidObjectId(id));
+        const userQuery = [];
+        if (objectIds.length > 0) userQuery.push({ _id: { $in: objectIds } });
+        if (rawUserIds.length > 0) userQuery.push({ googleId: { $in: rawUserIds } });
+        if (rawPhones.length > 0) userQuery.push({ phone: { $in: rawPhones } });
+        if (rawEmails.length > 0) userQuery.push({ email: { $in: rawEmails } });
+
+        const users = userQuery.length > 0 ? await User.find({ $or: userQuery }).select('_id googleId phone email') : [];
+
+        const aliasToCanonical = new Map();
+        const allAliases = new Set(rawUserIds);
+        const allPhones = new Set(rawPhones);
+        const allEmails = new Set(rawEmails);
+
+        for (const u of users) {
+          const canonicalKey = u._id.toString();
+          aliasToCanonical.set(canonicalKey, canonicalKey);
+          if (u.googleId) {
+            aliasToCanonical.set(u.googleId, canonicalKey);
+            allAliases.add(u.googleId);
+          }
+          if (u.phone) {
+            aliasToCanonical.set(`p_${u.phone}`, canonicalKey);
+            allPhones.add(u.phone);
+          }
+          if (u.email) {
+            aliasToCanonical.set(`e_${u.email.toLowerCase()}`, canonicalKey);
+            allEmails.add(u.email.toLowerCase());
+          }
+        }
+
+        for (const id of rawUserIds) {
+          if (!aliasToCanonical.has(id)) aliasToCanonical.set(id, id);
+        }
+        for (const p of rawPhones) {
+          if (!aliasToCanonical.has(`p_${p}`)) aliasToCanonical.set(`p_${p}`, `p_${p}`);
+        }
+        for (const e of rawEmails) {
+          if (!aliasToCanonical.has(`e_${e}`)) aliasToCanonical.set(`e_${e}`, `e_${e}`);
+        }
+
+        const orderQueryConditions = [];
+        if (allAliases.size > 0) orderQueryConditions.push({ user: { $in: Array.from(allAliases) } });
+        if (allPhones.size > 0) orderQueryConditions.push({ 'userInfo.phone': { $in: Array.from(allPhones) } });
+        if (allEmails.size > 0) orderQueryConditions.push({ 'userInfo.email': { $in: Array.from(allEmails) } });
+
+        const allUserOrders = await Order.find(
+          orderQueryConditions.length > 1 ? { $or: orderQueryConditions } : orderQueryConditions[0]
+        )
+          .sort({ createdAt: 1, _id: 1 })
+          .select('_id user userInfo createdAt');
+
+        const userGroups = new Map();
+        for (const o of allUserOrders) {
+          const uKey = o.user?.toString();
+          const pKey = o.userInfo?.phone ? `p_${o.userInfo.phone}` : null;
+          const eKey = o.userInfo?.email ? `e_${o.userInfo.email.toLowerCase()}` : null;
+
+          const canonical = (uKey && aliasToCanonical.get(uKey)) ||
+            (pKey && aliasToCanonical.get(pKey)) ||
+            (eKey && aliasToCanonical.get(eKey)) ||
+            uKey || pKey || eKey;
+
+          if (!userGroups.has(canonical)) {
+            userGroups.set(canonical, []);
+          }
+          userGroups.get(canonical).push(o);
+        }
+
+        const orderMetaMap = new Map();
+        for (const [, userOrdersList] of userGroups.entries()) {
+          const total = userOrdersList.length;
+          userOrdersList.forEach((o, index) => {
+            orderMetaMap.set(o._id.toString(), {
+              userOrderNumber: index + 1,
+              userTotalOrders: total
+            });
+          });
+        }
+
+        enrichedOrders = orders.map(order => {
+          const orderObj = order.toObject ? order.toObject() : { ...order };
+          const meta = orderMetaMap.get(orderObj._id?.toString());
+          const userOrderNumber = meta ? meta.userOrderNumber : (orderObj.userOrderNumber || 1);
+          const userTotalOrders = meta ? meta.userTotalOrders : 1;
+          return {
+            ...orderObj,
+            userOrderNumber,
+            userTotalOrders
+          };
+        });
+      }
+    } catch (enrichErr) {
+      console.error('Error enriching orders with customer order sequences:', enrichErr);
+    }
+
     res.json({
       success: true,
-      orders,
+      orders: enrichedOrders,
       statusCounts: statusCountsMap,
       pagination: {
         total,

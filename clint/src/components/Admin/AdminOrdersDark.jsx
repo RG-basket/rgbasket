@@ -7,6 +7,7 @@ import AdminButtonDark from './SharedDark/AdminButtonDark';
 import AdminTableDark from './SharedDark/AdminTableDark';
 import LocationCaptureModal from './SharedDark/LocationCaptureModal';
 import AdminModalDark from './SharedDark/AdminModalDark';
+import AdminCreateOrderModalDark from './AdminCreateOrderModalDark';
 import { tw } from '../../config/tokyoNightTheme';
 import { formatWeight } from '../../utils/weightFormatter.js';
 
@@ -20,6 +21,25 @@ const statusIcons = {
   cancelled: XCircle,
   under_review: AlertTriangle
 };
+
+// Helper function to format ordinal numbers (1st, 2nd, 3rd, 10th...)
+const getOrdinal = (num) => {
+  const n = parseInt(num, 10);
+  if (isNaN(n) || n <= 0) return '';
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${n}th`;
+  }
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+};
+
+// Global cache for customer order sequence numbers
+const userOrderSequenceCache = new Map();
 
 // Helper function to recalculate totals for any order
 const recalculateOrderTotals = (order, serviceAreas = []) => {
@@ -136,6 +156,7 @@ const AdminOrdersDark = () => {
   });
   const [partners, setPartners] = useState([]);
   const [assigningRider, setAssigningRider] = useState(false);
+  const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
 
   // Custom Surge Surcharge States
   const [customCharges, setCustomCharges] = useState([{ name: '', amount: '' }]);
@@ -335,6 +356,51 @@ const AdminOrdersDark = () => {
 
 
 
+  const enrichOrdersClientSide = useCallback(async (ordersList) => {
+    try {
+      const missing = ordersList.filter(o => !o.userOrderNumber && !userOrderSequenceCache.has(o._id) && (o.user || o.userInfo?.phone || o.userInfo?.email));
+      if (missing.length === 0) {
+        return ordersList.map(order => ({
+          ...order,
+          userOrderNumber: order.userOrderNumber || userOrderSequenceCache.get(order._id) || null
+        }));
+      }
+
+      const token = localStorage.getItem('adminToken');
+      const uniqueUserIds = [...new Set(missing.map(o => o.user).filter(Boolean))];
+
+      await Promise.allSettled(
+        uniqueUserIds.map(async (userId) => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/orders/user/${userId}?limit=500`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (!res.ok) return;
+            const resData = await res.json();
+            if (resData.success && Array.isArray(resData.orders)) {
+              const sorted = [...resData.orders].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+              sorted.forEach((o, index) => {
+                userOrderSequenceCache.set(o._id, index + 1);
+              });
+            }
+          } catch (err) {
+            console.warn('Error fetching order history for user:', userId, err);
+          }
+        })
+      );
+
+      return ordersList.map(order => ({
+        ...order,
+        userOrderNumber: order.userOrderNumber || userOrderSequenceCache.get(order._id) || null
+      }));
+    } catch (e) {
+      console.warn('enrichOrdersClientSide error:', e);
+      return ordersList;
+    }
+  }, []);
+
   const fetchOrders = async (pageNumber = 1) => {
     try {
       setLoading(true);
@@ -352,9 +418,25 @@ const AdminOrdersDark = () => {
 
       const data = await response.json();
       if (data.success) {
-        const processedOrders = (data.orders || []).map(order => recalculateOrderTotals(order, serviceAreas));
+        const processedOrders = (data.orders || []).map(order => {
+          const calculated = recalculateOrderTotals(order, serviceAreas);
+          const cachedNumber = userOrderSequenceCache.get(calculated._id);
+          if (!calculated.userOrderNumber && cachedNumber) {
+            calculated.userOrderNumber = cachedNumber;
+          } else if (calculated.userOrderNumber) {
+            userOrderSequenceCache.set(calculated._id, calculated.userOrderNumber);
+          }
+          return calculated;
+        });
         setOrders(processedOrders);
         setSelectedOrderIds([]); // Clear selection on new data fetch
+
+        // If any orders lack sequence number (e.g. backend without update), enrich in background
+        if (processedOrders.some(o => !o.userOrderNumber)) {
+          enrichOrdersClientSide(processedOrders).then(enriched => {
+            setOrders(enriched);
+          });
+        }
 
         if (data.statusCounts) {
           setServerStatusCounts(data.statusCounts);
@@ -1002,12 +1084,12 @@ const AdminOrdersDark = () => {
           <div class="card-title" style="color: #7c3aed; font-weight: 800;">🎁 ORDER FOR SOMEONE ELSE</div>
           <div class="info-item"><span class="info-label">Deliver To:</span><span class="info-value" style="font-weight: 700; color: #5b21b6;">${order.orderForSomeoneElse.recipientName}</span></div>
           <div class="info-item"><span class="info-label">Receiver 📞:</span><span class="info-value" style="font-weight: 700; color: #5b21b6;">${order.orderForSomeoneElse.recipientPhone}</span></div>
-          <div class="info-item"><span class="info-label">Ordered By:</span><span class="info-value">${order.userInfo?.name || 'Customer'} (${order.userInfo?.phone || 'N/A'})</span></div>
+          <div class="info-item"><span class="info-label">Ordered By:</span><span class="info-value">${order.userInfo?.name || 'Customer'}${order.userOrderNumber ? ` (${getOrdinal(order.userOrderNumber)} order of this customer)` : ''} (${order.userInfo?.phone || 'N/A'})</span></div>
         </div>
         ` : `
         <div class="info-card">
           <div class="card-title">CUSTOMER INFORMATION</div>
-          <div class="info-item"><span class="info-label">Name:</span><span class="info-value">${order.userInfo?.name || order.shippingAddress?.fullName || 'Guest'}</span></div>
+          <div class="info-item"><span class="info-label">Name:</span><span class="info-value">${order.userInfo?.name || order.shippingAddress?.fullName || 'Guest'}${order.userOrderNumber ? ` <span style="font-size: 11px; color: #4f46e5; font-weight: 700;">(${getOrdinal(order.userOrderNumber)} order of this customer)</span>` : ''}</span></div>
           <div class="info-item"><span class="info-label">Email:</span><span class="info-value">${order.userInfo?.email || 'N/A'}</span></div>
           <div class="info-item"><span class="info-label">Phone:</span><span class="info-value">${order.userInfo?.phone || order.shippingAddress?.phoneNumber || 'N/A'}</span></div>
         </div>
@@ -1377,16 +1459,33 @@ const AdminOrdersDark = () => {
     {
       key: 'customer',
       label: 'Customer',
-      render: (_, order) => (
-        <div>
-          <p className={`font-medium ${tw.textPrimary}`}>
-            {order.userInfo?.name || order.shippingAddress?.fullName || 'Guest'}
-          </p>
-          <p className={`text-xs ${tw.textSecondary}`}>
-            {order.userInfo?.email || 'N/A'}
-          </p>
-        </div>
-      )
+      render: (_, order) => {
+        const orderNumber = order.userOrderNumber || userOrderSequenceCache.get(order._id);
+        return (
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className={`font-medium ${tw.textPrimary}`}>
+                {order.userInfo?.name || order.shippingAddress?.fullName || 'Guest'}
+              </p>
+              {orderNumber ? (
+                <span
+                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-tight border ${
+                    orderNumber === 1
+                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                      : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                  }`}
+                  title={`This is the ${getOrdinal(orderNumber)} order of this customer`}
+                >
+                  {getOrdinal(orderNumber)} order of this customer
+                </span>
+              ) : null}
+            </div>
+            <p className={`text-xs ${tw.textSecondary}`}>
+              {order.userInfo?.email || 'N/A'}
+            </p>
+          </div>
+        );
+      }
     },
     {
       key: 'items',
@@ -1537,6 +1636,14 @@ const AdminOrdersDark = () => {
             <p className={`text-xs sm:text-sm ${tw.textSecondary}`}>Manage and track all customer orders</p>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
+            <AdminButtonDark
+              size="sm"
+              icon={Plus}
+              className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 font-bold"
+              onClick={() => setShowCreateOrderModal(true)}
+            >
+               Create Order 
+            </AdminButtonDark>
             <AdminButtonDark size="sm" icon={RefreshCw} className="flex-1 sm:flex-none" onClick={() => fetchOrders(page)}>
               Refresh
             </AdminButtonDark>
@@ -1837,8 +1944,17 @@ const AdminOrdersDark = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="text-[11px] text-gray-400 bg-[#1a1b26] px-3 py-1.5 rounded-lg border border-gray-700">
-                      Ordered By: <strong className="text-gray-200">{selectedOrder.userInfo?.name || 'Customer'}</strong> ({selectedOrder.userInfo?.phone || 'N/A'})
+                    <div className="text-[11px] text-gray-400 bg-[#1a1b26] px-3 py-1.5 rounded-lg border border-gray-700 flex items-center gap-2 flex-wrap">
+                      <span>Ordered By: <strong className="text-gray-200">{selectedOrder.userInfo?.name || 'Customer'}</strong> ({selectedOrder.userInfo?.phone || 'N/A'})</span>
+                      {(selectedOrder.userOrderNumber || userOrderSequenceCache.get(selectedOrder._id)) && (
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                          (selectedOrder.userOrderNumber || userOrderSequenceCache.get(selectedOrder._id)) === 1
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                            : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                        }`}>
+                          {getOrdinal(selectedOrder.userOrderNumber || userOrderSequenceCache.get(selectedOrder._id))} order of this customer
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1848,9 +1964,20 @@ const AdminOrdersDark = () => {
                       <User className="w-3.5 h-3.5" /> Customer Information
                     </h3>
                     <div className="space-y-2.5 text-xs sm:text-sm">
-                      <div className="flex justify-between gap-1">
+                      <div className="flex justify-between gap-1 items-center">
                         <span className={tw.textSecondary}>Name:</span> 
-                        <span className={`${tw.textPrimary} font-bold`}>{selectedOrder.userInfo?.name || selectedOrder.shippingAddress?.fullName || 'Guest'}</span>
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          <span className={`${tw.textPrimary} font-bold`}>{selectedOrder.userInfo?.name || selectedOrder.shippingAddress?.fullName || 'Guest'}</span>
+                          {(selectedOrder.userOrderNumber || userOrderSequenceCache.get(selectedOrder._id)) && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                              (selectedOrder.userOrderNumber || userOrderSequenceCache.get(selectedOrder._id)) === 1
+                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                            }`}>
+                              {getOrdinal(selectedOrder.userOrderNumber || userOrderSequenceCache.get(selectedOrder._id))} order of this customer
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                         <span className={tw.textSecondary}>Email:</span> 
@@ -2383,7 +2510,19 @@ const AdminOrdersDark = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p><span className={tw.textSecondary}>Order ID:</span> <span className={tw.textPrimary}>{editingOrder._id}</span></p>
-                    <p><span className={tw.textSecondary}>Customer:</span> <span className={tw.textPrimary}>{editingOrder.userInfo?.name || editingOrder.shippingAddress?.fullName || 'Guest'}</span></p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={tw.textSecondary}>Customer:</span> 
+                      <span className={tw.textPrimary}>{editingOrder.userInfo?.name || editingOrder.shippingAddress?.fullName || 'Guest'}</span>
+                      {(editingOrder.userOrderNumber || userOrderSequenceCache.get(editingOrder._id)) && (
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                          (editingOrder.userOrderNumber || userOrderSequenceCache.get(editingOrder._id)) === 1
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                            : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                        }`}>
+                          {getOrdinal(editingOrder.userOrderNumber || userOrderSequenceCache.get(editingOrder._id))} order of this customer
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <p><span className={tw.textSecondary}>Delivery Date:</span> <span className={tw.textPrimary}>{new Date(editingOrder.deliveryDate).toLocaleDateString()}</span></p>
@@ -2655,6 +2794,15 @@ const AdminOrdersDark = () => {
           onClose={() => setShowCaptureModal(false)}
           order={captureOrder}
           onSave={handleSaveLocation}
+        />
+
+        {/* Admin Create Order Modal (WhatsApp / Custom Items) */}
+        <AdminCreateOrderModalDark
+          isOpen={showCreateOrderModal}
+          onClose={() => setShowCreateOrderModal(false)}
+          onOrderCreated={() => {
+            fetchOrders(1);
+          }}
         />
       </div>
     </AdminLayoutDark>

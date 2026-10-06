@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
-import { FiSend, FiBell, FiCheckCircle, FiAlertCircle, FiLoader, FiUsers, FiSmartphone, FiGlobe, FiSearch } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    FiSend, FiBell, FiCheckCircle, FiAlertCircle, FiLoader, FiUsers,
+    FiSmartphone, FiGlobe, FiSearch, FiClock, FiLayers
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAppContext } from '../../context/AppContext';
+import AdminLayoutDark from './AdminLayoutDark';
+import AdminNotificationBatchesDark from './AdminNotificationBatchesDark';
+import { tw } from '../../config/tokyoNightTheme';
+
 const AdminNotifications = () => {
     const { API_URL } = useAppContext();
+    const [activeTab, setActiveTab] = useState('batches'); // 'batches' | 'broadcast' | 'subscribers'
+
+    // Broadcast state
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
     const [imageUrl, setImageUrl] = useState('');
@@ -13,6 +23,8 @@ const AdminNotifications = () => {
     const [targetPath, setTargetPath] = useState('/');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
+
+    // Subscribers state
     const [subscribers, setSubscribers] = useState([]);
     const [fetchingSubscribers, setFetchingSubscribers] = useState(false);
     const [subscriberSearch, setSubscriberSearch] = useState('');
@@ -61,7 +73,7 @@ const AdminNotifications = () => {
         } catch (error) {
             console.error('Image upload failed:', error);
             toast.dismiss(toastId);
-            toast.error(error.response?.data?.message || 'Failed to upload image. Please ensure VITE_API_URL in your clint/.env points to your local server (http://localhost:5000) while testing.');
+            toast.error(error.response?.data?.message || 'Failed to upload image.');
         } finally {
             setUploading(false);
         }
@@ -130,7 +142,7 @@ const AdminNotifications = () => {
                     title, 
                     body, 
                     data: { 
-                        path: targetPath,
+                        path: targetPath, 
                         image: imageUrl 
                     } 
                 },
@@ -167,325 +179,393 @@ const AdminNotifications = () => {
     );
 
     return (
-        <div className="p-4 md:p-6 max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-6 md:mb-8">
-                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl shrink-0">
-                    <FiBell size={24} />
-                </div>
-                <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-gray-800">Push Notifications</h1>
-                    <p className="text-xs md:text-sm text-gray-500">Send instant alerts to all users</p>
-                </div>
-            </div>
-
-            <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
-                {/* Form Section */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white p-5 md:p-8 rounded-[2rem] md:rounded-3xl shadow-sm border border-gray-100 order-2 lg:order-1"
-                >
-                    <form onSubmit={handleBroadcast} className="space-y-5 md:space-y-6">
-                        <div>
-                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
-                                Notification Title
-                            </label>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="w-full px-4 py-3 md:py-4 rounded-xl md:rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm md:text-base font-medium"
-                                placeholder="e.g. Flash Sale Live! ⚡"
-                                required
-                            />
+        <AdminLayoutDark>
+            <div className="max-w-7xl mx-auto space-y-6">
+                {/* Top Section Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-2.5">
+                            <h1 className={`text-2xl sm:text-3xl font-extrabold ${tw.textPrimary} tracking-tight`}>
+                                Notifications & Automated Drips
+                            </h1>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#7aa2f7]/15 text-[#7aa2f7] border border-[#7aa2f7]/30">
+                                Push Engine
+                            </span>
                         </div>
+                        <p className={`text-xs sm:text-sm ${tw.textSecondary} mt-1`}>
+                            Automate scheduled campaigns, send instant broadcast alerts, and monitor subscriber devices
+                        </p>
+                    </div>
+                </div>
 
-                        <div>
-                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
-                                Message Body
-                            </label>
-                            <textarea
-                                value={body}
-                                onChange={(e) => setBody(e.target.value)}
-                                className="w-full px-4 py-3 md:py-4 rounded-xl md:rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all h-28 md:h-32 resize-none text-sm md:text-base font-medium"
-                                placeholder="e.g. Get 20% OFF on all fresh vegetables..."
-                                required
-                            />
-                        </div>
+                {/* Section Navigation Tabs */}
+                <div className="flex items-center gap-2 p-1.5 bg-[#24283b] border border-[#292e42] rounded-2xl overflow-x-auto scrollbar-none">
+                    <button
+                        onClick={() => setActiveTab('batches')}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
+                            activeTab === 'batches'
+                                ? 'bg-gradient-to-r from-[#7aa2f7] to-[#bb9af7] text-[#1a1b26] shadow-lg shadow-blue-500/20'
+                                : 'text-[#7982a9] hover:text-[#c0caf5] hover:bg-[#1f2335]'
+                        }`}
+                    >
+                        <FiClock className="w-4 h-4" />
+                        <span>Auto-Pilot Batch Scheduler</span>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                            activeTab === 'batches' ? 'bg-[#1a1b26] text-[#7aa2f7]' : 'bg-[#1a1b26] text-[#7982a9]'
+                        }`}>
+                            NEW
+                        </span>
+                    </button>
 
-                        <div>
-                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
-                                Notification Banner Image (Optional)
-                            </label>
-                            
-                            <div className="space-y-3">
-                                {/* Upload Box */}
-                                <div className="flex items-center gap-3">
-                                    <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 hover:border-emerald-500 rounded-2xl p-4 cursor-pointer transition-all bg-gray-50/50 hover:bg-emerald-50/10">
-                                        <div className="flex flex-col items-center justify-center text-center">
-                                            {uploading ? (
-                                                <>
-                                                    <FiLoader className="animate-spin text-emerald-600 mb-1" size={20} />
-                                                    <span className="text-xs text-emerald-600 font-bold">Uploading to Cloudinary...</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <FiGlobe className="text-gray-400 mb-1" size={20} />
-                                                    <span className="text-xs text-gray-600 font-bold">Click to upload image</span>
-                                                    <span className="text-[10px] text-gray-400 mt-0.5">Supports PNG, JPG, WEBP (Max 5MB)</span>
-                                                </>
-                                            )}
-                                        </div>
-                                        <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            onChange={handleImageUpload} 
-                                            disabled={uploading} 
-                                            className="hidden" 
+                    <button
+                        onClick={() => setActiveTab('broadcast')}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
+                            activeTab === 'broadcast'
+                                ? 'bg-gradient-to-r from-[#7aa2f7] to-[#bb9af7] text-[#1a1b26] shadow-lg shadow-blue-500/20'
+                                : 'text-[#7982a9] hover:text-[#c0caf5] hover:bg-[#1f2335]'
+                        }`}
+                    >
+                        <FiSend className="w-4 h-4" />
+                        <span>Quick Instant Broadcast</span>
+                    </button>
+
+                    <button
+                        onClick={() => setActiveTab('subscribers')}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
+                            activeTab === 'subscribers'
+                                ? 'bg-gradient-to-r from-[#7aa2f7] to-[#bb9af7] text-[#1a1b26] shadow-lg shadow-blue-500/20'
+                                : 'text-[#7982a9] hover:text-[#c0caf5] hover:bg-[#1f2335]'
+                        }`}
+                    >
+                        <FiUsers className="w-4 h-4" />
+                        <span>Subscribers & Devices</span>
+                        <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-[#1a1b26] text-[#7982a9]">
+                            {subscribers.length}
+                        </span>
+                    </button>
+                </div>
+
+                {/* Tab 1: AUTO-PILOT BATCH SCHEDULER */}
+                {activeTab === 'batches' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <AdminNotificationBatchesDark />
+                    </motion.div>
+                )}
+
+                {/* Tab 2: QUICK INSTANT BROADCAST */}
+                {activeTab === 'broadcast' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                    >
+                        <div className="grid lg:grid-cols-2 gap-6">
+                            {/* Broadcast Form */}
+                            <div className="bg-[#24283b] p-5 sm:p-6 rounded-2xl border border-[#292e42] shadow-xl space-y-5">
+                                <div className="flex items-center gap-2.5 pb-2 border-b border-[#292e42]">
+                                    <span className="p-2 bg-[#7aa2f7]/20 text-[#7aa2f7] rounded-xl border border-[#7aa2f7]/30">
+                                        <FiSend className="w-4 h-4" />
+                                    </span>
+                                    <div>
+                                        <h3 className="text-base font-bold text-[#c0caf5]">Send One-Time Instant Push</h3>
+                                        <p className="text-xs text-[#7982a9]">Broadcasts right now to all active mobile & web subscriber tokens.</p>
+                                    </div>
+                                </div>
+
+                                <form onSubmit={handleBroadcast} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-[#7982a9] mb-1.5 uppercase tracking-wider">
+                                            Notification Title *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={title}
+                                            onChange={(e) => setTitle(e.target.value)}
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#1a1b26] border border-[#414868] focus:border-[#7aa2f7] outline-none text-sm text-[#c0caf5] font-medium"
+                                            placeholder="e.g. Flash Sale Live! ⚡"
+                                            required
                                         />
-                                    </label>
-                                    
-                                    {imageUrl && (
-                                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-100 shrink-0 relative group shadow-sm">
-                                            <img src={imageUrl} alt="Uploaded Banner" className="w-full h-full object-cover" />
-                                            <button 
-                                                type="button" 
-                                                onClick={() => setImageUrl('')}
-                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                                    </div>
 
-                                {/* Manual input fallback */}
-                                <div className="relative">
-                                    <input
-                                        type="url"
-                                        value={imageUrl}
-                                        onChange={(e) => setImageUrl(e.target.value)}
-                                        className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-xs font-medium"
-                                        placeholder="Or paste banner image URL manually..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-[#7982a9] mb-1.5 uppercase tracking-wider">
+                                            Message Body *
+                                        </label>
+                                        <textarea
+                                            value={body}
+                                            onChange={(e) => setBody(e.target.value)}
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#1a1b26] border border-[#414868] focus:border-[#7aa2f7] outline-none text-sm text-[#c0caf5] font-medium h-28 resize-none"
+                                            placeholder="e.g. Get 20% OFF on all fresh fruits and vegetables..."
+                                            required
+                                        />
+                                    </div>
 
-                        <div>
-                            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">
-                                On Click: Open Path
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={targetPath}
-                                    onChange={(e) => setTargetPath(e.target.value)}
-                                    className="w-full px-4 py-3 md:py-4 rounded-xl md:rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-emerald-500 outline-none transition-all appearance-none text-sm md:text-base font-medium"
-                                >
-                                    <option value="/">Home Page</option>
-                                    <option value="/products/all">All Products</option>
-                                    <option value="/cart">Cart</option>
-                                    <option value="/orders">My Orders</option>
-                                    <option value="/faq">Offers / FAQ</option>
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                    <FiGlobe size={16} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold py-4 md:py-5 rounded-xl md:rounded-2xl shadow-xl shadow-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
-                        >
-                            {loading ? <FiLoader className="animate-spin" /> : <FiSend />}
-                            {loading ? 'Sending Broadcast...' : 'Send to All Users'}
-                        </button>
-                    </form>
-                </motion.div>
-
-                {/* Preview / Result Section */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="space-y-6 order-1 lg:order-2"
-                >
-                    {/* Phone Preview - Slightly smaller on mobile */}
-                    <div className="bg-gray-900 rounded-[2.5rem] p-3 md:p-4 border-[6px] md:border-[8px] border-gray-800 shadow-2xl aspect-[9/16] max-w-[240px] md:max-w-[280px] mx-auto relative overflow-hidden group">
-                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 md:w-20 h-4 md:h-5 bg-gray-800 rounded-full"></div>
-                        
-                        <div className="mt-10 md:mt-12 bg-white/10 backdrop-blur-md rounded-2xl p-3 md:p-4 border border-white/10 mx-1 md:mx-2 shadow-xl">
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="w-3 h-3 md:w-4 md:h-4 bg-emerald-500 rounded-sm"></div>
-                                <span className="text-[9px] md:text-[10px] text-white/60 font-bold tracking-wider">RG BASKET</span>
-                            </div>
-                            <h4 className="text-white text-xs md:text-sm font-bold truncate">{title || 'Notification Title'}</h4>
-                            <p className="text-white/80 text-[10px] md:text-xs line-clamp-2 mt-0.5 leading-relaxed">{body || 'This is how your message will appear on users\' phones.'}</p>
-                            {imageUrl && (
-                                <img 
-                                    src={imageUrl} 
-                                    alt="Banner Preview" 
-                                    className="mt-2.5 w-full h-24 object-cover rounded-xl border border-white/10 shadow-sm"
-                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                />
-                            )}
-                        </div>
-                    </div>
-
-                    {result && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className={`p-4 rounded-2xl border ${result.success ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'} shadow-sm`}
-                        >
-                            <div className="flex items-center gap-2 font-bold mb-1">
-                                {result.success ? <FiCheckCircle /> : <FiAlertCircle />}
-                                {result.success ? 'Broadcast Success' : 'Broadcast Failed'}
-                            </div>
-                            <p className="text-sm opacity-90 font-medium">{result.message}</p>
-                        </motion.div>
-                    )}
-                </motion.div>
-            </div>
-
-            {/* Subscribers Section */}
-            <div className="mt-8 md:mt-12 p-4 md:p-6 bg-white rounded-3xl shadow-sm border border-gray-100">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
-                            <FiUsers size={20} />
-                        </div>
-                        <div>
-                            <h2 className="text-lg md:text-xl font-bold text-gray-800">Subscribers</h2>
-                            <p className="text-[10px] text-gray-500 font-medium">{subscribers.length} total devices reached</p>
-                        </div>
-                    </div>
-                    <div className="relative w-full sm:w-auto">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input 
-                            type="text" 
-                            placeholder="Search by name or email..."
-                            value={subscriberSearch}
-                            onChange={(e) => setSubscriberSearch(e.target.value)}
-                            className="pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full sm:w-64 font-medium"
-                        />
-                    </div>
-                </div>
-
-                {fetchingSubscribers ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-3">
-                        <FiLoader className="animate-spin text-blue-500" size={32} />
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Loading List...</p>
-                    </div>
-                ) : subscribers.length === 0 ? (
-                    <div className="text-center py-12">
-                         <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                             <FiUsers size={24} className="text-gray-300" />
-                         </div>
-                         <p className="text-gray-400 text-sm font-medium">No subscribers found yet.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {/* Desktop Table */}
-                        <div className="hidden md:block overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="text-gray-400 text-[10px] uppercase tracking-[0.2em] font-black border-b border-gray-50">
-                                        <th className="pb-4 pl-4 font-black">User Identity</th>
-                                        <th className="pb-4 font-black text-center">Platform</th>
-                                        <th className="pb-4 font-black">Last Activity</th>
-                                        <th className="pb-4 pr-4 text-right font-black">Quick Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {filteredSubscribers.slice(0, visibleCount).map((sub) => (
-                                        <tr key={sub._id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="py-4 pl-4">
-                                                <div>
-                                                    <p className="font-bold text-gray-800 text-sm">{sub.name}</p>
-                                                    <p className="text-[10px] text-gray-400 font-medium">{sub.email}</p>
-                                                </div>
-                                            </td>
-                                            <td className="py-4">
-                                                <div className="flex justify-center gap-3">
-                                                    {sub.pushToken && <FiGlobe title="Web" className="text-blue-500 hover:scale-110 transition-transform" size={16} />}
-                                                    {sub.pushTokens?.some(t => t.platform === 'android') && <FiSmartphone title="Android" className="text-emerald-500 hover:scale-110 transition-transform" size={16} />}
-                                                </div>
-                                            </td>
-                                            <td className="py-4 text-xs font-bold text-gray-500">
-                                                {new Date(sub.lastActive).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                            </td>
-                                            <td className="py-4 pr-4 text-right">
-                                                <button
-                                                    onClick={() => handleSendToUser(sub._id, sub.name)}
-                                                    className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-2 shadow-lg shadow-blue-100"
-                                                >
-                                                    <FiSend size={12} /> Send Test
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Mobile List View */}
-                        <div className="md:hidden space-y-3">
-                            {filteredSubscribers.slice(0, visibleCount).map((sub) => (
-                                <div key={sub._id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <p className="font-bold text-gray-800 text-sm">{sub.name}</p>
-                                            <p className="text-[10px] text-gray-500">{sub.email}</p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {sub.pushToken && <FiGlobe className="text-blue-500" size={14} />}
-                                            {sub.pushTokens?.some(t => t.platform === 'android') && <FiSmartphone className="text-emerald-500" size={14} />}
+                                    <div>
+                                        <label className="block text-xs font-bold text-[#7982a9] mb-1.5 uppercase tracking-wider">
+                                            Notification Banner Image (Optional)
+                                        </label>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-[#414868] hover:border-[#7aa2f7] rounded-xl p-3 cursor-pointer bg-[#1a1b26] transition-all">
+                                                    {uploading ? (
+                                                        <div className="flex items-center gap-2 text-xs text-[#7aa2f7]">
+                                                            <FiLoader className="animate-spin" />
+                                                            <span>Uploading banner...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 text-xs text-[#7982a9] hover:text-[#c0caf5]">
+                                                            <FiGlobe />
+                                                            <span>Click to upload image file</span>
+                                                        </div>
+                                                    )}
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        onChange={handleImageUpload} 
+                                                        disabled={uploading} 
+                                                        className="hidden" 
+                                                    />
+                                                </label>
+                                                {imageUrl && (
+                                                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-[#414868] relative group shrink-0">
+                                                        <img src={imageUrl} alt="Banner" className="w-full h-full object-cover" />
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setImageUrl('')}
+                                                            className="absolute inset-0 bg-black/70 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="url"
+                                                value={imageUrl}
+                                                onChange={(e) => setImageUrl(e.target.value)}
+                                                className="w-full px-3 py-2 rounded-xl bg-[#1a1b26] border border-[#414868] outline-none text-xs text-[#c0caf5]"
+                                                placeholder="Or paste external banner image URL..."
+                                            />
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between mt-2 pt-3 border-t border-gray-200/50">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                                            Active: {new Date(sub.lastActive).toLocaleDateString()}
-                                        </p>
-                                        <button
-                                            onClick={() => handleSendToUser(sub._id, sub.name)}
-                                            className="bg-blue-600 active:scale-95 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 shadow-md shadow-blue-100"
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-[#7982a9] mb-1.5 uppercase tracking-wider">
+                                            On Tap: Destination Route
+                                        </label>
+                                        <select
+                                            value={targetPath}
+                                            onChange={(e) => setTargetPath(e.target.value)}
+                                            className="w-full px-3 py-2.5 rounded-xl bg-[#1a1b26] border border-[#414868] outline-none text-xs sm:text-sm text-[#c0caf5] font-medium"
                                         >
-                                            <FiSend size={10} /> Send Test
+                                            <option value="/">Home Page (/)</option>
+                                            <option value="/products">All Products (/products)</option>
+                                            <option value="/category/fruits-vegetables">Vegetables & Fruits</option>
+                                            <option value="/category/dairy-breakfast">Dairy & Breakfast</option>
+                                            <option value="/cart">Shopping Cart (/cart)</option>
+                                            <option value="/orders">My Orders (/orders)</option>
+                                        </select>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-sm transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
+                                    >
+                                        {loading ? <FiLoader className="animate-spin" /> : <FiSend />}
+                                        <span>{loading ? 'Broadcasting...' : 'Broadcast to All Devices'}</span>
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* Live Mobile Push Preview */}
+                            <div className="space-y-4">
+                                <div className="p-4 bg-[#24283b] border border-[#292e42] rounded-2xl">
+                                    <h4 className="text-xs font-bold text-[#7aa2f7] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <FiSmartphone /> Live Push Mockup Preview
+                                    </h4>
+
+                                    <div className="bg-[#0f111a] rounded-3xl p-4 border-2 border-[#292e42] shadow-2xl max-w-sm mx-auto space-y-3">
+                                        <div className="flex justify-between text-[10px] text-gray-500 font-bold px-1">
+                                            <span>12:45</span>
+                                            <span>5G • 85%</span>
+                                        </div>
+
+                                        <div className="p-3.5 bg-[#1f2335]/95 backdrop-blur-md rounded-2xl border border-[#414868]/60 shadow-xl space-y-2">
+                                            <div className="flex items-center justify-between text-[11px]">
+                                                <div className="flex items-center gap-1.5 font-bold text-[#c0caf5]">
+                                                    <div className="w-4 h-4 bg-gradient-to-br from-[#7aa2f7] to-[#bb9af7] rounded flex items-center justify-center text-[9px] font-black text-[#1a1b26]">
+                                                        RG
+                                                    </div>
+                                                    <span>RG Basket</span>
+                                                </div>
+                                                <span className="text-[10px] text-[#565f89]">now</span>
+                                            </div>
+
+                                            <div>
+                                                <h5 className="text-xs font-black text-white">
+                                                    {title || 'Flash Sale Live! ⚡'}
+                                                </h5>
+                                                <p className="text-[11px] text-[#a9b1d6] mt-0.5 leading-snug">
+                                                    {body || 'Get 20% OFF on all fresh fruits and vegetables with express delivery...'}
+                                                </p>
+                                            </div>
+
+                                            {imageUrl && (
+                                                <div className="w-full h-28 rounded-xl overflow-hidden bg-black/40 border border-white/10 mt-1">
+                                                    <img
+                                                        src={imageUrl}
+                                                        alt="Banner Preview"
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            <div className="pt-1 flex items-center justify-between text-[10px] text-[#7aa2f7] border-t border-white/5">
+                                                <span>Opens: {targetPath}</span>
+                                                <span>Tap to view →</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {result && (
+                                    <div className={`p-4 rounded-2xl border ${
+                                        result.success 
+                                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+                                            : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                                    }`}>
+                                        <div className="flex items-center gap-2 font-bold text-xs mb-1">
+                                            {result.success ? <FiCheckCircle /> : <FiAlertCircle />}
+                                            <span>{result.success ? 'Broadcast Succeeded' : 'Broadcast Issue'}</span>
+                                        </div>
+                                        <p className="text-xs">{result.message}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Tab 3: SUBSCRIBERS LIST */}
+                {activeTab === 'subscribers' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-[#24283b] p-5 sm:p-6 rounded-2xl border border-[#292e42] shadow-xl space-y-5"
+                    >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-[#7aa2f7]/20 text-[#7aa2f7] rounded-xl border border-[#7aa2f7]/30">
+                                    <FiUsers size={20} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-[#c0caf5]">Subscribed Customer Devices</h2>
+                                    <p className="text-xs text-[#7982a9]">{subscribers.length} total active notification device tokens</p>
+                                </div>
+                            </div>
+
+                            <div className="relative w-full sm:w-auto">
+                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#565f89]" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search name or email..."
+                                    value={subscriberSearch}
+                                    onChange={(e) => setSubscriberSearch(e.target.value)}
+                                    className="pl-9 pr-4 py-2 bg-[#1a1b26] border border-[#414868] rounded-xl outline-none text-xs text-[#c0caf5] w-full sm:w-64"
+                                />
+                            </div>
+                        </div>
+
+                        {fetchingSubscribers ? (
+                            <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                <div className="w-8 h-8 border-3 border-[#7aa2f7] border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-xs text-[#7982a9] font-bold uppercase tracking-wider">Loading Subscribers...</p>
+                            </div>
+                        ) : filteredSubscribers.length === 0 ? (
+                            <div className="text-center py-12 text-[#7982a9] text-xs">
+                                No subscribers match your query.
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                        <thead>
+                                            <tr className="text-[#565f89] uppercase tracking-wider font-bold border-b border-[#292e42]">
+                                                <th className="pb-3 pl-3">Customer</th>
+                                                <th className="pb-3 text-center">Platforms</th>
+                                                <th className="pb-3">Last Active</th>
+                                                <th className="pb-3 pr-3 text-right">Direct Test</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[#292e42]">
+                                            {filteredSubscribers.slice(0, visibleCount).map((sub) => (
+                                                <tr key={sub._id} className="hover:bg-[#1f2335] transition-colors">
+                                                    <td className="py-3 pl-3">
+                                                        <div className="font-bold text-[#c0caf5]">{sub.name || 'Unnamed Customer'}</div>
+                                                        <div className="text-[11px] text-[#7982a9]">{sub.email}</div>
+                                                    </td>
+                                                    <td className="py-3 text-center">
+                                                        <div className="flex justify-center gap-2">
+                                                            {sub.pushToken && <FiGlobe title="Web Push Token" className="text-[#7aa2f7]" size={16} />}
+                                                            {sub.pushTokens?.some(t => t.platform === 'android') && (
+                                                                <FiSmartphone title="Android Device" className="text-emerald-400" size={16} />
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 text-[#7982a9]">
+                                                        {sub.lastActive ? new Date(sub.lastActive).toLocaleDateString() : 'N/A'}
+                                                    </td>
+                                                    <td className="py-3 pr-3 text-right">
+                                                        <button
+                                                            onClick={() => handleSendToUser(sub._id, sub.name)}
+                                                            className="px-3 py-1.5 rounded-lg bg-[#7aa2f7]/15 hover:bg-[#7aa2f7]/25 text-[#7aa2f7] border border-[#7aa2f7]/30 text-xs font-bold transition-all"
+                                                        >
+                                                            Send Test
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {filteredSubscribers.length > visibleCount && (
+                                    <div className="text-center pt-3">
+                                        <button
+                                            onClick={() => setVisibleCount(prev => prev + 20)}
+                                            className="px-4 py-2 bg-[#1f2335] hover:bg-[#1a1b26] text-[#c0caf5] rounded-xl text-xs font-bold border border-[#414868]"
+                                        >
+                                            Load More ({filteredSubscribers.length - visibleCount} remaining)
                                         </button>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                                )}
+                            </div>
+                        )}
+                    </motion.div>
                 )}
 
-                {filteredSubscribers.length > visibleCount && (
-                    <div className="mt-8 flex justify-center">
-                        <button 
-                            onClick={() => setVisibleCount(prev => prev + 10)}
-                            className="w-full sm:w-auto px-8 py-3 bg-gray-900 hover:bg-black text-white font-bold rounded-2xl transition-all active:scale-95 shadow-xl shadow-gray-200 text-sm"
-                        >
-                            Load More Subscribers
-                        </button>
+                {/* Important System Notes Box */}
+                <div className="p-4 bg-[#24283b] rounded-2xl border border-[#292e42] text-xs text-[#7982a9] space-y-1.5">
+                    <div className="flex items-center gap-2 font-bold text-[#e0af68]">
+                        <FiAlertCircle />
+                        <span>Push Notification Guidelines</span>
                     </div>
-                )}
+                    <ul className="space-y-1 text-[11px] list-disc list-inside">
+                        <li>Automatic batch drips run in the background on your server without needing this browser tab open.</li>
+                        <li>Quiet Hours (10:00 PM – 7:00 AM IST) prevent overnight customer disruptions.</li>
+                        <li>Notifications deliver to Android app APK installs and browsers where users permitted notifications.</li>
+                    </ul>
+                </div>
             </div>
-
-            {/* Info Notes */}
-            <div className="mt-8 md:mt-12 p-5 md:p-6 bg-amber-50 rounded-3xl border border-amber-100 shadow-sm shadow-amber-50">
-                <h3 className="text-amber-800 font-bold flex items-center gap-2 mb-3 text-sm md:text-base">
-                    <FiAlertCircle /> Important System Notes
-                </h3>
-                <ul className="text-xs md:text-sm text-amber-700/80 space-y-2 font-medium">
-                    <li className="flex gap-2"><span>•</span> Notifications only deliver if users "Allowed" permissions in browser/app.</li>
-                    <li className="flex gap-2"><span>•</span> For APK: Firebase Cloud Messaging (FCM) must be linked.</li>
-                    <li className="flex gap-2"><span>•</span> For Web: VAPID key in <code>Firebase.js</code> must match Firebase Console.</li>
-                </ul>
-            </div>
-        </div>
+        </AdminLayoutDark>
     );
 };
 

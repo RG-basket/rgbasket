@@ -5,6 +5,8 @@ const { authenticateAdmin } = require('../middleware/auth');
 const { uploadBannerImage } = require('../middleware/upload');
 const CoinService = require('../services/CoinService');
 const User = require('../models/User'); 
+const Order = require('../models/Order');
+const mongoose = require('mongoose');
 const XLSX = require('xlsx');
 
 // Public route - Admin login
@@ -22,44 +24,71 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     const search = req.query.search || '';
     const filter = req.query.filter || 'all';
 
-    let baseFilter = {};
+    // Fetch unique users who have placed orders
+    const orderUserKeys = await Order.distinct('user');
+    const validObjectIds = orderUserKeys
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    const orderedUsers = await User.find({
+      $or: [
+        { _id: { $in: validObjectIds } },
+        { googleId: { $in: orderUserKeys } }
+      ]
+    }).select('_id');
+    const orderedUserObjectIds = orderedUsers.map(u => u._id);
+
+    const andConditions = [];
     if (search) {
-      baseFilter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
+      andConditions.push({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      });
     }
 
-    if (filter === 'online') {
+    if (filter === 'ordered') {
+      andConditions.push({ _id: { $in: orderedUserObjectIds } });
+    } else if (filter === 'not_ordered' || filter === 'never_ordered') {
+      andConditions.push({ _id: { $nin: orderedUserObjectIds } });
+    } else if (filter === 'online') {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      baseFilter.lastActive = { $gte: fiveMinutesAgo };
+      andConditions.push({ lastActive: { $gte: fiveMinutesAgo } });
     } else if (filter === 'dau') {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      baseFilter.lastActive = { $gte: twentyFourHoursAgo };
+      andConditions.push({ lastActive: { $gte: twentyFourHoursAgo } });
     } else if (filter === 'no_phone') {
-      baseFilter.$or = [
-        { phone: "" },
-        { phone: { $exists: false } },
-        { phone: null }
-      ];
+      andConditions.push({
+        $or: [
+          { phone: "" },
+          { phone: { $exists: false } },
+          { phone: null }
+        ]
+      });
     } else if (filter === 'any_phone') {
-      baseFilter.phone = { $ne: "", $exists: true };
+      andConditions.push({ phone: { $ne: "", $exists: true } });
     } else if (filter === 'both_email_phone') {
-      baseFilter.email = { $ne: "", $exists: true };
-      baseFilter.phone = { $ne: "", $exists: true };
+      andConditions.push({ email: { $ne: "", $exists: true }, phone: { $ne: "", $exists: true } });
     } else if (filter === 'only_email') {
-      baseFilter.email = { $ne: "", $exists: true };
-      baseFilter.$or = [
-        { phone: "" },
-        { phone: { $exists: false } },
-        { phone: null }
-      ];
+      andConditions.push({
+        email: { $ne: "", $exists: true },
+        $or: [
+          { phone: "" },
+          { phone: { $exists: false } },
+          { phone: null }
+        ]
+      });
     } else if (filter === 'admins') {
-      baseFilter.$or = [
-        { role: 'admin' },
-        { isAdmin: true }
-      ];
+      andConditions.push({
+        $or: [
+          { role: 'admin' },
+          { isAdmin: true }
+        ]
+      });
     }
+
+    const baseFilter = andConditions.length > 0 ? { $and: andConditions } : {};
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -126,6 +155,8 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     const users = result[0].users || [];
     const totalFiltered = result[0].pagination[0]?.total || 0;
     const globalStats = result[0].stats[0] || { total: 0, onlineNow: 0, dau: 0, totalAdmins: 0 };
+    const totalOrdered = orderedUserObjectIds.length;
+    const totalNotOrdered = Math.max(0, (globalStats.total || 0) - totalOrdered);
 
     res.json({ 
       success: true, 
@@ -141,12 +172,102 @@ router.get('/users', authenticateAdmin, async (req, res) => {
         total: globalStats.total,
         onlineNow: globalStats.onlineNow,
         dau: globalStats.dau,
-        totalAdmins: globalStats.totalAdmins
+        totalAdmins: globalStats.totalAdmins,
+        totalOrdered,
+        totalNotOrdered
       }
     });
   } catch (error) {
     console.error('Error in /api/admin/users aggregation:', error);
     res.status(500).json({ success: false, message: 'Error fetching users and statistics' });
+  }
+});
+
+// Comprehensive User Analytics (Ordered vs Never Ordered, Conversion, Frequency)
+router.get('/users/analytics', authenticateAdmin, async (req, res) => {
+  try {
+    const orderUserKeys = await Order.distinct('user');
+    const validObjectIds = orderUserKeys
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    const [totalUsers, customerOrderStats, matchedUsers, usersWithPhone] = await Promise.all([
+      User.countDocuments(),
+      Order.aggregate([
+        { $match: { status: { $nin: ['cancelled', 'Cancelled'] } } },
+        {
+          $group: {
+            _id: "$user",
+            orderCount: { $sum: 1 },
+            totalSpent: { $sum: "$totalAmount" },
+            lastOrderDate: { $max: "$createdAt" }
+          }
+        }
+      ]),
+      User.find({
+        $or: [
+          { _id: { $in: validObjectIds } },
+          { googleId: { $in: orderUserKeys } }
+        ]
+      }).select('_id googleId phone email'),
+      User.countDocuments({ phone: { $ne: "", $exists: true } })
+    ]);
+
+    const orderedUserCount = matchedUsers.length;
+    const neverOrderedUserCount = Math.max(0, totalUsers - orderedUserCount);
+
+    let singleOrderCount = 0;
+    let repeat2to4Count = 0;
+    let repeat5to9Count = 0;
+    let vip10PlusCount = 0;
+    let totalOrderSpend = 0;
+
+    customerOrderStats.forEach(stat => {
+      totalOrderSpend += stat.totalSpent || 0;
+      if (stat.orderCount === 1) singleOrderCount++;
+      else if (stat.orderCount >= 2 && stat.orderCount <= 4) repeat2to4Count++;
+      else if (stat.orderCount >= 5 && stat.orderCount <= 9) repeat5to9Count++;
+      else if (stat.orderCount >= 10) vip10PlusCount++;
+    });
+
+    const repeatCustomers = Math.max(0, orderedUserCount - singleOrderCount);
+    const usersEmailOnly = Math.max(0, totalUsers - usersWithPhone);
+    const conversionRate = totalUsers > 0 ? ((orderedUserCount / totalUsers) * 100).toFixed(1) : 0;
+    const totalOrderCount = customerOrderStats.reduce((acc, c) => acc + (c.orderCount || 0), 0);
+    const avgOrderValue = totalOrderCount > 0 ? Math.round(totalOrderSpend / totalOrderCount) : 0;
+    const avgCustomerSpend = orderedUserCount > 0 ? Math.round(totalOrderSpend / orderedUserCount) : 0;
+
+    res.json({
+      success: true,
+      analytics: {
+        totalUsers,
+        orderedUserCount,
+        neverOrderedUserCount,
+        conversionRate: parseFloat(conversionRate),
+        singleOrderCount,
+        repeatCustomers,
+        repeatRate: orderedUserCount > 0 ? parseFloat(((repeatCustomers / orderedUserCount) * 100).toFixed(1)) : 0,
+        frequencyBreakdown: {
+          single: singleOrderCount,
+          tier2to4: repeat2to4Count,
+          tier5to9: repeat5to9Count,
+          tier10Plus: vip10PlusCount
+        },
+        financials: {
+          totalOrderSpend: Math.round(totalOrderSpend),
+          totalOrderCount,
+          avgOrderValue,
+          avgCustomerSpend
+        },
+        reachability: {
+          usersWithPhone,
+          usersEmailOnly
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error in /api/admin/users/analytics:', error);
+    res.status(500).json({ success: false, message: 'Failed to calculate user analytics' });
   }
 });
 
@@ -254,9 +375,10 @@ router.get('/users/:userId/coin-transactions', authenticateAdmin, async (req, re
   }
 });
 
-// Export all users to Excel
+// Export users to Excel (supports filter=all, filter=ordered, filter=not_ordered)
 router.get('/export-users/excel', authenticateAdmin, async (req, res) => {
   try {
+    const filter = req.query.filter || 'all';
     const User = require('../models/User');
     const users = await User.aggregate([
       {
@@ -278,7 +400,17 @@ router.get('/export-users/excel', authenticateAdmin, async (req, res) => {
       { $project: { name: 1, email: 1, phone: 1, createdAt: 1, rgCoins: 1, orderCount: { $size: '$orders' }, addresses: 1 } }
     ]);
 
-    const data = users.map(user => {
+    let filteredUsers = users;
+    let filename = 'RG_Basket_Users.xlsx';
+    if (filter === 'ordered') {
+      filteredUsers = users.filter(u => u.orderCount > 0);
+      filename = 'RG_Basket_Ordered_Users.xlsx';
+    } else if (filter === 'not_ordered' || filter === 'never_ordered') {
+      filteredUsers = users.filter(u => !u.orderCount || u.orderCount === 0);
+      filename = 'RG_Basket_Never_Ordered_Users.xlsx';
+    }
+
+    const data = filteredUsers.map(user => {
       // Get primary address or format all addresses
       const addressString = user.addresses && user.addresses.length > 0
         ? user.addresses.map(a => `${a.fullName}, ${a.street}, ${a.locality}, ${a.city}, ${a.state} - ${a.pincode}`).join(' | ')
@@ -291,6 +423,7 @@ router.get('/export-users/excel', authenticateAdmin, async (req, res) => {
         'Address Phone': user.addresses?.[0]?.phoneNumber || 'N/A',
         'Alt Phone': user.addresses?.[0]?.alternatePhone || 'N/A',
         'Total Orders': user.orderCount || 0,
+        'Order Status': (user.orderCount > 0 ? 'Ordered' : 'Never Ordered'),
         'RG Coins': user.rgCoins || 0,
         'Addresses': addressString,
         'Joined Date': user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'
@@ -302,7 +435,7 @@ router.get('/export-users/excel', authenticateAdmin, async (req, res) => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=RG_Basket_Users.xlsx');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.send(buffer);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to export users' });
@@ -734,6 +867,354 @@ router.post('/notifications/upload-image', authenticateAdmin, (req, res, next) =
   } catch (error) {
     console.error('Notification image upload error:', error);
     res.status(500).json({ success: false, message: 'Failed to upload image' });
+  }
+});
+
+// ==========================================
+// 🚀 AUTOMATED BATCH NOTIFICATION SCHEDULER
+// ==========================================
+
+const NotificationBatch = require('../models/NotificationBatch');
+const NotificationScheduler = require('../services/NotificationScheduler');
+const { defaultTemplates } = require('../services/NotificationPresets');
+
+// 1. Get all batches
+router.get('/notifications/batches', authenticateAdmin, async (req, res) => {
+  try {
+    const batches = await NotificationBatch.find().sort({ createdAt: -1 });
+    const now = new Date();
+    
+    // Add computed countdown and summary to each batch
+    const sanitized = batches.map(batch => {
+      const b = batch.toObject();
+      let secondsUntilNextRun = null;
+      if (b.isActive && b.nextRunAt) {
+        secondsUntilNextRun = Math.max(0, Math.floor((new Date(b.nextRunAt) - now) / 1000));
+      }
+      return {
+        ...b,
+        secondsUntilNextRun,
+        itemCount: b.items ? b.items.length : 0
+      };
+    });
+
+    res.json({ success: true, batches: sanitized });
+  } catch (error) {
+    console.error('Error fetching notification batches:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch notification batches' });
+  }
+});
+
+// 2. Get available preset templates
+router.get('/notifications/batches/templates', authenticateAdmin, (req, res) => {
+  res.json({ success: true, templates: defaultTemplates });
+});
+
+// 3. Create batch from preset template
+router.post('/notifications/batches/create-from-template', authenticateAdmin, async (req, res) => {
+  try {
+    const { templateKey } = req.body;
+    const template = defaultTemplates.find(t => t.key === templateKey);
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Template not found' });
+    }
+
+    const newBatch = new NotificationBatch({
+      name: template.name,
+      description: template.description,
+      intervalMinutes: template.intervalMinutes || 60,
+      orderMode: template.orderMode || 'sequential',
+      repeatMode: template.repeatMode !== undefined ? template.repeatMode : true,
+      quietHours: template.quietHours || { enabled: true, startHour: 22, endHour: 7 },
+      items: template.items.map(item => ({
+        ...item,
+        id: new mongoose.Types.ObjectId().toString(),
+        sentCount: 0,
+        lastSentAt: null
+      })),
+      isActive: false,
+      status: 'draft'
+    });
+
+    await newBatch.save();
+    res.status(201).json({ success: true, message: 'Batch created from template', batch: newBatch });
+  } catch (error) {
+    console.error('Error creating batch from template:', error);
+    res.status(500).json({ success: false, message: 'Failed to create batch from template' });
+  }
+});
+
+// 4. Create custom batch
+router.post('/notifications/batches', authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      items,
+      intervalMinutes,
+      orderMode,
+      repeatMode,
+      quietHours,
+      startMode,
+      scheduledStartTime
+    } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Batch campaign name is required' });
+    }
+
+    const sanitizedItems = (items || []).map(item => ({
+      id: item.id || new mongoose.Types.ObjectId().toString(),
+      title: item.title?.trim() || '',
+      body: item.body?.trim() || '',
+      imageUrl: item.imageUrl || '',
+      targetPath: item.targetPath || '/',
+      tag: item.tag || 'General',
+      sentCount: 0,
+      lastSentAt: null
+    })).filter(i => i.title && i.body);
+
+    const newBatch = new NotificationBatch({
+      name: name.trim(),
+      description: description || '',
+      items: sanitizedItems,
+      intervalMinutes: Math.max(1, parseInt(intervalMinutes) || 60),
+      orderMode: ['sequential', 'random'].includes(orderMode) ? orderMode : 'sequential',
+      repeatMode: repeatMode !== undefined ? repeatMode : true,
+      quietHours: quietHours || { enabled: true, startHour: 22, endHour: 7 },
+      startMode: ['immediate', 'interval', 'scheduled'].includes(startMode) ? startMode : 'immediate',
+      scheduledStartTime: scheduledStartTime ? new Date(scheduledStartTime) : null,
+      isActive: false,
+      status: 'draft'
+    });
+
+    await newBatch.save();
+    res.status(201).json({ success: true, message: 'Batch campaign created successfully', batch: newBatch });
+  } catch (error) {
+    console.error('Error creating notification batch:', error);
+    res.status(500).json({ success: false, message: 'Failed to create notification batch' });
+  }
+});
+
+// 5. Get single batch details with full logs
+router.get('/notifications/batches/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const batch = await NotificationBatch.findById(req.params.id);
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Batch not found' });
+    }
+    res.json({ success: true, batch });
+  } catch (error) {
+    console.error('Error fetching batch details:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch batch details' });
+  }
+});
+
+// 6. Update batch
+router.put('/notifications/batches/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const batch = await NotificationBatch.findById(req.params.id);
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Batch not found' });
+    }
+
+    const {
+      name,
+      description,
+      items,
+      intervalMinutes,
+      orderMode,
+      repeatMode,
+      quietHours,
+      startMode,
+      scheduledStartTime
+    } = req.body;
+
+    if (name) batch.name = name.trim();
+    if (description !== undefined) batch.description = description;
+    if (intervalMinutes) {
+      batch.intervalMinutes = Math.max(1, parseInt(intervalMinutes));
+      if (batch.isActive && batch.status === 'running') {
+        batch.nextRunAt = new Date(Date.now() + batch.intervalMinutes * 60 * 1000);
+      }
+    }
+    if (orderMode) batch.orderMode = orderMode;
+    if (repeatMode !== undefined) batch.repeatMode = repeatMode;
+    if (quietHours) batch.quietHours = quietHours;
+    if (startMode) batch.startMode = startMode;
+    if (scheduledStartTime !== undefined) {
+      batch.scheduledStartTime = scheduledStartTime ? new Date(scheduledStartTime) : null;
+      if (batch.status === 'scheduled') {
+        batch.nextRunAt = batch.scheduledStartTime;
+      }
+    }
+
+    if (Array.isArray(items)) {
+      batch.items = items.map(item => ({
+        id: item.id || new mongoose.Types.ObjectId().toString(),
+        title: item.title?.trim() || '',
+        body: item.body?.trim() || '',
+        imageUrl: item.imageUrl || '',
+        targetPath: item.targetPath || '/',
+        tag: item.tag || 'General',
+        sentCount: item.sentCount || 0,
+        lastSentAt: item.lastSentAt || null
+      })).filter(i => i.title && i.body);
+    }
+
+    await batch.save();
+    res.json({ success: true, message: 'Batch updated successfully', batch });
+  } catch (error) {
+    console.error('Error updating notification batch:', error);
+    res.status(500).json({ success: false, message: 'Failed to update notification batch' });
+  }
+});
+
+// 7. Toggle / Start batch (Immediate or Scheduled)
+router.patch('/notifications/batches/:id/toggle', authenticateAdmin, async (req, res) => {
+  try {
+    const batch = await NotificationBatch.findById(req.params.id);
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Batch not found' });
+    }
+
+    if (!batch.items || batch.items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Cannot start an empty batch. Add at least 1 notification first.' });
+    }
+
+    const { startMode, scheduledStartTime } = req.body || {};
+
+    // If currently active and no explicit startMode is sent, toggle to paused
+    if (batch.isActive && !startMode) {
+      batch.isActive = false;
+      batch.status = 'paused';
+      batch.nextRunAt = null;
+      await batch.save();
+      return res.json({
+        success: true,
+        message: 'Campaign paused.',
+        isActive: false,
+        status: 'paused',
+        nextRunAt: null
+      });
+    }
+
+    // Activating or starting
+    const mode = startMode || batch.startMode || 'immediate';
+
+    if (mode === 'immediate') {
+      batch.isActive = true;
+      batch.status = 'running';
+      batch.startMode = 'immediate';
+      // Dispatch first notification right now!
+      const fireResult = await NotificationScheduler.dispatchBatchNotification(batch, true);
+      return res.json({
+        success: true,
+        message: `Campaign started! 1st notification "${fireResult.itemTitle}" dispatched immediately!`,
+        isActive: true,
+        status: 'running',
+        nextRunAt: batch.nextRunAt,
+        fireResult
+      });
+    } else if (mode === 'scheduled') {
+      const targetTime = scheduledStartTime ? new Date(scheduledStartTime) : (batch.scheduledStartTime ? new Date(batch.scheduledStartTime) : null);
+      if (!targetTime || isNaN(targetTime.getTime()) || targetTime <= new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid upcoming date and time in the future to schedule this batch.'
+        });
+      }
+      batch.isActive = true;
+      batch.status = 'scheduled';
+      batch.startMode = 'scheduled';
+      batch.scheduledStartTime = targetTime;
+      batch.nextRunAt = targetTime;
+      await batch.save();
+      return res.json({
+        success: true,
+        message: `Campaign scheduled! Will start automatically on ${targetTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}.`,
+        isActive: true,
+        status: 'scheduled',
+        nextRunAt: batch.nextRunAt
+      });
+    } else {
+      // mode === 'interval' (first send after 1 full interval)
+      batch.isActive = true;
+      batch.status = 'running';
+      batch.startMode = 'interval';
+      batch.nextRunAt = new Date(Date.now() + (batch.intervalMinutes || 60) * 60 * 1000);
+      await batch.save();
+      return res.json({
+        success: true,
+        message: `Campaign activated! First notification scheduled in ${batch.intervalMinutes} minutes.`,
+        isActive: true,
+        status: 'running',
+        nextRunAt: batch.nextRunAt
+      });
+    }
+  } catch (error) {
+    console.error('Error toggling/starting batch status:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to toggle batch status' });
+  }
+});
+
+// 8. Trigger Next Notification Immediately (Manual Fire)
+router.post('/notifications/batches/:id/fire-now', authenticateAdmin, async (req, res) => {
+  try {
+    const result = await NotificationScheduler.triggerBatchNow(req.params.id);
+    res.json({
+      success: true,
+      message: `Notification "${result.itemTitle}" dispatched to ${result.devicesReached} devices!`,
+      result
+    });
+  } catch (error) {
+    console.error('Error triggering batch notification now:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to dispatch notification' });
+  }
+});
+
+// 9. Reset batch sequence and counters
+router.post('/notifications/batches/:id/reset', authenticateAdmin, async (req, res) => {
+  try {
+    const batch = await NotificationBatch.findById(req.params.id);
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Batch not found' });
+    }
+
+    batch.currentIndex = 0;
+    if (batch.items) {
+      batch.items.forEach(i => {
+        i.sentCount = 0;
+        i.lastSentAt = null;
+      });
+    }
+    if (batch.isActive) {
+      batch.status = 'running';
+      batch.nextRunAt = new Date(Date.now() + (batch.intervalMinutes || 60) * 60 * 1000);
+    } else {
+      batch.status = 'draft';
+      batch.nextRunAt = null;
+    }
+
+    await batch.save();
+    res.json({ success: true, message: 'Batch sequence and counters reset to beginning.', batch });
+  } catch (error) {
+    console.error('Error resetting batch:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset batch' });
+  }
+});
+
+// 10. Delete batch
+router.delete('/notifications/batches/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const batch = await NotificationBatch.findByIdAndDelete(req.params.id);
+    if (!batch) {
+      return res.status(404).json({ success: false, message: 'Batch not found' });
+    }
+    res.json({ success: true, message: 'Batch campaign deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting batch:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete batch' });
   }
 });
 

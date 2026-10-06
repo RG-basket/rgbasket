@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw, RefreshCw, FileDown, Filter, Edit, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, User, UserX, Mail, Phone, MapPin, Calendar, Shield, ChevronDown, ChevronUp, ShoppingBag, Package, Globe, ExternalLink, Clock, Trash2, RefreshCcw, RefreshCw, FileDown, Filter, Edit, Eye, BarChart3 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminLayoutDark from './AdminLayoutDark';
 import AdminButtonDark from './SharedDark/AdminButtonDark';
@@ -9,6 +10,7 @@ import AdminModalDark from './SharedDark/AdminModalDark';
 import { tw } from '../../config/tokyoNightTheme';
 
 const AdminUsersDark = () => {
+    const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -351,6 +353,15 @@ const AdminUsersDark = () => {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <AdminButtonDark
+                            variant="primary"
+                            size="sm"
+                            icon={BarChart3}
+                            className="bg-gradient-to-r from-[#7aa2f7] to-[#bb9af7] text-[#1a1b26] font-bold shadow-lg shadow-blue-500/20"
+                            onClick={() => navigate('/portal-dashboard/users/analytics')}
+                        >
+                            User Analytics & Statistics
+                        </AdminButtonDark>
                         <AdminButtonDark
                             variant="secondary"
                             size="sm"
@@ -821,9 +832,10 @@ const AdminUsersDark = () => {
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className={`p-8 rounded-lg border border-dashed ${tw.borderPrimary} text-center`}>
-                                                <Package className="w-8 h-8 ${tw.textSecondary} mx-auto mb-2 opacity-20" />
-                                                <p className={`text-sm ${tw.textSecondary}`}>No orders found for this user</p>
+                                            <div className={`p-8 rounded-lg border border-dashed ${tw.borderPrimary} text-center space-y-2`}>
+                                                <UserX className="w-8 h-8 text-[#ff9e64]/60 mx-auto" />
+                                                <p className={`text-sm font-bold ${tw.textPrimary}`}>Never Ordered (0 orders)</p>
+                                                <p className={`text-xs ${tw.textSecondary}`}>This customer registered an account but hasn't placed any orders yet.</p>
                                             </div>
                                         )}
                                     </div>
