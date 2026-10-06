@@ -1,21 +1,55 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard & R8 Configuration for RG Basket
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ==============================================================================
+# Play Console Stack Trace & Line Numbers (Enables de-obfuscation with mapping.txt)
+# ==============================================================================
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve reflection, annotations, and generic signatures
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ==============================================================================
+# Capacitor Core & Plugin Reflection
+# ==============================================================================
+-keep class com.getcapacitor.** { *; }
+-keep interface com.getcapacitor.** { *; }
+
+# Keep all classes that extend Capacitor Plugin and their public methods
+-keep class * extends com.getcapacitor.Plugin {
+    public <methods>;
+}
+
+# Preserve Capacitor annotations and annotated plugin methods
+-keep @interface com.getcapacitor.annotation.*
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod public *;
+    @com.getcapacitor.annotation.ActivityCallback public *;
+    @com.getcapacitor.annotation.PermissionCallback public *;
+}
+
+# ==============================================================================
+# WebView JavaScript Interface (MainActivity AndroidPrint)
+# ==============================================================================
+-keepattributes JavascriptInterface
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class com.rgbasket.app.MainActivity$* { *; }
+-keepclassmembers class com.rgbasket.app.MainActivity$* { *; }
+
+# ==============================================================================
+# Google Play Services, Firebase & Credentials
+# ==============================================================================
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.firebase.**
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.firebase.** { *; }
+-keep class androidx.credentials.** { *; }
+
+# ==============================================================================
+# Cordova Compatibility (if used by Capacitor)
+# ==============================================================================
+-dontwarn org.apache.cordova.**
+-keep class org.apache.cordova.** { *; }
