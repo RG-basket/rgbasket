@@ -178,8 +178,40 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
       productData.description = parseAndCleanDescription(productData.description);
     }
 
-    // Handle uploaded images from Cloudinary
-    if (req.files && req.files.length > 0) {
+    // Normalize isFullCoverImage boolean flag
+    if (productData.isFullCoverImage !== undefined) {
+      productData.isFullCoverImage = productData.isFullCoverImage === true || productData.isFullCoverImage === 'true';
+    }
+
+    // Handle images with ordering support
+    let imagesOrder = null;
+    if (productData.imagesOrder) {
+      try {
+        imagesOrder = typeof productData.imagesOrder === 'string' ? JSON.parse(productData.imagesOrder) : productData.imagesOrder;
+      } catch (e) {
+        imagesOrder = null;
+      }
+    }
+
+    if (Array.isArray(imagesOrder) && imagesOrder.length > 0) {
+      let fileIdx = 0;
+      const finalImages = [];
+      for (const item of imagesOrder) {
+        if (item && item.type === 'existing' && item.url) {
+          finalImages.push(item.url);
+        } else if (item && (item.type === 'file' || item.type === 'new') && req.files && req.files[fileIdx]) {
+          finalImages.push(req.files[fileIdx].path);
+          fileIdx++;
+        }
+      }
+      while (req.files && fileIdx < req.files.length) {
+        finalImages.push(req.files[fileIdx].path);
+        fileIdx++;
+      }
+      if (finalImages.length > 0) {
+        productData.images = finalImages;
+      }
+    } else if (req.files && req.files.length > 0) {
       productData.images = req.files.map(file => file.path); // Cloudinary URL
     }
 
@@ -201,7 +233,7 @@ router.post('/', authenticateAdmin, uploadProductImages, async (req, res) => {
   }
 });
 
-// UPDATE product (Admin only) - UPDATED FOR CLOUDINARY
+// UPDATE product (Admin only) - UPDATED FOR CLOUDINARY & ORDERING
 router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
   try {
     const productData = req.body;
@@ -221,21 +253,69 @@ router.put('/:id', authenticateAdmin, uploadProductImages, async (req, res) => {
       productData.description = parseAndCleanDescription(productData.description);
     }
 
-    // Handle new images from Cloudinary
-    if (req.files && req.files.length > 0) {
+    // Normalize isFullCoverImage boolean flag
+    if (productData.isFullCoverImage !== undefined) {
+      productData.isFullCoverImage = productData.isFullCoverImage === true || productData.isFullCoverImage === 'true';
+    }
+
+    const oldProduct = await Product.findById(req.params.id);
+    if (!oldProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    // Handle images with ordering support
+    let imagesOrder = null;
+    if (productData.imagesOrder) {
+      try {
+        imagesOrder = typeof productData.imagesOrder === 'string' ? JSON.parse(productData.imagesOrder) : productData.imagesOrder;
+      } catch (e) {
+        imagesOrder = null;
+      }
+    }
+
+    if (Array.isArray(imagesOrder) && imagesOrder.length > 0) {
+      let fileIdx = 0;
+      const finalImages = [];
+      for (const item of imagesOrder) {
+        if (item && item.type === 'existing' && item.url) {
+          finalImages.push(item.url);
+        } else if (item && (item.type === 'file' || item.type === 'new') && req.files && req.files[fileIdx]) {
+          finalImages.push(req.files[fileIdx].path);
+          fileIdx++;
+        }
+      }
+      while (req.files && fileIdx < req.files.length) {
+        finalImages.push(req.files[fileIdx].path);
+        fileIdx++;
+      }
+      productData.images = finalImages;
+
+      // Delete only old images that were removed by the admin
+      if (oldProduct.images && oldProduct.images.length > 0) {
+        const removedImages = oldProduct.images.filter(oldUrl => !finalImages.includes(oldUrl));
+        if (removedImages.length > 0) {
+          const { deleteFromCloudinary } = require('../services/cloudinary');
+          for (const imageUrl of removedImages) {
+            try {
+              await deleteFromCloudinary(imageUrl);
+            } catch (deleteError) {
+              console.error('Error deleting removed image from Cloudinary:', deleteError);
+            }
+          }
+        }
+      }
+    } else if (req.files && req.files.length > 0) {
       productData.images = req.files.map(file => file.path); // Cloudinary URLs
 
-      // Delete old images from Cloudinary if new ones are uploaded
-      const oldProduct = await Product.findById(req.params.id);
-      if (oldProduct && oldProduct.images) {
-        const { cloudinary } = require('../services/cloudinary');
+      // Delete old images from Cloudinary if completely replaced
+      if (oldProduct && oldProduct.images && oldProduct.images.length > 0) {
+        const { deleteFromCloudinary } = require('../services/cloudinary');
         for (const imageUrl of oldProduct.images) {
           try {
-            // Extract public_id from Cloudinary URL
-            const urlParts = imageUrl.split('/');
-            const filename = urlParts[urlParts.length - 1];
-            const publicId = filename.split('.')[0];
-            await cloudinary.uploader.destroy(`rgbasket-products/${publicId}`);
+            await deleteFromCloudinary(imageUrl);
           } catch (deleteError) {
             console.error('Error deleting old image from Cloudinary:', deleteError);
           }
@@ -285,14 +365,10 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
 
     // Delete associated images from Cloudinary
     if (product.images && product.images.length > 0) {
-      const { cloudinary } = require('../services/cloudinary');
+      const { deleteFromCloudinary } = require('../services/cloudinary');
       for (const imageUrl of product.images) {
         try {
-          // Extract public_id from Cloudinary URL
-          const urlParts = imageUrl.split('/');
-          const filename = urlParts[urlParts.length - 1];
-          const publicId = filename.split('.')[0];
-          await cloudinary.uploader.destroy(`rgbasket-products/${publicId}`);
+          await deleteFromCloudinary(imageUrl);
         } catch (deleteError) {
           console.error('Error deleting image from Cloudinary:', deleteError);
         }

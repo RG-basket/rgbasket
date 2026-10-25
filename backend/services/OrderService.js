@@ -7,6 +7,7 @@ const TelegramService = require('./TelegramService');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const CoinService = require('./CoinService');
+const mongoose = require('mongoose');
 
 class OrderService {
   /**
@@ -353,9 +354,23 @@ class OrderService {
 
       TelegramService.sendOrderNotification(savedOrder).catch(() => { });
 
-      User.findByIdAndUpdate(checkUserId, {
-        $set: { "lastCartSnapshot.items": [] }
-      }).catch(() => { });
+      const orderedCategories = [...new Set(validatedItems.map(item => item.category).filter(Boolean))];
+      const userUpdateFields = {
+        "lastCartSnapshot.items": [],
+        lastActive: new Date()
+      };
+      if (orderedCategories.length > 0) {
+        userUpdateFields.lastBrowsedCategory = orderedCategories.join(', ');
+        userUpdateFields.browsingActivity = new Date();
+      }
+
+      const userQuery = mongoose.isValidObjectId(checkUserId)
+        ? { _id: checkUserId }
+        : { googleId: checkUserId };
+
+      User.findOneAndUpdate(userQuery, {
+        $set: userUpdateFields
+      }).catch(e => console.error('[OrderService] Failed to sync intent on order:', e.message));
 
       return this.formatOrderResponse(savedOrder);
 
@@ -422,6 +437,7 @@ class OrderService {
       const validatedItem = {
         productId: product._id,
         name: product.name,
+        category: product.category || '',
         description: Array.isArray(product.description) ? product.description.join(', ') : product.description || '',
         weight: productVariant.weight,
         unit: productVariant.unit,

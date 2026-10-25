@@ -157,8 +157,8 @@ const AdminProductsDark = () => {
             render: (_, product) => (
                 <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg ${tw.bgInput} flex items-center justify-center overflow-hidden border ${tw.borderSecondary}`}>
-                        {product.image ? (
-                            <img src={product.image} alt="" className="w-full h-full object-cover" />
+                        {(product.image || product.images?.[0]) ? (
+                            <img src={product.image || product.images[0]} alt="" className="w-full h-full object-cover" />
                         ) : (
                             <Package className={`w-5 h-5 ${tw.textSecondary}`} />
                         )}
@@ -386,8 +386,8 @@ const AdminProductsDark = () => {
                             return (
                                 <div key={product._id} className={`${tw.bgSecondary} rounded-xl border ${tw.borderPrimary} overflow-hidden hover:border-[#7aa2f7]/50 transition-all group`}>
                                     <div className="relative aspect-square">
-                                        {product.image ? (
-                                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                        {(product.image || product.images?.[0]) ? (
+                                            <img src={product.image || product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                                         ) : (
                                             <div className={`w-full h-full ${tw.bgInput} flex items-center justify-center`}>
                                                 <Package className={`w-12 h-12 ${tw.textSecondary}`} />

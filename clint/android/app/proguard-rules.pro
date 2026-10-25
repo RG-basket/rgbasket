@@ -48,8 +48,26 @@
 -keep class com.google.firebase.** { *; }
 -keep class androidx.credentials.** { *; }
 
+# Firebase Cloud Messaging & Notification Image Handling
+-dontwarn com.google.firebase.messaging.**
+-keep class com.google.firebase.messaging.** { *; }
+-keep class com.google.firebase.iid.** { *; }
+-keep class com.capacitorjs.plugins.pushnotifications.** { *; }
+-keepclassmembers class com.google.firebase.messaging.** { *; }
+-keepclassmembers class com.capacitorjs.plugins.pushnotifications.** { *; }
+
+# ==============================================================================
+# Capacitor Firebase Authentication (Capawesome)
+# ==============================================================================
+-keep class io.capawesome.capacitorjs.plugins.firebase.authentication.** { *; }
+-dontwarn io.capawesome.capacitorjs.plugins.firebase.authentication.**
+# Suppress warnings for optional auth SDKs not used (e.g. Facebook, Twitter)
+-dontwarn com.facebook.**
+-dontwarn com.twitter.**
+
 # ==============================================================================
 # Cordova Compatibility (if used by Capacitor)
 # ==============================================================================
 -dontwarn org.apache.cordova.**
 -keep class org.apache.cordova.** { *; }
+

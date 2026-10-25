@@ -76,16 +76,44 @@ const FirebaseAdminService = {
             const tokenList = Array.from(tokens);
             if (tokenList.length === 0) return null;
 
+            let bannerUrl = (data && (data.imageUrl || data.image)) ? String(data.imageUrl || data.image).trim() : '';
+            if (bannerUrl.startsWith('http://')) {
+                bannerUrl = bannerUrl.replace('http://', 'https://');
+            }
+
+            const sanitizedData = {};
+            if (data && typeof data === 'object') {
+                Object.entries(data).forEach(([k, v]) => {
+                    if (v !== undefined && v !== null) sanitizedData[k] = String(v);
+                });
+            }
+            sanitizedData.click_action = 'FLUTTER_NOTIFICATION_CLICK'; // For legacy mobile
+            if (bannerUrl) {
+                sanitizedData.image = bannerUrl;
+                sanitizedData.imageUrl = bannerUrl;
+            }
+
             const message = {
                 notification: { 
                     title, 
                     body,
-                    ...(data && (data.image || data.imageUrl) ? { image: data.image || data.imageUrl } : {})
+                    ...(bannerUrl ? { imageUrl: bannerUrl } : {})
                 },
-                data: {
-                    ...data,
-                    click_action: 'FLUTTER_NOTIFICATION_CLICK', // For legacy mobile
+                android: {
+                    notification: {
+                        icon: 'ic_stat_notification',
+                        color: '#10B981',
+                        ...(bannerUrl ? { imageUrl: bannerUrl } : {})
+                    }
                 },
+                ...(bannerUrl ? {
+                    webpush: {
+                        notification: {
+                            image: bannerUrl
+                        }
+                    }
+                } : {}),
+                data: sanitizedData,
                 tokens: tokenList
             };
 
@@ -133,6 +161,22 @@ const FirebaseAdminService = {
             const tokenList = Array.from(allTokens);
             if (tokenList.length === 0) return { successCount: 0 };
 
+            let bannerUrl = (data && (data.imageUrl || data.image)) ? String(data.imageUrl || data.image).trim() : '';
+            if (bannerUrl.startsWith('http://')) {
+                bannerUrl = bannerUrl.replace('http://', 'https://');
+            }
+
+            const sanitizedData = {};
+            if (data && typeof data === 'object') {
+                Object.entries(data).forEach(([k, v]) => {
+                    if (v !== undefined && v !== null) sanitizedData[k] = String(v);
+                });
+            }
+            if (bannerUrl) {
+                sanitizedData.image = bannerUrl;
+                sanitizedData.imageUrl = bannerUrl;
+            }
+
             // FCM allows max 500 tokens per multicast message
             const batches = [];
             for (let i = 0; i < tokenList.length; i += 500) {
@@ -145,9 +189,23 @@ const FirebaseAdminService = {
                     notification: { 
                         title, 
                         body,
-                        ...(data && (data.image || data.imageUrl) ? { image: data.image || data.imageUrl } : {})
+                        ...(bannerUrl ? { imageUrl: bannerUrl } : {})
                     },
-                    data: data || {}, // Ensure data is an object
+                    android: {
+                        notification: {
+                            icon: 'ic_stat_notification',
+                            color: '#10B981',
+                            ...(bannerUrl ? { imageUrl: bannerUrl } : {})
+                        }
+                    },
+                    ...(bannerUrl ? {
+                        webpush: {
+                            notification: {
+                                image: bannerUrl
+                            }
+                        }
+                    } : {}),
+                    data: sanitizedData,
                     tokens: batch
                 };
                 if (!admin.apps.length) {

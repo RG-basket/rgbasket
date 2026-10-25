@@ -662,13 +662,10 @@ router.delete('/products/:id', authenticateAdmin, async (req, res) => {
     // Delete associated images from Cloudinary
     if (product.images && product.images.length > 0) {
       try {
-        const { cloudinary } = require('../services/cloudinary');
+        const { deleteFromCloudinary } = require('../services/cloudinary');
         for (const imageUrl of product.images) {
           try {
-            const urlParts = imageUrl.split('/');
-            const filename = urlParts[urlParts.length - 1];
-            const publicId = filename.split('.')[0];
-            await cloudinary.uploader.destroy(`rgbasket-products/${publicId}`);
+            await deleteFromCloudinary(imageUrl);
           } catch (deleteError) {
             console.error('Error deleting image from Cloudinary:', deleteError);
           }
@@ -860,9 +857,10 @@ router.post('/notifications/upload-image', authenticateAdmin, (req, res, next) =
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No image file uploaded' });
     }
+    const uploadedUrl = req.file.path ? (req.file.path.startsWith('http://') ? req.file.path.replace('http://', 'https://') : req.file.path) : '';
     res.json({
       success: true,
-      imageUrl: req.file.path
+      imageUrl: uploadedUrl
     });
   } catch (error) {
     console.error('Notification image upload error:', error);

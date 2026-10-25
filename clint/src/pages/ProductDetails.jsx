@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -67,7 +67,13 @@ const ProductDetails = () => {
   const [product, setProduct] = useState(null);
   const [thumbnail, setThumbnail] = useState('');
   const [productImages, setProductImages] = useState([]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedWeightIndex, setSelectedWeightIndex] = useState(0);
+
+  // Swipe handling refs for mobile
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const isSwipingRef = useRef(false);
 
   // Helper to get numerical weight for sorting/comparison
   const getNumericalWeightValue = (w) => {
@@ -121,6 +127,24 @@ const ProductDetails = () => {
     }
   }, [products, productId, getProductById]);
 
+  // Sync category intent when viewing a product
+  useEffect(() => {
+    if (!product?.category) return;
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return;
+      const userObj = JSON.parse(userStr);
+      const userId = userObj?.id || userObj?._id;
+      if (!userId) return;
+
+      fetch(`${import.meta.env.VITE_API_URL}/api/users/${userId}/intent`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: product.category })
+      }).catch(() => {});
+    } catch (err) {}
+  }, [product?._id]);
+
   // Check availability
   useEffect(() => {
     const checkAvailability = async () => {
@@ -162,11 +186,73 @@ const ProductDetails = () => {
   // Set product images
   useEffect(() => {
     if (product) {
-      const images = product.images || product.image || [];
+      const images = (Array.isArray(product.images) && product.images.length > 0)
+        ? product.images.filter(Boolean)
+        : (typeof product.image === 'string' && product.image ? [product.image] : (Array.isArray(product.image) ? product.image.filter(Boolean) : []));
       setProductImages(images);
+      setActiveImageIndex(0);
       setThumbnail(images[0] || '');
     }
   }, [product]);
+
+  const handleTouchStart = (e) => {
+    if (productImages.length <= 1) return;
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    isSwipingRef.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    if (productImages.length <= 1) return;
+    const deltaX = e.touches[0].clientX - touchStartXRef.current;
+    const deltaY = e.touches[0].clientY - touchStartYRef.current;
+
+    // Only swipe if horizontal movement is greater than vertical movement
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      isSwipingRef.current = true;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (productImages.length <= 1 || !isSwipingRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    if (Math.abs(deltaX) > 30) {
+      if (deltaX < 0) {
+        // Swiped left -> next image
+        setActiveImageIndex(prev => {
+          const next = prev < productImages.length - 1 ? prev + 1 : 0;
+          setThumbnail(productImages[next]);
+          return next;
+        });
+      } else {
+        // Swiped right -> prev image
+        setActiveImageIndex(prev => {
+          const prevIdx = prev > 0 ? prev - 1 : productImages.length - 1;
+          setThumbnail(productImages[prevIdx]);
+          return prevIdx;
+        });
+      }
+    }
+    isSwipingRef.current = false;
+  };
+
+  const handlePrevImage = () => {
+    if (productImages.length <= 1) return;
+    setActiveImageIndex(prev => {
+      const prevIdx = prev > 0 ? prev - 1 : productImages.length - 1;
+      setThumbnail(productImages[prevIdx]);
+      return prevIdx;
+    });
+  };
+
+  const handleNextImage = () => {
+    if (productImages.length <= 1) return;
+    setActiveImageIndex(prev => {
+      const next = prev < productImages.length - 1 ? prev + 1 : 0;
+      setThumbnail(productImages[next]);
+      return next;
+    });
+  };
 
   // Inject Structured Data (JSON-LD) for Google Shopping
   useEffect(() => {
@@ -426,9 +512,13 @@ const ProductDetails = () => {
                     key={index}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setThumbnail(image)}
-                    className={`border-2 rounded-lg overflow-hidden cursor-pointer w-16 h-16 md:w-20 md:h-20 ${thumbnail === image ? 'border-green-500' : 'border-gray-300'
-                      }`}
+                    onClick={() => {
+                      setActiveImageIndex(index);
+                      setThumbnail(image);
+                    }}
+                    className={`border-2 rounded-lg overflow-hidden cursor-pointer w-16 h-16 md:w-20 md:h-20 transition-all ${
+                      activeImageIndex === index ? 'border-green-500 ring-2 ring-green-100' : 'border-gray-200 hover:border-gray-300'
+                    }`}
                   >
                     <img
                       src={image}
@@ -445,9 +535,14 @@ const ProductDetails = () => {
               variants={itemVariants}
               className="flex-1 order-1 md:order-2"
             >
-              <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white relative">
+              <div
+                className="w-full aspect-square max-w-[500px] mx-auto border-2 border-gray-200 rounded-2xl overflow-hidden bg-white relative select-none touch-pan-y shadow-xs group"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
                 {/* Badges */}
-                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-none">
                   {!isStockAvailable && (
                     <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium shadow-sm">
                       Out of Stock
@@ -460,11 +555,49 @@ const ProductDetails = () => {
                   )}
                 </div>
 
-                <img
-                  src={thumbnail || 'https://via.placeholder.com/400x400?text=Product'}
-                  alt={product.name}
-                  className={`w-full h-80 sm:h-96 object-contain p-4 transition-opacity duration-300 ${!isAvailable ? 'opacity-75 grayscale-[0.5]' : ''}`}
-                />
+                {/* Sliding Image Track */}
+                <div
+                  className="flex w-full h-full transition-transform duration-300 ease-out"
+                  style={{ transform: `translateX(-${activeImageIndex * 100}%)` }}
+                >
+                  {productImages.length > 0 ? (
+                    productImages.map((image, index) => (
+                      <div key={index} className="w-full h-full shrink-0 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={image}
+                          alt={`${product.name} ${index + 1}`}
+                          className={`w-full h-full object-cover transition-opacity duration-300 pointer-events-none ${
+                            !isAvailable ? 'opacity-75 grayscale-[0.5]' : ''
+                          }`}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="w-full h-full shrink-0 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={thumbnail || 'https://via.placeholder.com/400x400?text=Product'}
+                        alt={product.name}
+                        className={`w-full h-full object-cover ${!isAvailable ? 'opacity-75 grayscale-[0.5]' : ''}`}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Dot Indicators */}
+                {productImages.length > 1 && (
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center gap-1.5 z-10 pointer-events-none">
+                    {productImages.map((_, dotIdx) => (
+                      <span
+                        key={dotIdx}
+                        className={`transition-all duration-300 rounded-full shadow-xs ${
+                          dotIdx === activeImageIndex
+                            ? 'w-4 h-1.5 bg-green-600'
+                            : 'w-1.5 h-1.5 bg-white/80 backdrop-blur-xs shadow-xs'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -476,21 +609,6 @@ const ProductDetails = () => {
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">{product.name}</h1>
               <p className="text-gray-500 mt-1">{product.category}</p>
-
-              {/* Rating */}
-              <div className="flex items-center gap-1 mt-2">
-                {Array(5)
-                  .fill("")
-                  .map((_, i) => (
-                    <img
-                      key={i}
-                      src={i < 4 ? assets.star_icon : assets.star_dull_icon}
-                      alt="rating"
-                      className="w-5 h-5"
-                    />
-                  ))}
-                <span className="text-gray-600 ml-2">(4.0)</span>
-              </div>
             </div>
 
             {/* Weight Selector */}

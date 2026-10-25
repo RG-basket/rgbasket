@@ -39,15 +39,15 @@ const BestSeller = () => {
         {/* Scrollable product row */}
         <div
           ref={scrollContainerRef}
-          className="flex overflow-x-auto px-5 pb-6 pt-2 gap-4 sm:gap-6 hide-scrollbar scroll-smooth"
+          className="flex overflow-x-auto px-3.5 sm:px-5 pb-4 sm:pb-6 pt-1 gap-2.5 sm:gap-5 hide-scrollbar scroll-smooth"
         >
           {inStockProducts.length > 0 ? (
             inStockProducts.map((product) => (
               <MemoizedProductCard 
-                key={product._id} 
+                key={product._id}
                 product={product} 
-                hideIfUnavailable={true}
-                className="flex-none w-40 sm:w-48 shadow-sm hover:shadow-md transition-shadow duration-200 rounded-2xl bg-white"
+                hideIfUnavailable={false}
+                className="flex-none w-32 sm:w-44 shrink-0 shadow-xs hover:shadow-md transition-shadow duration-200 rounded-2xl bg-white"
               />
             ))
           ) : (

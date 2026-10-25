@@ -91,6 +91,22 @@ const CategoryStrip = () => {
     }
   }, [location]);
 
+  const syncCategoryIntent = (categoryName) => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+      const userId = user?.id || user?._id;
+      if (!userId) return;
+
+      fetch(`${import.meta.env.VITE_API_URL}/api/users/${userId}/intent`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: categoryName })
+      }).catch(() => {});
+    } catch (err) {}
+  };
+
   return (
     <div className="w-full border-b border-gray-100/50 bg-white/70 flex justify-center sticky top-[102px] md:top-[64px] z-30 backdrop-blur-xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transform-gpu" style={{ backfaceVisibility: 'hidden' }}>
       <div
@@ -100,6 +116,7 @@ const CategoryStrip = () => {
         {/* All button */}
         <button
           onClick={() => {
+            syncCategoryIntent('All Products');
             navigate(`/products/all`);
             scrollTo(0, 0);
           }}
@@ -123,6 +140,7 @@ const CategoryStrip = () => {
             <button
               key={item.slug}
               onClick={() => {
+                syncCategoryIntent(item.name);
                 navigate(`/products/${item.slug}`);
                 scrollTo(0, 0);
               }}

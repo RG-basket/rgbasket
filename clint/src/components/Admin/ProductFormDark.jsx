@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Upload, Plus, Trash2, ArrowLeft, Package, DollarSign, Layers, Image as ImageIcon, Settings, Info, Sparkles } from 'lucide-react';
+import { X, Save, Upload, Plus, Trash2, ArrowLeft, Package, DollarSign, Layers, Image as ImageIcon, Settings, Info, Sparkles, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayoutDark from './AdminLayoutDark';
@@ -30,11 +30,12 @@ const ProductFormDark = () => {
         isCustomizable: false,
         isSpecialRequest: false,
         specialRequestInfo: '',
-        customizationCharges: []
+        customizationCharges: [],
+        isFullCoverImage: false
     });
 
-    const [images, setImages] = useState([]);
-    const [imagePreviews, setImagePreviews] = useState([]);
+    // Unified image items: { id, type: 'existing' | 'new', url?: string, file?: File, preview: string }
+    const [imageList, setImageList] = useState([]);
 
     const units = ['kg', 'g', 'ml', 'l', 'piece', 'pack', 'dozen', 'bundle'];
 
@@ -92,9 +93,21 @@ const ProductFormDark = () => {
                     isCustomizable: product.isCustomizable || false,
                     isSpecialRequest: product.isSpecialRequest || false,
                     specialRequestInfo: product.specialRequestInfo || '',
-                    customizationCharges: product.customizationCharges || []
+                    customizationCharges: product.customizationCharges || [],
+                    isFullCoverImage: Boolean(product.isFullCoverImage)
                 });
-                setImagePreviews(product.images || []);
+
+                const existingUrls = Array.isArray(product.images) && product.images.length > 0
+                    ? product.images.filter(Boolean)
+                    : (typeof product.image === 'string' && product.image ? [product.image] : (Array.isArray(product.image) ? product.image.filter(Boolean) : []));
+
+                const existing = existingUrls.map((url, idx) => ({
+                    id: `existing_${idx}_${url}`,
+                    type: 'existing',
+                    url,
+                    preview: url
+                }));
+                setImageList(existing);
             }
         } catch (error) {
             console.error('Error fetching product:', error);
@@ -157,23 +170,40 @@ const ProductFormDark = () => {
 
     const handleImageUpload = (e) => {
         const files = Array.from(e.target.files);
-        if (files.length + images.length > 5) {
-            toast.error('Maximum 5 images allowed');
+        if (!files.length) return;
+        if (imageList.length + files.length > 5) {
+            toast.error(`Maximum 5 images allowed. You can only add ${Math.max(0, 5 - imageList.length)} more.`);
             return;
         }
 
-        const newPreviews = files.map(file => URL.createObjectURL(file));
-        setImagePreviews(prev => [...prev, ...newPreviews]);
-        setImages(prev => [...prev, ...files]);
+        const newItems = files.map((file, i) => ({
+            id: `new_${Date.now()}_${i}_${Math.random()}`,
+            type: 'new',
+            file,
+            preview: URL.createObjectURL(file)
+        }));
+        setImageList(prev => [...prev, ...newItems]);
+        e.target.value = '';
     };
 
     const removeImage = (index) => {
-        setImagePreviews(prev => prev.filter((_, i) => i !== index));
-        const existingCount = imagePreviews.length - images.length;
-        if (index >= existingCount) {
-            const fileIndex = index - existingCount;
-            setImages(prev => prev.filter((_, i) => i !== fileIndex));
-        }
+        setImageList(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const moveImage = (fromIndex, toIndex) => {
+        if (toIndex < 0 || toIndex >= imageList.length) return;
+        setImageList(prev => {
+            const updated = [...prev];
+            const [moved] = updated.splice(fromIndex, 1);
+            updated.splice(toIndex, 0, moved);
+            return updated;
+        });
+    };
+
+    const setAsPrimary = (index) => {
+        if (index === 0) return;
+        moveImage(index, 0);
+        toast.success('Set as 1st cover image!');
     };
 
     const handleSubmit = async (e) => {
@@ -184,6 +214,12 @@ const ProductFormDark = () => {
             const token = localStorage.getItem('adminToken');
             if (!token) {
                 toast.error('Please login as admin first');
+                return;
+            }
+
+            if (imageList.length === 0) {
+                toast.error('Please upload at least one product image');
+                setLoading(false);
                 return;
             }
 
@@ -201,6 +237,7 @@ const ProductFormDark = () => {
             formDataToSend.append('isCustomizable', formData.isCustomizable);
             formDataToSend.append('isSpecialRequest', formData.isSpecialRequest);
             formDataToSend.append('specialRequestInfo', formData.specialRequestInfo || '');
+            formDataToSend.append('isFullCoverImage', Boolean(formData.isFullCoverImage));
 
             // AUTOMATICALLY derive customization rules from variants if enabled
             let cleanedCharges = [];
@@ -223,8 +260,22 @@ const ProductFormDark = () => {
                 formDataToSend.append('availableSlots', slot);
             });
 
-            images.forEach(image => {
-                formDataToSend.append('images', image);
+            // Build ordered image descriptor array
+            const imagesOrder = [];
+            const newFiles = [];
+            imageList.forEach(item => {
+                if (item.type === 'existing') {
+                    imagesOrder.push({ type: 'existing', url: item.url });
+                } else if (item.type === 'new' && item.file) {
+                    imagesOrder.push({ type: 'new' });
+                    newFiles.push(item.file);
+                }
+            });
+
+            // Append imagesOrder before files so multipart parsers receive it early
+            formDataToSend.append('imagesOrder', JSON.stringify(imagesOrder));
+            newFiles.forEach(file => {
+                formDataToSend.append('images', file);
             });
 
             const url = id
@@ -574,37 +625,130 @@ const ProductFormDark = () => {
 
                     {/* Images */}
                     <div className={`${tw.bgSecondary} p-6 rounded-xl border ${tw.borderPrimary} space-y-6`}>
-                        <h2 className={`text-lg font-bold ${tw.textPrimary} flex items-center gap-2`}>
-                            <ImageIcon className="w-5 h-5 text-[#e0af68]" /> Product Images
-                        </h2>
-                        <div className={`border-2 border-dashed ${tw.borderPrimary} rounded-xl p-8 text-center hover:border-[#7aa2f7] transition-colors group`}>
-                            <input
-                                type="file"
-                                multiple
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                                id="image-upload"
-                            />
-                            <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center">
-                                <Upload className={`w-10 h-10 ${tw.textSecondary} mb-3 group-hover:text-[#7aa2f7] transition-colors`} />
-                                <p className={`font-medium ${tw.textPrimary}`}>Click to upload images</p>
-                                <p className={`text-xs ${tw.textSecondary} mt-1`}>Max 5 images (PNG, JPG)</p>
-                            </label>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/5">
+                            <div>
+                                <h2 className={`text-lg font-bold ${tw.textPrimary} flex items-center gap-2`}>
+                                    <ImageIcon className="w-5 h-5 text-[#e0af68]" /> Product Images & Display Order
+                                </h2>
+                                <p className={`text-xs ${tw.textSecondary} mt-0.5`}>
+                                    The <span className="text-amber-400 font-bold">1st image</span> is the main cover photo shown on product cards. Use arrows to change sequence.
+                                </p>
+                            </div>
+                            <span className="text-xs font-bold px-3 py-1 rounded-lg bg-[#1a1b26] text-[#7aa2f7] border border-[#414868] self-start sm:self-auto">
+                                {imageList.length} / 5 Images
+                            </span>
                         </div>
 
-                        {imagePreviews.length > 0 && (
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                {imagePreviews.map((preview, index) => (
-                                    <div key={index} className="relative group">
-                                        <img src={preview} alt={`Preview ${index}`} className="w-full h-24 object-cover rounded-lg border border-[#414868]" />
-                                        <button
-                                            type="button"
-                                            onClick={() => removeImage(index)}
-                                            className="absolute -top-2 -right-2 bg-[#f7768e] text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
+                        {/* Edge-to-edge Blinkit Image Style Checkbox */}
+                        <div className="p-4 rounded-xl bg-[#16161e] border border-white/10 flex items-start sm:items-center justify-between gap-4">
+                            <div className="space-y-0.5">
+                                <label htmlFor="isFullCoverImage" className={`text-sm font-bold ${tw.textPrimary} flex items-center gap-2 cursor-pointer`}>
+                                    <span>Edge-to-Edge Full Cover Image (Blinkit Style)</span>
+                                </label>
+                                <p className={`text-xs ${tw.textSecondary}`}>
+                                    Check this box if the photo has a full background (like the Potato image) and should cover the card edge-to-edge. Leave unchecked for cutouts and older images (like Onion PNGs) so they stay nicely contained and never get chopped.
+                                </p>
+                            </div>
+                            <input
+                                id="isFullCoverImage"
+                                type="checkbox"
+                                checked={Boolean(formData.isFullCoverImage)}
+                                onChange={(e) => handleInputChange('isFullCoverImage', e.target.checked)}
+                                className="w-5 h-5 rounded border-gray-600 bg-[#1a1b26] text-[#7aa2f7] focus:ring-[#7aa2f7] cursor-pointer shrink-0 mt-0.5 sm:mt-0"
+                            />
+                        </div>
+
+                        {imageList.length < 5 && (
+                            <div className={`border-2 border-dashed ${tw.borderPrimary} rounded-xl p-6 text-center hover:border-[#7aa2f7] transition-all group bg-[#16161e]/40`}>
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    id="image-upload"
+                                />
+                                <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center">
+                                    <Upload className={`w-9 h-9 ${tw.textSecondary} mb-2 group-hover:text-[#7aa2f7] transition-colors`} />
+                                    <p className={`text-sm font-semibold ${tw.textPrimary}`}>Click to select product images</p>
+                                    <p className={`text-xs ${tw.textSecondary} mt-1`}>Upload up to 5 images (PNG, JPG, WebP) with clean or transparent background</p>
+                                </label>
+                            </div>
+                        )}
+
+                        {imageList.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                {imageList.map((item, index) => (
+                                    <div
+                                        key={item.id}
+                                        className={`relative rounded-xl p-2.5 border transition-all flex flex-col justify-between ${index === 0
+                                                ? 'bg-gradient-to-b from-amber-500/10 via-[#1a1b26] to-[#1a1b26] border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-amber-500/20'
+                                                : `${tw.bgInput} ${tw.borderPrimary}`
+                                            }`}
+                                    >
+                                        {/* Header / Badges */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            {index === 0 ? (
+                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-400 to-orange-500 text-black shadow flex items-center gap-1">
+                                                    <Star className="w-3 h-3 fill-black text-black" /> 1st (Cover)
+                                                </span>
+                                            ) : (
+                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#1a1b26] text-[#7982a9] border border-[#414868]">
+                                                    #{index + 1} Image
+                                                </span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(index)}
+                                                title="Delete this image"
+                                                className="p-1 rounded-md bg-[#f7768e]/15 hover:bg-[#f7768e] text-[#f7768e] hover:text-white transition-all"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+
+                                        {/* Image Box */}
+                                        <div className="w-full h-32 rounded-lg overflow-hidden bg-white/5 border border-white/5 flex items-center justify-center p-2 mb-2.5">
+                                            <img
+                                                src={item.preview}
+                                                alt={`Preview ${index + 1}`}
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
+
+                                        {/* Reorder Controls */}
+                                        <div className="space-y-1.5 pt-1.5 border-t border-white/5">
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    disabled={index === 0}
+                                                    onClick={() => moveImage(index, index - 1)}
+                                                    title="Move left / earlier in sequence"
+                                                    className="flex-1 py-1 px-1.5 rounded-lg bg-[#1a1b26] hover:bg-[#24283b] disabled:opacity-30 disabled:cursor-not-allowed text-[#c0caf5] text-xs font-bold border border-[#414868] flex items-center justify-center gap-1 transition-all"
+                                                >
+                                                    <ChevronLeft className="w-3.5 h-3.5" /> Left
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={index === imageList.length - 1}
+                                                    onClick={() => moveImage(index, index + 1)}
+                                                    title="Move right / later in sequence"
+                                                    className="flex-1 py-1 px-1.5 rounded-lg bg-[#1a1b26] hover:bg-[#24283b] disabled:opacity-30 disabled:cursor-not-allowed text-[#c0caf5] text-xs font-bold border border-[#414868] flex items-center justify-center gap-1 transition-all"
+                                                >
+                                                    Right <ChevronRight className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+
+                                            {index !== 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAsPrimary(index)}
+                                                    className="w-full py-1 px-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center gap-1 transition-all"
+                                                >
+                                                    <Star className="w-3 h-3" /> Make 1st (Cover)
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

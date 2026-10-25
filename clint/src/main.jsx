@@ -48,6 +48,9 @@ window.fetch = async function (url, options = {}) {
         // Flag to prevent infinite retry loops
         options._skipRefresh = true;
         return originalFetch(url, options);
+      } else if (localStorage.getItem('isLoggedIn') === 'true') {
+        console.warn('[Fetch Interceptor] Silent refresh failed. Dispatching session-expired event.');
+        window.dispatchEvent(new CustomEvent('session-expired'));
       }
     }
     return response;
@@ -90,6 +93,9 @@ axios.interceptors.response.use(
         // Update header and retry
         originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return axios(originalRequest);
+      } else if (localStorage.getItem('isLoggedIn') === 'true') {
+        console.warn('[Axios Interceptor] Silent refresh failed. Dispatching session-expired event.');
+        window.dispatchEvent(new CustomEvent('session-expired'));
       }
     }
     return Promise.reject(error);

@@ -6,21 +6,34 @@ import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { getBrowserFingerprint } from './fingerprint';
 
 // Helper to wait for Firebase Auth to initialize in the browser
-const getFirebaseUserWeb = () => {
+const getFirebaseUserWeb = async () => {
+  if (auth.currentUser) return auth.currentUser;
+
+  try {
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady();
+      if (auth.currentUser) return auth.currentUser;
+    }
+  } catch (e) {
+    console.warn('[SilentRefresh] authStateReady error:', e);
+  }
+
+  // Fallback to onAuthStateChanged with timeout to handle slower storage loads
   return new Promise((resolve) => {
     if (auth.currentUser) {
       resolve(auth.currentUser);
       return;
     }
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      unsubscribe();
-      resolve(user);
+      if (user) {
+        unsubscribe();
+        resolve(user);
+      }
     });
-    // Fallback timeout in case auth doesn't initialize
     setTimeout(() => {
       unsubscribe();
-      resolve(null);
-    }, 4000);
+      resolve(auth.currentUser || null);
+    }, 3000);
   });
 };
 

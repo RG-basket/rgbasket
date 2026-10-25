@@ -212,6 +212,15 @@ export const AppContextProvider = ({ children }) => {
     };
     window.addEventListener('session-refreshed', handleSessionRefreshed);
 
+    // Handle dead/expired session when silent refresh fails completely
+    const handleSessionExpired = () => {
+      console.warn('🛑 [AppContext] Session expired and cannot be refreshed silently. Resetting auth state.');
+      toast.error('Your session expired. Please sign in again.');
+      logout();
+      setShowUserLogin(true);
+    };
+    window.addEventListener('session-expired', handleSessionExpired);
+
     // Poll maintenance and surge status every 1 minute
     const interval = setInterval(() => {
       fetchMaintenanceMode();
@@ -221,6 +230,7 @@ export const AppContextProvider = ({ children }) => {
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('session-refreshed', handleSessionRefreshed);
+      window.removeEventListener('session-expired', handleSessionExpired);
       clearInterval(interval);
     };
   }, []);
@@ -484,6 +494,15 @@ export const AppContextProvider = ({ children }) => {
 
         // Verify fresh ban status from server in background
         checkUserStatus(userData.id || userData._id || userData.googleId);
+
+        // Proactive token check: if logged in but token is missing, attempt silent refresh immediately
+        const userToken = localStorage.getItem('userToken');
+        const adminToken = localStorage.getItem('adminToken');
+        if (!userToken && !adminToken) {
+          import('../utils/authHelper').then(({ attemptSilentRefresh }) => {
+            attemptSilentRefresh();
+          }).catch(() => { });
+        }
       }
     } catch (error) {
       console.error('Error loading auth state:', error);

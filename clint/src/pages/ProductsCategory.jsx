@@ -52,6 +52,36 @@ const ProductsCategory = () => {
     }
   }, [category]);
 
+  // Sync user browsing intent to backend
+  useEffect(() => {
+    if (!category) return;
+    if (category !== 'all' && !searchCategory && loading) return;
+
+    const syncCategoryIntent = async () => {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) return;
+        const user = JSON.parse(userStr);
+        const userId = user?.id || user?._id;
+        if (!userId) return;
+
+        const categoryName = category === 'all'
+          ? 'All Products'
+          : (searchCategory?.name || category);
+
+        await fetch(`${API_BASE}/api/users/${userId}/intent`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: categoryName })
+        });
+      } catch (err) {
+        // Silent error
+      }
+    };
+
+    syncCategoryIntent();
+  }, [category, searchCategory, loading]);
+
   // Filter products by category slug
   const filteredProducts = products.filter(
     product => product.category?.toLowerCase() === category?.toLowerCase()

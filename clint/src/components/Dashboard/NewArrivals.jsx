@@ -69,6 +69,22 @@ const NewArrivals = () => {
     fetchNewArrivals();
   }, [contextProducts]);
 
+  // Ensure enough items exist for smooth continuous infinite scrolling without gaps
+  const getLoopingProducts = (items) => {
+    if (!items || items.length === 0) return [];
+    let list = [...items];
+    while (list.length < 8) {
+      list = list.concat(items);
+    }
+    return list.concat(list);
+  };
+
+  useEffect(() => {
+    if (bottomRowRef.current && bottomRowRef.current.scrollWidth > 0) {
+      bottomRowRef.current.scrollLeft = bottomRowRef.current.scrollWidth / 2;
+    }
+  }, [displayProducts]);
+
   // Auto-shuffle products every 2 minutes
   useEffect(() => {
     shuffleIntervalRef.current = setInterval(() => {
@@ -226,22 +242,22 @@ const NewArrivals = () => {
         {/* Top Row */}
         <div
           ref={topRowRef}
-          className="flex gap-2.5 mb-3 overflow-x-scroll scrollbar-none pb-1"
+          className="flex gap-2 sm:gap-2.5 mb-2 sm:mb-3 overflow-x-scroll scrollbar-none pb-1"
           style={{ cursor: 'grab', scrollBehavior: 'smooth' }}
           onMouseDown={handleUserInteraction}
           onTouchStart={handleUserInteraction}
           onWheel={handleUserInteraction}
         >
-          {displayProducts.row1.concat(displayProducts.row1).map((product, index) => (
+          {getLoopingProducts(displayProducts.row1).map((product, index) => (
             <MemoizedProductCard
               key={`top-${product._id}-${index}`}
               product={product}
               showBadge={true}
               badgeText="New"
               badgeColor="emerald"
-              hideIfUnavailable={true}
+              hideIfUnavailable={false}
               onClick={handleUserInteraction}
-              className={`flex-shrink-0 w-[140px] sm:w-[145px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} hover:scale-105`}
+              className={`flex-none w-32 sm:w-36 shrink-0 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} hover:scale-105`}
             />
           ))}
         </div>
@@ -249,22 +265,22 @@ const NewArrivals = () => {
         {/* Bottom Row */}
         <div
           ref={bottomRowRef}
-          className="flex gap-2.5 overflow-x-scroll scrollbar-none pb-1"
+          className="flex gap-2 sm:gap-2.5 overflow-x-scroll scrollbar-none pb-1"
           style={{ cursor: 'grab', scrollBehavior: 'smooth' }}
           onMouseDown={handleUserInteraction}
           onTouchStart={handleUserInteraction}
           onWheel={handleUserInteraction}
         >
-          {displayProducts.row2.concat(displayProducts.row2).map((product, index) => (
-            <ProductCard
+          {getLoopingProducts(displayProducts.row2).map((product, index) => (
+            <MemoizedProductCard
               key={`bottom-${product._id}-${index}`}
               product={product}
               showBadge={true}
               badgeText="Fresh"
               badgeColor="lime"
-              hideIfUnavailable={true}
+              hideIfUnavailable={false}
               onClick={handleUserInteraction}
-              className={`flex-shrink-0 w-[140px] sm:w-[145px] transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} hover:scale-105`}
+              className={`flex-none w-32 sm:w-36 shrink-0 transform transition-all duration-300 ease-in-out ${isShuffling ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} hover:scale-105`}
             />
           ))}
         </div>

@@ -182,7 +182,7 @@ const PushNotificationManager = () => {
             console.log('Native push received:', notification);
             const title = notification.title || 'RG Basket';
             const body = notification.body || '';
-            const imageUrl = notification.data?.image || notification.data?.imageUrl || null;
+            const imageUrl = notification.data?.imageUrl || notification.data?.image || notification.image || null;
             const path = notification.data?.path || '/';
             showBeautifulToast(title, body, imageUrl, path);
         });

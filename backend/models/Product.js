@@ -145,6 +145,12 @@ const ProductSchema = new mongoose.Schema({
     default: false
   },
 
+  // Image Display Style (Blinkit Edge-to-Edge Cover vs Standard Contained)
+  isFullCoverImage: {
+    type: Boolean,
+    default: false
+  },
+
   // Slot Availability Configuration
   requiresSlotSelection: {
     type: Boolean,
@@ -209,7 +215,14 @@ const ProductSchema = new mongoose.Schema({
     }
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Provide backwards-compatible singular image accessor
+ProductSchema.virtual('image').get(function () {
+  return this.images && this.images.length > 0 ? this.images[0] : '';
 });
 
 // Clean and normalize description array (avoid nested JSON stringification)
@@ -219,7 +232,7 @@ ProductSchema.pre('save', function (next) {
     for (let i = 0; i < 10; i++) {
       if (Array.isArray(cur)) {
         if (cur.length === 1 && typeof cur[0] === 'string' && (cur[0].trim().startsWith('[') || cur[0].trim().startsWith('"{') || cur[0].trim().startsWith('\"['))) {
-          try { cur = JSON.parse(cur[0]); continue; } catch (e) {}
+          try { cur = JSON.parse(cur[0]); continue; } catch (e) { }
         }
         break;
       } else if (typeof cur === 'string') {
